@@ -38,6 +38,7 @@ spec:
             type: RuntimeDefault
         image: "{{ .Values.compactLogs.image.repository }}:{{ .Values.compactLogs.image.tag }}"
         imagePullPolicy: {{ .Values.compactLogs.image.pullPolicy }}
+        command: ["/app/bin/lakerunner"]
         args: ["compact-logs"]
         env:
           - name: TMPDIR
