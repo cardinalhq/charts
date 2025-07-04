@@ -99,8 +99,8 @@ Common environment variables
 - name: LRDB_PASSWORD
   valueFrom:
     secretKeyRef:
-      name: {{ include "lakerunner.fullname" . }}-postgres
-      key: password
+      name: {{ include "lakerunner.fullname" . }}-{{ .Values.database.secretName }}
+      key: LRDB_PASSWORD
 - name: LRDB_SSLMODE
   value: {{ .Values.database.lrdb.sslMode | quote }}
 - name: STORAGE_PROFILE_FILE

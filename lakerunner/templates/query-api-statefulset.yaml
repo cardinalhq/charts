@@ -64,7 +64,7 @@ spec:
           {{- include "lakerunner.commonEnv" . | nindent 10 }}
         envFrom:
           - secretRef:
-              name: {{ include "lakerunner.fullname" . }}-aws-credentials
+              name: {{ include "lakerunner.fullname" . }}-{{ .Values.aws.secretName }}
         resources:
           {{- toYaml .Values.queryApi.resources | nindent 10 }}
         volumeMounts:

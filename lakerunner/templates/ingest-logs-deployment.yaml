@@ -44,9 +44,11 @@ spec:
           - name: TMPDIR
             value: /scratch
           {{- include "lakerunner.commonEnv" . | nindent 10 }}
+        {{- if .Values.aws.inject }}
         envFrom:
-          - secretRef:
-              name: {{ include "lakerunner.fullname" . }}-aws-credentials
+        - secretRef:
+            name: {{ include "lakerunner.fullname" . }}-{{ .Values.aws.secretName }}
+        {{- end }}
         resources:
           {{- toYaml .Values.ingestLogs.resources | nindent 10 }}
         volumeMounts:

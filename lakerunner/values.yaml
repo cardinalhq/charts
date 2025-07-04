@@ -15,8 +15,43 @@ global:
     name: "lakerunner"
     annotations: {}
 
+# Set the AWS region and credentials for the LakeRunner deployment.
+# By default, the credentials are not created, and expected to be in an existing Kubernetes secret
+# with the keys `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`.
+#
+# This is a limitation in the QueryAPI that we cannot currently pull this in through any other
+# means, as the DuckDB driver requires these to be actual keys.
 aws:
+  # AWS region for the LakeRunner deployment.
+  # Required.
   region: "us-east-2"  # AWS region for the deployment
+
+  # Name of the Kubernetes secret that contains the AWS credentials.
+  # This secret should contain the keys `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`.
+  # If `aws.create` is set to true, this secret will be created by the Helm chart.
+  # If `aws.create` is set to false, this secret must already exist in the Kubernetes cluster.
+  # The secret will have the format `<release-name>-aws-credentials`.
+  # If you want to use a different name, you can set it here.
+  # Required.
+  secretName: "aws-credentials"
+
+  # Whether to create the AWS credentials secret. If set to true, the secret will be created
+  # with the AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY from the values below.
+  # If set to false, the secret must already exist in the Kubernetes cluster.
+  create: false
+
+  # Only the data query pods need to have the actual credentials injected if
+  # credentials are provivided in some other manner, such as using EKS's
+  # IAM roles for service accounts (IRSA).  If you are using IRSA, set this to false.
+  # Note that regardless of this setting, the credentials will be injected into the
+  # data-query pods, and so the secret key and key ID must be set.
+  inject: true
+
+  # AWS credentials. If `aws.create` is set to true, these will be created in the
+  # Kubernetes secret specified by `aws.secretName`. If `aws.create` is false, these
+  # must be set in the Kubernetes secret specified by `aws.secretName`.
+  AWS_SECRET_ACCESS_KEY: ""
+  AWS_ACCESS_KEY_ID: ""
 
 # Storage profile configuration
 # At least one storage profile is required for the LakeRunner to function.
@@ -46,6 +81,8 @@ apiKeys:
 
 # Database configuration
 database:
+  secretName: "pg-credentials"  # Name of the Kubernetes secret containing database credentials
+  create: true  # Whether to create the database credentials secret
   # LRDB (LakeRunner Database) - PostgreSQL
   lrdb:
     # PostgreSQL hostname.  Required.
@@ -268,6 +305,9 @@ queryApi:
       memory: 8gi
 
 # Query Worker configuration
+#
+# We do not specify a number of replicas here, as the QueryAPI will scale the number of workers
+# based on the number of queries being processed.
 queryWorker:
   enabled: true
   image:
