@@ -110,6 +110,14 @@ Common namespace definition
 {{- default .Release.Namespace .Values.global.namespaceOverride -}}
 {{- end -}}
 
+{{- define "lakerunner.annotations" -}}
+{{- $ann := .Values.global.annotations -}}
+{{- if and $ann (gt (len $ann) 0) -}}
+annotations:
+{{ toYaml $ann | indent 2 }}
+{{- end -}}
+{{- end -}}
+
 {{/*
 Return the secret name for the APIKeys.  If we have create true, we will prefix it with the release name.
 */}}

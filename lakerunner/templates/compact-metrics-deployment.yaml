@@ -6,8 +6,7 @@ metadata:
   labels:
     {{- include "lakerunner.labels" . | nindent 4 }}
     app.kubernetes.io/component: compact-metrics
-  annotations:
-    {{- toYaml .Values.global.annotations | nindent 4 }}
+  {{ include "lakerunner.annotations" . | nindent 2 }}
 spec:
   replicas: {{ .Values.compactMetrics.replicas }}
   selector:
@@ -19,6 +18,7 @@ spec:
       labels:
         {{- include "lakerunner.labels" . | nindent 8 }}
         app.kubernetes.io/component: compact-metrics
+      {{- include "lakerunner.annotations" . | nindent 6 }}
     spec:
       serviceAccountName: {{ include "lakerunner.serviceAccountName" . }}
       terminationGracePeriodSeconds: 120

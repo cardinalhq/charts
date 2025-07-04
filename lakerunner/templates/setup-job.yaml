@@ -5,13 +5,13 @@ metadata:
   name: {{ include "lakerunner.fullname" . }}-setup
   labels:
     {{- include "lakerunner.labels" . | nindent 4 }}
-  annotations:
-    {{- toYaml .Values.global.annotations | nindent 4 }}
+  {{ include "lakerunner.annotations" . | nindent 2 }}
 spec:
   template:
     metadata:
       labels:
         {{- include "lakerunner.labels" . | nindent 8 }}
+      {{- include "lakerunner.annotations" . | nindent 6 }}
     spec:
       serviceAccountName: {{ include "lakerunner.serviceAccountName" . }}
       restartPolicy: Never

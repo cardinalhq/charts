@@ -6,6 +6,7 @@ metadata:
   labels:
     {{- include "lakerunner.labels" . | nindent 4 }}
     app.kubernetes.io/component: compact-logs
+  {{ include "lakerunner.annotations" . | nindent 2 }}
 spec:
   scaleTargetRef:
     apiVersion: apps/v1

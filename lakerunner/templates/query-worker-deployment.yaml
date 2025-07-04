@@ -6,8 +6,7 @@ metadata:
   labels:
     {{- include "lakerunner.labels" . | nindent 4 }}
     app.kubernetes.io/component: query-worker
-  annotations:
-    {{- toYaml .Values.global.annotations | nindent 4 }}
+  {{ include "lakerunner.annotations" . | nindent 2 }}
 spec:
   strategy:
     type: RollingUpdate
@@ -23,6 +22,7 @@ spec:
       labels:
         {{- include "lakerunner.labels" . | nindent 8 }}
         app.kubernetes.io/component: query-worker
+      {{- include "lakerunner.annotations" . | nindent 6 }}
     spec:
       serviceAccountName: {{ include "lakerunner.serviceAccountName" . }}
       terminationGracePeriodSeconds: 120

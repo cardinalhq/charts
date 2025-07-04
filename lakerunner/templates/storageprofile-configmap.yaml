@@ -4,6 +4,7 @@ metadata:
   name: {{ include "lakerunner.storageProfilesConfigmapName" . }}
   labels:
     {{- include "lakerunner.labels" . | nindent 4 }}
+  {{ include "lakerunner.annotations" . | nindent 2 }}
 data:
   storage_profiles.yaml: |
 {{ .Values.storageProfiles.yaml | toYaml | indent 6 }}

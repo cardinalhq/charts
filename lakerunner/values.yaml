@@ -5,7 +5,7 @@
 global:
   imagePullSecrets: []
   annotations: {}
-  labels: {}
+  labels: []
   env: []
   nodeSelector: {}
   tolerations: []
