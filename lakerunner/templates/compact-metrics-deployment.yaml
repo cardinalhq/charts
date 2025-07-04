@@ -47,7 +47,7 @@ spec:
         {{- if .Values.aws.inject }}
         envFrom:
         - secretRef:
-            name: {{ include "lakerunner.fullname" . }}-{{ .Values.aws.secretName }}
+            name: {{ include "lakerunner.awsSecretName" . }}
         {{- end }}
         resources:
           {{- toYaml .Values.compactMetrics.resources | nindent 10 }}
@@ -63,7 +63,7 @@ spec:
           sizeLimit: {{ .Values.compactLogs.temporaryStorage.size | quote }}
       - name: storage-profiles
         configMap:
-          name: {{ include "lakerunner.fullname" . }}-storage-profiles
+          name: {{ include "lakerunner.storageProfilesConfigmapName" . }}
       {{- with .Values.global.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

@@ -95,7 +95,7 @@ Common environment variables
 - name: LRDB_PASSWORD
   valueFrom:
     secretKeyRef:
-      name: {{ include "lakerunner.fullname" . }}-{{ .Values.database.secretName }}
+      name: {{ include "lakerunner.databaseSecretName" . }}
       key: LRDB_PASSWORD
 - name: LRDB_SSLMODE
   value: {{ .Values.database.lrdb.sslMode | quote }}
@@ -109,3 +109,47 @@ Common namespace definition
 {{- define "lakerunner.namespace" -}}
 {{- default .Release.Namespace .Values.global.namespaceOverride -}}
 {{- end -}}
+
+{{/*
+Return the secret name for the APIKeys.  If we have create true, we will prefix it with the release name.
+*/}}
+{{- define "lakerunner.apiKeysSecretName" -}}
+{{- if .Values.apiKeys.create }}
+{{- printf "%s-%s" (include "lakerunner.fullname" .) .Values.apiKeys.secretName | trunc 63 | trimSuffix "-" }}
+{{- else }}
+{{- .Values.apiKeys.secretName | trunc 63 | trimSuffix "-" }}
+{{- end }}
+{{- end }}
+
+{{/*
+Return the configmap name for the Storage Profiles.  If we have create true, we will prefix it with the release name.
+*/}}
+{{- define "lakerunner.storageProfilesConfigmapName" -}}
+{{- if .Values.storageProfiles.create }}
+{{- printf "%s-%s" (include "lakerunner.fullname" .) .Values.storageProfiles.configmapName | trunc 63 | trimSuffix "-" }}
+{{- else }}
+{{- .Values.storageProfiles.configmapName | trunc 63 | trimSuffix "-" }}
+{{- end }}
+{{- end }}
+
+{{/*
+Return the secret name for the Database credentials.  If we have create true, we will prefix it with the release name.
+*/}}
+{{- define "lakerunner.databaseSecretName" -}}
+{{- if .Values.database.create }}
+{{- printf "%s-%s" (include "lakerunner.fullname" .) .Values.database.secretName | trunc 63 | trimSuffix "-" }}
+{{- else }}
+{{- .Values.database.secretName | trunc 63 | trimSuffix "-" }}
+{{- end }}
+{{- end }}
+
+{{/*
+Return the secret name for the AWS credentials.  If we have create true, we will prefix it with the release name.
+*/}}
+{{- define "lakerunner.awsSecretName" -}}
+{{- if .Values.aws.create }}
+{{- printf "%s-%s" (include "lakerunner.fullname" .) .Values.aws.secretName | trunc 63 | trimSuffix "-" }}
+{{- else }}
+{{- .Values.aws.secretName | trunc 63 | trimSuffix "-" }}
+{{- end }}
+{{- end }}

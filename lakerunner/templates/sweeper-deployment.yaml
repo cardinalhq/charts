@@ -47,7 +47,7 @@ spec:
         {{- if .Values.aws.inject }}
         envFrom:
         - secretRef:
-            name: {{ include "lakerunner.fullname" . }}-{{ .Values.aws.secretName }}
+            name: {{ include "lakerunner.awsSecretName" . }}
         {{- end }}
         resources:
           {{- toYaml .Values.sweeper.resources | nindent 10 }}
@@ -58,7 +58,7 @@ spec:
       volumes:
       - name: storage-profiles
         configMap:
-          name: {{ include "lakerunner.fullname" . }}-storage-profiles
+          name: {{ include "lakerunner.storageProfilesConfigmapName" . }}
       {{- with .Values.global.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

@@ -39,7 +39,7 @@ spec:
         {{- if .Values.aws.inject }}
         envFrom:
         - secretRef:
-            name: {{ include "lakerunner.fullname" . }}-{{ .Values.aws.secretName }}
+            name: {{ include "lakerunner.awsSecretName" . }}
         {{- end }}
         resources:
           {{- toYaml .Values.setup.resources | nindent 10 }}

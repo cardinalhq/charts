@@ -56,14 +56,12 @@ spec:
             value: aws
           - name: AWS_REGION
             value: {{ .Values.aws.region | quote }}
-          - name: STORAGE_PROFILE_FILE
-            value: /app/config/storage_profiles.yaml
           - name: API_KEYS_FILE
             value: /app/config/apikeys.yaml
           {{- include "lakerunner.commonEnv" . | nindent 10 }}
         envFrom:
           - secretRef:
-              name: {{ include "lakerunner.fullname" . }}-{{ .Values.aws.secretName }}
+              name: {{ include "lakerunner.awsSecretName" . }}
         resources:
           {{- toYaml .Values.queryWorker.resources | nindent 10 }}
         volumeMounts:
@@ -80,7 +78,7 @@ spec:
       volumes:
       - name: storage-profiles
         configMap:
-          name: {{ include "lakerunner.fullname" . }}-storage-profiles
+          name: {{ include "lakerunner.storageProfilesConfigmapName" . }}
       - name: apikeys
         secret:
           secretName: {{ include "lakerunner.fullname" . }}-{{ .Values.apiKeys.secretName }}
