@@ -56,7 +56,7 @@ aws:
 # Storage profile configuration
 # At least one storage profile is required for the LakeRunner to function.
 storageProfiles:
-  yaml: {}
+  yaml: []
     # - organization_id: dddddddd-aaaa-4ff9-ae8f-365873c552f0
     #   instance_num: 1
     #   collector_name: "kubepi"
@@ -73,7 +73,7 @@ storageProfiles:
 apiKeys:
   secretName: "apikeys" # will have the format <release-name>-apikeys once deployed
   create: true
-  yaml: {}
+  yaml: []
     # - organization_id: dddddddd-aaaa-4ff9-ae8f-365873c552f0
     #   keys:
     #     - my-api-key-1

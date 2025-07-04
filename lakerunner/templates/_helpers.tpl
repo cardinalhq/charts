@@ -77,11 +77,7 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 Create the name of the service account to use
 */}}
 {{- define "lakerunner.serviceAccountName" -}}
-{{- if .Values.global.serviceAccount.create }}
-{{- default (include "lakerunner.fullname" .) .Values.global.serviceAccount.name }}
-{{- else }}
-{{- default "default" .Values.global.serviceAccount.name }}
-{{- end }}
+{{ include "lakerunner.name" }}-sa
 {{- end }}
 
 {{/*
