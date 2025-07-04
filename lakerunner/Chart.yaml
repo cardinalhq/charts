@@ -1,0 +1,17 @@
+apiVersion: v2
+name: lakerunner
+description: A Helm chart for LakeRunner - a log and metrics processing platform
+type: application
+version: 0.1.0
+appVersion: "v0.0.4"
+keywords:
+  - lakerunner
+  - logs
+  - metrics
+  - observability
+home: https://github.com/cardinalhq/lakerunner
+sources:
+  - https://github.com/cardinalhq/lakerunner
+maintainers:
+  - name: Cardinal HQ
+    email: support@cardinalhq.com

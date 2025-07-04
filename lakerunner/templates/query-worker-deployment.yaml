@@ -1,0 +1,90 @@
+{{- if .Values.queryWorker.enabled -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "lakerunner.fullname" . }}-query-worker
+  labels:
+    {{- include "lakerunner.labels" . | nindent 4 }}
+    app.kubernetes.io/component: query-worker
+  annotations:
+    {{- toYaml .Values.global.annotations | nindent 4 }}
+spec:
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
+  selector:
+    matchLabels:
+      {{- include "lakerunner.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: query-worker
+  template:
+    metadata:
+      labels:
+        {{- include "lakerunner.labels" . | nindent 8 }}
+        app.kubernetes.io/component: query-worker
+    spec:
+      serviceAccountName: {{ include "lakerunner.serviceAccountName" . }}
+      terminationGracePeriodSeconds: 120
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 2000
+        runAsGroup: 2000
+        fsGroup: 2000
+      {{- include "lakerunner.imagePullSecrets" . | nindent 2 }}
+      containers:
+      - name: query-worker
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop: ["ALL"]
+          seccompProfile:
+            type: RuntimeDefault
+        image: "{{ .Values.queryWorker.image.repository }}:{{ .Values.queryWorker.image.tag }}"
+        imagePullPolicy: {{ .Values.queryWorker.image.pullPolicy }}
+        ports:
+        - containerPort: {{ .Values.queryWorker.service.port }}
+          name: http
+        env:
+          - name: HOME
+            value: "/tmp"
+          - name: QUERY_STACK
+            value: local
+          - name: CARDINALHQ_ENVIRONMENT
+            value: test
+          - name: SPRING_PROFILES_ACTIVE
+            value: aws
+          - name: AWS_REGION
+            value: {{ .Values.aws.region | quote }}
+          {{- include "lakerunner.commonEnv" . | nindent 10 }}
+        envFrom:
+          - secretRef:
+              name: {{ include "lakerunner.fullname" . }}-aws-credentials
+        resources:
+          {{- toYaml .Values.queryWorker.resources | nindent 10 }}
+        volumeMounts:
+        - name: storage-profiles
+          mountPath: /app/config
+          readOnly: true
+        - name: scratch
+          mountPath: /db
+      volumes:
+      - name: storage-profiles
+        configMap:
+          name: {{ include "lakerunner.fullname" . }}-storage-profiles
+      - name: scratch
+        emptyDir:
+          sizeLimit: {{ .Values.queryWorker.temporaryStorage.size | quote }}
+      {{- with .Values.global.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.global.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.global.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}

@@ -1,0 +1,274 @@
+# Default values for lakerunner
+# This is a YAML-formatted file.
+
+# Global settings
+global:
+  imagePullSecrets: []
+  annotations: {}
+  labels: {}
+  env: []
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  serviceAccount:
+    create: true
+    name: "lakerunner"
+    annotations: {}
+
+aws:
+  region: "us-east-2"  # AWS region for the deployment
+
+# Storage profile configuration
+# At least one storage profile is required for the LakeRunner to function.
+storageProfiles:
+  yaml: {}
+    # - organization_id: dddddddd-aaaa-4ff9-ae8f-365873c552f0
+    #   instance_num: 1
+    #   collector_name: "kubepi"
+    #   cloud_provider: "aws"
+    #   region: "us-east-2"
+    #   bucket: "datalake-11ndajkhk"
+    #   use_path_style: true
+
+# Database configuration
+database:
+  # LRDB (LakeRunner Database) - PostgreSQL
+  lrdb:
+    # PostgreSQL hostname.  Required.
+    host: ""
+    # PostgreSQL port.  Default is 5432.  Required.
+    port: 5432
+    # PostgreSQL database name.  Required.
+    name: "lakerunner"
+    # PostgreSQL username.  Required.
+    username: "lakerunner"
+    # PostgreSQL password.  Optional, but recommended.
+    password: ""
+    # SSL mode for PostgreSQL connection.  Default is "require".
+    # Options are "disable", "allow", "prefer", "require", "verify-ca", and "verify-full".
+    # See https://www.postgresql.org/docs/current/libpq-ssl.html#LIBPQ-SSL-SSLMODE-STATEMENTS for more details.
+    sslMode: "require"
+
+# Setup job configuration (runs before all other services)
+# This job is responsible for running database migrations and initial setup tasks.
+setup:
+  enabled: true
+  image:
+    repository: public.ecr.aws/cardinalhq.io/lakerunner
+    tag: "latest"
+    pullPolicy: Always
+  resources:
+    requests:
+      cpu: 1100m
+      memory: 250Mi
+    limits:
+      cpu: 1100m
+      memory: 250Mi
+
+# Ingest Logs configuration
+ingestLogs:
+  enabled: true
+  replicas: 2
+  image:
+    repository: public.ecr.aws/cardinalhq.io/lakerunner
+    tag: "latest"
+    pullPolicy: Always
+  resources:
+    requests:
+      cpu: 500m
+      memory: 200Mi
+    limits:
+      cpu: 1100m
+      memory: 200Mi
+  temporaryStorage:
+    size: "10Gi"  # Ephemeral storage for ingest logs
+  autoscaling:
+    enabled: true
+    minReplicas: 1
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 70
+
+# Ingest Metrics configuration
+ingestMetrics:
+  enabled: true
+  replicas: 2
+  image:
+    repository: public.ecr.aws/cardinalhq.io/lakerunner
+    tag: "latest"
+    pullPolicy: Always
+  resources:
+    requests:
+      cpu: 1100m
+      memory: 500Mi
+    limits:
+      cpu: 1100m
+      memory: 500Mi
+  temporaryStorage:
+    size: "10Gi"  # Ephemeral storage for ingest logs
+  autoscaling:
+    enabled: true
+    minReplicas: 1
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 70
+
+# Compact Logs configuration
+compactLogs:
+  enabled: true
+  replicas: 1
+  image:
+    repository: public.ecr.aws/cardinalhq.io/lakerunner
+    tag: "latest"
+    pullPolicy: Always
+  resources:
+    requests:
+      cpu: 11000m
+      memory: 500Mi
+    limits:
+      cpu: 1100m
+      memory: 500Mi
+  temporaryStorage:
+    size: "5Gi"  # Ephemeral storage for ingest logs
+  autoscaling:
+    enabled: true
+    minReplicas: 1
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 70
+
+# Compact Metrics configuration
+compactMetrics:
+  enabled: true
+  replicas: 1
+  image:
+    repository: public.ecr.aws/cardinalhq.io/lakerunner
+    tag: "latest"
+    pullPolicy: Always
+  resources:
+    requests:
+      cpu: 2100m
+      memory: 1Gi
+    limits:
+      cpu: 2100m
+      memory: 1Gi
+  temporaryStorage:
+    size: "5Gi"  # Ephemeral storage for ingest logs
+  autoscaling:
+    enabled: true
+    minReplicas: 1
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 70
+
+# Rollup Metrics configuration
+rollupMetrics:
+  enabled: true
+  replicas: 1
+  image:
+    repository: public.ecr.aws/cardinalhq.io/lakerunner
+    tag: "latest"
+    pullPolicy: Always
+  resources:
+    requests:
+      cpu: 1100m
+      memory: 1Gi
+    limits:
+      cpu: 1100m
+      memory: 1Gi
+  temporaryStorage:
+    size: "10Gi"  # Ephemeral storage for ingest logs
+  autoscaling:
+    enabled: true
+    minReplicas: 1
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 70
+
+# Sweeper configuration
+sweeper:
+  enabled: true
+  replicas: 1
+  image:
+    repository: public.ecr.aws/cardinalhq.io/lakerunner
+    tag: "latest"
+    pullPolicy: Always
+  resources:
+    requests:
+      cpu: 100m
+      memory: 80Mi
+    limits:
+      cpu: 250m
+      memory: 80Mi
+
+# PubSub configuration
+pubsub:
+  HTTP:
+    enabled: false
+    replicas: 1
+    service:
+      type: ClusterIP
+      port: 8080
+    image:
+      repository: public.ecr.aws/cardinalhq.io/lakerunner
+      tag: "latest"
+      pullPolicy: Always
+    resources:
+      requests:
+        cpu: 100m
+        memory: 200Mi
+      limits:
+        cpu: 200m
+        memory: 200Mi
+  SQS:
+    enabled: true
+    replicas: 1
+    queueURL: "https://sqs.us-east-2.amazonaws.com/123456789012/my-queue"
+    region: "us-east-2" # should match the region of the SQS queue
+    roleARN: ""
+    image:
+      repository: public.ecr.aws/cardinalhq.io/lakerunner
+      tag: "latest"
+      pullPolicy: Always
+    resources:
+      requests:
+        cpu: 100m
+        memory: 200Mi
+      limits:
+        cpu: 200m
+        memory: 200Mi
+
+# Query API configuration
+queryApi:
+  enabled: true
+  replicas: 1
+  minWorkers: 2
+  maxWorkers: 4
+  service:
+    type: ClusterIP
+  image:
+    repository: public.ecr.aws/cardinalhq.io/lakerunner/query-api
+    tag: "latest"
+    pullPolicy: Always
+  resources:
+    requests:
+      cpu: 2000m
+      memory: 8Gi
+    limits:
+      cpu: 2000m
+      memory: 8gi
+
+# Query Worker configuration
+queryWorker:
+  enabled: true
+  image:
+    repository: public.ecr.aws/cardinalhq.io/lakerunner/query-worker
+    tag: "latest"
+    pullPolicy: Always
+  resources:
+    requests:
+      cpu: 3500m
+      memory: 12Gi
+    limits:
+      cpu: 3500m
+      memory: 12Gi
+  service:
+    type: ClusterIP
+    port: 8080
+  temporaryStorage:
+    size: "10Gi"  # Ephemeral storage for ingest logs

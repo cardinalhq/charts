@@ -1,0 +1,76 @@
+{{- if .Values.compactLogs.enabled -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "lakerunner.fullname" . }}-compact-logs
+  labels:
+    {{- include "lakerunner.labels" . | nindent 4 }}
+    app.kubernetes.io/component: compact-logs
+  annotations:
+    {{- toYaml .Values.global.annotations | nindent 4 }}
+spec:
+  replicas: {{ .Values.compactLogs.replicas }}
+  selector:
+    matchLabels:
+      {{- include "lakerunner.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: compact-logs
+  template:
+    metadata:
+      labels:
+        {{- include "lakerunner.labels" . | nindent 8 }}
+        app.kubernetes.io/component: compact-logs
+    spec:
+      serviceAccountName: {{ include "lakerunner.serviceAccountName" . }}
+      terminationGracePeriodSeconds: 120
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 2000
+        runAsGroup: 2000
+        fsGroup: 2000
+      {{- include "lakerunner.imagePullSecrets" . | nindent 2 }}
+      containers:
+      - name: compact-logs
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop: ["ALL"]
+          seccompProfile:
+            type: RuntimeDefault
+        image: "{{ .Values.compactLogs.image.repository }}:{{ .Values.compactLogs.image.tag }}"
+        imagePullPolicy: {{ .Values.compactLogs.image.pullPolicy }}
+        args: ["compact-logs"]
+        env:
+          - name: TMPDIR
+            value: /scratch
+          {{- include "lakerunner.commonEnv" . | nindent 10 }}
+        envFrom:
+          - secretRef:
+              name: {{ include "lakerunner.fullname" . }}-aws-credentials
+        resources:
+          {{- toYaml .Values.compactLogs.resources | nindent 10 }}
+        volumeMounts:
+        - name: storage-profiles
+          mountPath: /app/config
+          readOnly: true
+        - name: scratch
+          mountPath: /scratch
+      volumes:
+      - name: scratch
+        emptyDir:
+          sizeLimit: {{ .Values.compactLogs.temporaryStorage.size | quote }}
+      - name: storage-profiles
+        configMap:
+          name: {{ include "lakerunner.fullname" . }}-storage-profiles
+      {{- with .Values.global.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.global.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.global.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}

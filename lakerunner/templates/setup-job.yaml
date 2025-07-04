@@ -1,0 +1,57 @@
+{{- if .Values.setup.enabled -}}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "lakerunner.fullname" . }}-setup
+  labels:
+    {{- include "lakerunner.labels" . | nindent 4 }}
+  annotations:
+    {{- toYaml .Values.global.annotations | nindent 4 }}
+spec:
+  template:
+    metadata:
+      labels:
+        {{- include "lakerunner.labels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "lakerunner.serviceAccountName" . }}
+      restartPolicy: Never
+      terminationGracePeriodSeconds: 120
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 2000
+        runAsGroup: 2000
+        fsGroup: 2000
+      {{- include "lakerunner.imagePullSecrets" . | nindent 2 }}
+      containers:
+      - name: run-migrations
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop: ["ALL"]
+          seccompProfile:
+            type: RuntimeDefault
+        image: "{{ .Values.setup.image.repository }}:{{ .Values.setup.image.tag }}"
+        imagePullPolicy: {{ .Values.setup.image.pullPolicy }}
+        command: ["/app/bin/lakerunner"]
+        args: ["migrate"]
+        env:
+          {{- include "lakerunner.commonEnv" . | nindent 10 }}
+        envFrom:
+          - secretRef:
+              name: {{ include "lakerunner.fullname" . }}-aws-credentials
+        resources:
+          {{- toYaml .Values.setup.resources | nindent 10 }}
+      {{- with .Values.global.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.global.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.global.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+  backoffLimit: 0
+{{- end }}

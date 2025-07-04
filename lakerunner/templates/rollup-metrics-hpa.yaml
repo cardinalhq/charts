@@ -1,0 +1,31 @@
+{{- if and .Values.rollupMetrics.enabled .Values.rollupMetrics.autoscaling.enabled -}}
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ include "lakerunner.fullname" . }}-rollup-metrics
+  labels:
+    {{- include "lakerunner.labels" . | nindent 4 }}
+    app.kubernetes.io/component: rollup-metrics
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ include "lakerunner.fullname" . }}-rollup-metrics
+  minReplicas: {{ .Values.rollupMetrics.autoscaling.minReplicas }}
+  maxReplicas: {{ .Values.rollupMetrics.autoscaling.maxReplicas }}
+  metrics:
+  {{- if .Values.rollupMetrics.autoscaling.targetCPUUtilizationPercentage }}
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: {{ .Values.rollupMetrics.autoscaling.targetCPUUtilizationPercentage }}
+  {{- end }}
+  behavior:
+    scaleDown:
+      policies:
+      - type: Pods
+        value: 4
+        periodSeconds: 60
+{{- end }}

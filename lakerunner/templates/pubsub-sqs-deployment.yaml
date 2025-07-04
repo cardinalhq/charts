@@ -1,0 +1,76 @@
+{{- if .Values.pubsub.SQS.enabled -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "lakerunner.fullname" . }}-pubsub-sqs
+  labels:
+    {{- include "lakerunner.labels" . | nindent 4 }}
+    app.kubernetes.io/component: pubsub-sqs
+  annotations:
+    {{- toYaml .Values.global.annotations | nindent 4 }}
+spec:
+  replicas: {{ .Values.pubsub.SQS.replicas }}
+  selector:
+    matchLabels:
+      {{- include "lakerunner.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: pubsub-sqs
+  template:
+    metadata:
+      labels:
+        {{- include "lakerunner.labels" . | nindent 8 }}
+        app.kubernetes.io/component: pubsub-sqs
+    spec:
+      serviceAccountName: {{ include "lakerunner.serviceAccountName" . }}
+      terminationGracePeriodSeconds: 120
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 2000
+        runAsGroup: 2000
+        fsGroup: 2000
+      {{- include "lakerunner.imagePullSecrets" . | nindent 2 }}
+      containers:
+      - name: pubsub
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop: ["ALL"]
+          seccompProfile:
+            type: RuntimeDefault
+        image: "{{ .Values.pubsub.SQS.image.repository }}:{{ .Values.pubsub.SQS.image.tag }}"
+        imagePullPolicy: {{ .Values.pubsub.SQS.image.pullPolicy }}
+        env:
+          - name: SQS_QUEUE_URL
+            value: {{ .Values.pubsub.SQS.queueURL | quote }}
+          {{- if .Values.pubsub.SQS.region }}
+          - name: SQS_REGION
+            value: {{ .Values.pubsub.SQS.region | quote }}
+          {{- end }}
+          - name: SQS_ROLE_ARN
+            value: {{ .Values.pubsub.SQS.roleARN | quote }}
+          {{- include "lakerunner.commonEnv" . | nindent 10 }}
+        envFrom:
+          - secretRef:
+              name: {{ include "lakerunner.fullname" . }}-aws-credentials
+        resources:
+          {{- toYaml .Values.pubsub.SQS.resources | nindent 10 }}
+        volumeMounts:
+        - name: storage-profiles
+          mountPath: /app/config
+          readOnly: true
+      volumes:
+      - name: storage-profiles
+        configMap:
+          name: {{ include "lakerunner.fullname" . }}-storage-profiles
+      {{- with .Values.global.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.global.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.global.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}

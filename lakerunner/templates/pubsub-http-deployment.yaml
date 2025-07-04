@@ -1,0 +1,70 @@
+{{- if .Values.pubsub.HTTP.enabled -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "lakerunner.fullname" . }}-pubsub-http
+  labels:
+    {{- include "lakerunner.labels" . | nindent 4 }}
+    app.kubernetes.io/component: pubsub-http
+spec:
+  replicas: {{ .Values.pubsub.HTTP.replicas }}
+  selector:
+    matchLabels:
+      {{- include "lakerunner.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: pubsub-http
+  annotations:
+    {{- toYaml .Values.global.annotations | nindent 4 }}
+  template:
+    metadata:
+      labels:
+        {{- include "lakerunner.labels" . | nindent 8 }}
+        app.kubernetes.io/component: pubsub-http
+    spec:
+      serviceAccountName: {{ include "lakerunner.serviceAccountName" . }}
+      terminationGracePeriodSeconds: 120
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 2000
+        runAsGroup: 2000
+        fsGroup: 2000
+      {{- include "lakerunner.imagePullSecrets" . | nindent 2 }}
+      containers:
+      - name: pubsub
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop: ["ALL"]
+          seccompProfile:
+            type: RuntimeDefault
+        image: "{{ .Values.pubsub.HTTP.image.repository }}:{{ .Values.pubsub.HTTP.image.tag }}"
+        imagePullPolicy: {{ .Values.pubsub.HTTP.image.pullPolicy }}
+        command: ["/app/bin/lakerunner"]
+        args: ["pubsub", "http"]
+        ports:
+        - containerPort: {{ .Values.pubsub.HTTP.service.port }}
+          name: http
+        env:
+          {{- include "lakerunner.commonEnv" . | nindent 10 }}
+        resources:
+          {{- toYaml .Values.pubsub.HTTP.resources | nindent 10 }}
+        volumeMounts:
+        - name: storage-profiles
+          mountPath: /app/config
+          readOnly: true
+      volumes:
+      - name: storage-profiles
+        configMap:
+          name: {{ include "lakerunner.fullname" . }}-storage-profiles
+      {{- with .Values.global.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.global.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.global.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}

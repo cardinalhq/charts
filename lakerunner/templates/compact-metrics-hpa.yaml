@@ -1,0 +1,31 @@
+{{- if and .Values.compactMetrics.enabled .Values.compactMetrics.autoscaling.enabled -}}
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ include "lakerunner.fullname" . }}-compact-metrics
+  labels:
+    {{- include "lakerunner.labels" . | nindent 4 }}
+    app.kubernetes.io/component: compact-metrics
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ include "lakerunner.fullname" . }}-compact-metrics
+  minReplicas: {{ .Values.compactMetrics.autoscaling.minReplicas }}
+  maxReplicas: {{ .Values.compactMetrics.autoscaling.maxReplicas }}
+  metrics:
+  {{- if .Values.compactMetrics.autoscaling.targetCPUUtilizationPercentage }}
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: {{ .Values.compactMetrics.autoscaling.targetCPUUtilizationPercentage }}
+  {{- end }}
+  behavior:
+    scaleDown:
+      policies:
+      - type: Pods
+        value: 4
+        periodSeconds: 60
+{{- end }}

@@ -1,0 +1,19 @@
+{{- if .Values.pubsub.HTTP.enabled -}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "lakerunner.fullname" . }}-pubsub-http
+  labels:
+    {{- include "lakerunner.labels" . | nindent 4 }}
+    app.kubernetes.io/component: pubsub-http
+spec:
+  type: {{ .Values.pubsub.HTTP.service.type }}
+  ports:
+    - port: {{ .Values.pubsub.HTTP.service.port }}
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "lakerunner.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: pubsub-http
+{{- end }}

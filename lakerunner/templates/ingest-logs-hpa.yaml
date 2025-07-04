@@ -1,0 +1,31 @@
+{{- if and .Values.ingestLogs.enabled .Values.ingestLogs.autoscaling.enabled -}}
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ include "lakerunner.fullname" . }}-ingest-logs
+  labels:
+    {{- include "lakerunner.labels" . | nindent 4 }}
+    app.kubernetes.io/component: ingest-logs
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ include "lakerunner.fullname" . }}-ingest-logs
+  minReplicas: {{ .Values.ingestLogs.autoscaling.minReplicas }}
+  maxReplicas: {{ .Values.ingestLogs.autoscaling.maxReplicas }}
+  metrics:
+  {{- if .Values.ingestLogs.autoscaling.targetCPUUtilizationPercentage }}
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: {{ .Values.ingestLogs.autoscaling.targetCPUUtilizationPercentage }}
+  {{- end }}
+  behavior:
+    scaleDown:
+      policies:
+      - type: Pods
+        value: 4
+        periodSeconds: 60
+{{- end }}

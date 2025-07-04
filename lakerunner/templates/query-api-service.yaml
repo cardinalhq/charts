@@ -1,0 +1,19 @@
+{{- if .Values.queryApi.enabled -}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "lakerunner.fullname" . }}-query-api
+  labels:
+    {{- include "lakerunner.labels" . | nindent 4 }}
+    app.kubernetes.io/component: query-api
+spec:
+  type: {{ .Values.queryApi.service.type }}
+  ports:
+    - port: 7101
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "lakerunner.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: query-api
+{{- end }}
