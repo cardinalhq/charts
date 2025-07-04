@@ -56,6 +56,8 @@ aws:
 # Storage profile configuration
 # At least one storage profile is required for the LakeRunner to function.
 storageProfiles:
+  configmapName: "storage-profiles"  # Name of the ConfigMap containing storage profiles
+  create: true
   yaml: []
     # - organization_id: dddddddd-aaaa-4ff9-ae8f-365873c552f0
     #   instance_num: 1
