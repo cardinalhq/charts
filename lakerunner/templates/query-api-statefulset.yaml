@@ -78,7 +78,7 @@ spec:
           name: {{ include "lakerunner.fullname" . }}-storage-profiles
       - name: apikeys
         secret:
-          secretName: {{ include "lakerunner.fullname" . }}-apikeys
+          secretName: {{ include "lakerunner.fullname" . }}-{{ .Values.apiKeys.secretName }}
       {{- with .Values.global.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

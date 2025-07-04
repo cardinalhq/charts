@@ -30,10 +30,19 @@ storageProfiles:
     #   bucket: "datalake-11ndajkhk"
     #   use_path_style: true
 
+# API keys are used to control access to the data lake through the data-api service.
+# Each key must be unique, and it associates an API key with an organization ID.
+# An example format is shown below.  If you wish to create the secret outside of the
+# helm chart, follow this format, set `apiKeys.create` to `false`, and create a Kubernetes secret
+# with the content in the secret under a key named `apikeys.yaml`.
 apiKeys:
+  secretName: "apikeys" # will have the format <release-name>-apikeys once deployed
+  create: true
   yaml: {}
     # - organization_id: dddddddd-aaaa-4ff9-ae8f-365873c552f0
-    #   key: "my-api-key"
+    #   keys:
+    #     - my-api-key-1
+    #     - my-api-key-2
 
 # Database configuration
 database:
