@@ -5,7 +5,10 @@ metadata:
   name: {{ include "lakerunner.fullname" . }}-setup
   labels:
     {{- include "lakerunner.labels" . | nindent 4 }}
-  {{ include "lakerunner.annotations" . | nindent 2 }}
+  annotations:
+    {{- include "lakerunner.annotationPairs" . | nindent 2 }}
+    helm.sh/hook: pre-install
+    helm.sh/hook-delete-policy: hook-succeeded
 spec:
   template:
     metadata:

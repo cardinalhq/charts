@@ -110,11 +110,24 @@ Common namespace definition
 {{- default .Release.Namespace .Values.global.namespaceOverride -}}
 {{- end -}}
 
-{{- define "lakerunner.annotations" -}}
+{{/*
+Return only the indented key: value lines for .Values.global.annotations,
+or nothing if the map is empty.
+*/}}
+{{- define "lakerunner.annotationPairs" -}}
 {{- $ann := .Values.global.annotations -}}
 {{- if and $ann (gt (len $ann) 0) -}}
-annotations:
 {{ toYaml $ann | indent 2 }}
+{{- end -}}
+{{- end -}}
+
+{{/*
+“Smart” annotations helper: emits the header + pairs when non-empty.
+*/}}
+{{- define "lakerunner.annotations" -}}
+{{- if and .Values.global.annotations (gt (len .Values.global.annotations) 0) -}}
+annotations:
+{{ include "lakerunner.annotationPairs" . }}
 {{- end -}}
 {{- end -}}
 
