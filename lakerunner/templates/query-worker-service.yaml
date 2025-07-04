@@ -9,7 +9,7 @@ metadata:
 spec:
   type: {{ .Values.queryWorker.service.type }}
   ports:
-    - port: {{ .Values.queryWorker.service.port }}
+    - port: 7101
       targetPort: http
       protocol: TCP
       name: http

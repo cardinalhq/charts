@@ -251,10 +251,9 @@ sweeper:
 pubsub:
   HTTP:
     enabled: false
-    replicas: 1
+    replicas: 2 # recommend at least 2
     service:
       type: ClusterIP
-      port: 8080
     image:
       repository: public.ecr.aws/cardinalhq.io/lakerunner
       tag: "latest"
@@ -323,6 +322,5 @@ queryWorker:
       memory: 12Gi
   service:
     type: ClusterIP
-    port: 8080
   temporaryStorage:
     size: "10Gi"  # Ephemeral storage for ingest logs

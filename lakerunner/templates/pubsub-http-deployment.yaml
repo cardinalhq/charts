@@ -41,7 +41,7 @@ spec:
         command: ["/app/bin/lakerunner"]
         args: ["pubsub", "http"]
         ports:
-        - containerPort: {{ .Values.pubsub.HTTP.service.port }}
+        - containerPort: 8080
           name: http
         env:
           {{- include "lakerunner.commonEnv" . | nindent 10 }}

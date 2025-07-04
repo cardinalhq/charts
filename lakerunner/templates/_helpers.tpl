@@ -106,3 +106,10 @@ Common environment variables
 - name: STORAGE_PROFILE_FILE
   value: "/app/config/storage_profiles.yaml"
 {{- end }}
+
+{{/*}
+Common namespace definition
+*/}}
+{{- define "lakerunner.namespace" -}}
+{{- default .Release.Namespace .Values.global.namespaceOverride -}}
+{{- end -}}

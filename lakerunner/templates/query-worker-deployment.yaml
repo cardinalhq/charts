@@ -43,7 +43,7 @@ spec:
         image: "{{ .Values.queryWorker.image.repository }}:{{ .Values.queryWorker.image.tag }}"
         imagePullPolicy: {{ .Values.queryWorker.image.pullPolicy }}
         ports:
-        - containerPort: {{ .Values.queryWorker.service.port }}
+        - containerPort: 7101
           name: http
         env:
           - name: HOME

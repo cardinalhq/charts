@@ -9,7 +9,7 @@ metadata:
 spec:
   type: {{ .Values.pubsub.HTTP.service.type }}
   ports:
-    - port: {{ .Values.pubsub.HTTP.service.port }}
+    - port: 8080
       targetPort: http
       protocol: TCP
       name: http
