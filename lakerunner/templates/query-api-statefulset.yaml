@@ -65,12 +65,20 @@ spec:
           {{- toYaml .Values.queryApi.resources | nindent 10 }}
         volumeMounts:
         - name: storage-profiles
-          mountPath: /app/config
+          mountPath: /app/config/storage_profiles.yaml
+          subPath: storage_profiles.yaml
+          readOnly: true
+        - name: apikeys
+          mountPath: /app/config/apikeys.yaml
+          subPath: apikeys.yaml
           readOnly: true
       volumes:
       - name: storage-profiles
         configMap:
           name: {{ include "lakerunner.fullname" . }}-storage-profiles
+      - name: apikeys
+        secret:
+          secretName: {{ include "lakerunner.fullname" . }}-apikeys
       {{- with .Values.global.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

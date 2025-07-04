@@ -64,7 +64,12 @@ spec:
           {{- toYaml .Values.queryWorker.resources | nindent 10 }}
         volumeMounts:
         - name: storage-profiles
-          mountPath: /app/config
+          mountPath: /app/config/storage_profiles.yaml
+          subPath: storage_profiles.yaml
+          readOnly: true
+        - name: apikeys
+          mountPath: /app/config/apikeys.yaml
+          subPath: apikeys.yaml
           readOnly: true
         - name: scratch
           mountPath: /db
@@ -72,6 +77,9 @@ spec:
       - name: storage-profiles
         configMap:
           name: {{ include "lakerunner.fullname" . }}-storage-profiles
+      - name: apikeys
+        secret:
+          secretName: {{ include "lakerunner.fullname" . }}-apikeys
       - name: scratch
         emptyDir:
           sizeLimit: {{ .Values.queryWorker.temporaryStorage.size | quote }}

@@ -30,6 +30,11 @@ storageProfiles:
     #   bucket: "datalake-11ndajkhk"
     #   use_path_style: true
 
+apiKeys:
+  yaml: {}
+    # - organization_id: dddddddd-aaaa-4ff9-ae8f-365873c552f0
+    #   key: "my-api-key"
+
 # Database configuration
 database:
   # LRDB (LakeRunner Database) - PostgreSQL
