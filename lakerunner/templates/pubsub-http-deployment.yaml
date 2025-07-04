@@ -13,8 +13,6 @@ spec:
     matchLabels:
       {{- include "lakerunner.selectorLabels" . | nindent 6 }}
       app.kubernetes.io/component: pubsub-http
-  annotations:
-    {{- toYaml .Values.global.annotations | nindent 4 }}
   template:
     metadata:
       labels:
