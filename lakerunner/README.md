@@ -14,7 +14,7 @@ other mechanisms, and a webhook-style receiver can be enabled to support them.
 Create a `values-local.yaml` file (see below) and run:
 
 ```sh
-helm install lakerunner oci://public.ecs.aws/cardinalhq.io/lakerunner \
+helm install lakerunner oci://public.ecr.aws/cardinalhq.io/lakerunner \
    --version 0.2.10 \
    --values values-local.yaml \
    --namespace lakerunner --create-namespace
