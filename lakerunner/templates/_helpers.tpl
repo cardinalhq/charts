@@ -132,6 +132,17 @@ annotations:
 {{- end -}}
 
 {{/*
+Return the secret name for the tokens.  If we have create true, we will prefix it with the release name.
+*/}}
+{{- define "lakerunner.tokenSecretName" -}}
+{{- if .Values.auth.token.create }}
+{{- printf "%s-%s" (include "lakerunner.fullname" .) .Values.auth.token.secretName | trunc 63 | trimSuffix "-" }}
+{{- else }}
+{{- .Values.auth.token.secretName | trunc 63 | trimSuffix "-" }}
+{{- end }}
+{{- end }}
+
+{{/*
 Return the secret name for the APIKeys.  If we have create true, we will prefix it with the release name.
 */}}
 {{- define "lakerunner.apiKeysSecretName" -}}

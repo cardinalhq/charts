@@ -3,16 +3,52 @@
 
 # Global settings
 global:
+  # The names of image pull secrets to use for all images.
+  # Optional.
   imagePullSecrets: []
+  # Additional annotations to add to all resources.
+  # This is a key: value map.
+  # Optional.
   annotations: {}
-  labels: []
-  env: []
+  # Additional labels to add to all resources.
+  # This is a key: value map.
+  # Optional.
+  labels: {}
+  # Common environment variables to inject into all containers.
+  # This is a key: value map.
+  # Optional.
+  env: {}
+  # A node selector to apply to all pods.
+  # This is standard Kubernetes node selector syntax.
+  # Optional.
   nodeSelector: {}
-  tolerations: []
+  # A set of tolerations to apply to all pods.
+  # This is standard Kubernetes toleration syntax.
+  # Optional.
+  tolerations: {}
+  # A set of affinity rules to apply to all pods.
+  # This is standard Kubernetes affinity syntax.
+  # Optional.
   affinity: {}
+  # The default service account to use for all pods.
+  # This service account is assigned some namespaced permissions.
+  # Additional cloud-provider specific permissions can be added
+  # to this service account, either by annotations or through
+  # systems like EKS's IAM roles for service accounts (IRSA).
+  # Required.
   serviceAccount:
+    # Create indicates whether to create the service account.
+    # If set to false, the service account must already
+    # exist in the Kubernetes cluster.
     create: true
+    # The name of the service account to use.
+    # If `create` is set to true, this will be the name of the service
+    # account created by the Helm chart with the format `<release-name>-lakerunner`.
+    # Required.
     name: "lakerunner"
+    # The annotations to add to the service account.
+    # This is a key: value map.
+    # Optional.
     annotations: {}
 
 # Set the AWS region and credentials for the LakeRunner deployment.
@@ -50,11 +86,13 @@ aws:
   # AWS credentials. If `aws.create` is set to true, these will be created in the
   # Kubernetes secret specified by `aws.secretName`. If `aws.create` is false, these
   # must be set in the Kubernetes secret specified by `aws.secretName`.
+  # Required if `aws.create` is true.
   AWS_SECRET_ACCESS_KEY: ""
   AWS_ACCESS_KEY_ID: ""
 
 # Storage profile configuration
 # At least one storage profile is required for the LakeRunner to function.
+# Required.
 storageProfiles:
   configmapName: "storage-profiles"  # Name of the ConfigMap containing storage profiles
   create: true
@@ -72,6 +110,7 @@ storageProfiles:
 # An example format is shown below.  If you wish to create the secret outside of the
 # helm chart, follow this format, set `apiKeys.create` to `false`, and create a Kubernetes secret
 # with the content in the secret under a key named `apikeys.yaml`.
+# Required.
 apiKeys:
   secretName: "apikeys" # will have the format <release-name>-apikeys once deployed
   create: true
@@ -82,25 +121,45 @@ apiKeys:
     #     - my-api-key-2
 
 # Database configuration
+# Required.
 database:
   secretName: "pg-credentials"  # Name of the Kubernetes secret containing database credentials
   create: true  # Whether to create the database credentials secret
   # LRDB (LakeRunner Database) - PostgreSQL
   lrdb:
-    # PostgreSQL hostname.  Required.
+    # PostgreSQL hostname.
+    # Required.
     host: ""
-    # PostgreSQL port.  Default is 5432.  Required.
+    # PostgreSQL port.  Default is 5432.
+    # Required.
     port: 5432
-    # PostgreSQL database name.  Required.
+    # PostgreSQL database name.
+    # Required.
     name: "lakerunner"
-    # PostgreSQL username.  Required.
+    # PostgreSQL username.
+    # Required.
     username: "lakerunner"
-    # PostgreSQL password.  Optional, but recommended.
+    # PostgreSQL password.
+    # Optional, but recommended.
     password: ""
     # SSL mode for PostgreSQL connection.  Default is "require".
     # Options are "disable", "allow", "prefer", "require", "verify-ca", and "verify-full".
     # See https://www.postgresql.org/docs/current/libpq-ssl.html#LIBPQ-SSL-SSLMODE-STATEMENTS for more details.
+    # Optional, but recommended.
     sslMode: "require"
+
+# Authentication configuration
+auth:
+  # token is used for the query-api pod to authenticate to the query-worker pods.
+  # This secret must contain a key named `TOKEN` with the value being the token string.
+  # Required.
+  token:
+    # The name of the Kubernetes secret that contains the token.
+    # Required.
+    secretName: "query-token"
+    # If create is set to true, the secret will be created with the secretValue provided below.
+    create: true
+    secretValue: ""
 
 # Setup job configuration (runs before all other services)
 # This job is responsible for running database migrations and initial setup tasks.

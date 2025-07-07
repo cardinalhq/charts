@@ -58,6 +58,11 @@ spec:
             value: {{ .Values.aws.region | quote }}
           - name: API_KEYS_FILE
             value: /app/config/apikeys.yaml
+          - name: TOKEN_HMAC256_KEY
+            valueFrom:
+              secretKeyRef:
+                name: {{ include "lakerunner.tokenSecretName" . }}
+                key: TOKEN
           {{- include "lakerunner.commonEnv" . | nindent 10 }}
         envFrom:
           - secretRef:
