@@ -29,6 +29,7 @@ The [default `values.yaml`](https://github.com/cardinalhq/charts/blob/main/laker
 * PostgreSQL password, or a secret to get it from.
 * Storage Profiles
 * API Keys
+* Inter-process token
 * If using a non-AWS S3, select the webhook-style pubsub receiver and disable the SQS one.
 
 Items you may want to change, but are not required:
