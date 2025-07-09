@@ -17,19 +17,37 @@ global:
   # Common environment variables to inject into all containers.
   # This is a key: value map.
   # Optional.
-  env: {}
+  env: []
+    # - name: ENVAR1
+    #   value: "value1"
+    # - name: ENVAR2
+    #   value: "value2"
   # A node selector to apply to all pods.
   # This is standard Kubernetes node selector syntax.
   # Optional.
   nodeSelector: {}
+    # node-role.kubernetes.io/worker: ""
+    # spot-instance: "true"
   # A set of tolerations to apply to all pods.
   # This is standard Kubernetes toleration syntax.
   # Optional.
   tolerations: {}
+    # - key: "spot"
+    #   operator: "Equal"
+    #   value: "true"
+    #   effect: "NoSchedule"
   # A set of affinity rules to apply to all pods.
   # This is standard Kubernetes affinity syntax.
   # Optional.
   affinity: {}
+    # nodeAffinity:
+    #   requiredDuringSchedulingIgnoredDuringExecution:
+    #     nodeSelectorTerms:
+    #       - matchExpressions:
+    #           - key: "node-role.kubernetes.io/worker"
+    #             operator: In
+    #             values:
+    #               - "true"
   # The default service account to use for all pods.
   # This service account is assigned some namespaced permissions.
   # Additional cloud-provider specific permissions can be added
@@ -176,6 +194,9 @@ setup:
     limits:
       cpu: 1100m
       memory: 250Mi
+  nodeSelector: {}
+  tolerations: {}
+  affinity: {}
 
 # Ingest Logs configuration
 ingestLogs:
@@ -194,12 +215,15 @@ ingestLogs:
       cpu: 1100m
       memory: 200Mi
   temporaryStorage:
-    size: "10Gi"  # Ephemeral storage for ingest logs
+    size: "10Gi"
   autoscaling:
     enabled: true
     minReplicas: 1
     maxReplicas: 10
     targetCPUUtilizationPercentage: 70
+  nodeSelector: {}
+  tolerations: {}
+  affinity: {}
 
 # Ingest Metrics configuration
 ingestMetrics:
@@ -218,12 +242,15 @@ ingestMetrics:
       cpu: 1100m
       memory: 500Mi
   temporaryStorage:
-    size: "10Gi"  # Ephemeral storage for ingest logs
+    size: "10Gi"
   autoscaling:
     enabled: true
     minReplicas: 1
     maxReplicas: 10
     targetCPUUtilizationPercentage: 70
+  nodeSelector: {}
+  tolerations: {}
+  affinity: {}
 
 # Compact Logs configuration
 compactLogs:
@@ -242,12 +269,15 @@ compactLogs:
       cpu: 1100m
       memory: 500Mi
   temporaryStorage:
-    size: "5Gi"  # Ephemeral storage for ingest logs
+    size: "5Gi"
   autoscaling:
     enabled: true
     minReplicas: 1
     maxReplicas: 10
     targetCPUUtilizationPercentage: 70
+  nodeSelector: {}
+  tolerations: {}
+  affinity: {}
 
 # Compact Metrics configuration
 compactMetrics:
@@ -266,12 +296,15 @@ compactMetrics:
       cpu: 2100m
       memory: 1Gi
   temporaryStorage:
-    size: "5Gi"  # Ephemeral storage for ingest logs
+    size: "5Gi"
   autoscaling:
     enabled: true
     minReplicas: 1
     maxReplicas: 10
     targetCPUUtilizationPercentage: 70
+  nodeSelector: {}
+  tolerations: {}
+  affinity: {}
 
 # Rollup Metrics configuration
 rollupMetrics:
@@ -290,12 +323,15 @@ rollupMetrics:
       cpu: 1100m
       memory: 1Gi
   temporaryStorage:
-    size: "10Gi"  # Ephemeral storage for ingest logs
+    size: "10Gi"
   autoscaling:
     enabled: true
     minReplicas: 1
     maxReplicas: 10
     targetCPUUtilizationPercentage: 70
+  nodeSelector: {}
+  tolerations: {}
+  affinity: {}
 
 # Sweeper configuration
 sweeper:
@@ -312,6 +348,9 @@ sweeper:
     limits:
       cpu: 250m
       memory: 80Mi
+  nodeSelector: {}
+  tolerations: {}
+  affinity: {}
 
 # PubSub configuration
 pubsub:
@@ -331,6 +370,9 @@ pubsub:
       limits:
         cpu: 200m
         memory: 200Mi
+    nodeSelector: {}
+    tolerations: {}
+    affinity: {}
   SQS:
     enabled: true
     replicas: 1
@@ -348,6 +390,9 @@ pubsub:
       limits:
         cpu: 200m
         memory: 200Mi
+    nodeSelector: {}
+    tolerations: {}
+    affinity: {}
 
 # Query API configuration
 queryApi:
@@ -368,6 +413,9 @@ queryApi:
     limits:
       cpu: 2000m
       memory: 8Gi
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
 
 # Query Worker configuration
 #
@@ -389,4 +437,7 @@ queryWorker:
   service:
     type: ClusterIP
   temporaryStorage:
-    size: "10Gi"  # Ephemeral storage for ingest logs
+    size: "10Gi"
+  nodeSelector: {}
+  tolerations: {}
+  affinity: {}

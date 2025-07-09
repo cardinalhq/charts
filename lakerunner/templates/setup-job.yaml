@@ -25,6 +25,9 @@ spec:
         runAsGroup: 2000
         fsGroup: 2000
       {{- include "lakerunner.imagePullSecrets" . | nindent 2 }}
+      {{- include "lakerunner.sched.nodeSelector" (list .Values.global.nodeSelector .Values.setup.nodeSelector) | nindent 6 }}
+      {{- include "lakerunner.sched.tolerations"  (list .Values.global.tolerations  .Values.setup.tolerations)  | nindent 6 }}
+      {{- include "lakerunner.sched.affinity"     (list .Values.global.affinity     .Values.setup.affinity)     | nindent 6 }}
       containers:
       - name: run-migrations
         securityContext:
@@ -38,7 +41,7 @@ spec:
         command: ["/app/bin/lakerunner"]
         args: ["migrate"]
         env:
-          {{- include "lakerunner.commonEnv" . | nindent 10 }}
+          {{- include "lakerunner.injectEnv" (list . .Values.setup) | nindent 8 }}
         resources:
           {{- toYaml .Values.setup.resources | nindent 10 }}
       {{- with .Values.global.nodeSelector }}

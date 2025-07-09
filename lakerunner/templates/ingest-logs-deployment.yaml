@@ -40,12 +40,15 @@ spec:
             type: RuntimeDefault
         image: "{{ .Values.ingestLogs.image.repository }}:{{ .Values.ingestLogs.image.tag }}"
         imagePullPolicy: {{ .Values.ingestLogs.image.pullPolicy }}
+      {{- include "lakerunner.sched.nodeSelector" (list .Values.global.nodeSelector .Values.ingestLogs.nodeSelector) | nindent 6 }}
+      {{- include "lakerunner.sched.tolerations"  (list .Values.global.tolerations  .Values.ingestLogs.tolerations)  | nindent 6 }}
+      {{- include "lakerunner.sched.affinity"     (list .Values.global.affinity     .Values.ingestLogs.affinity)     | nindent 6 }}
         command: ["/app/bin/lakerunner"]
         args: ["ingest-logs"]
         env:
           - name: TMPDIR
             value: /scratch
-          {{- include "lakerunner.commonEnv" . | nindent 10 }}
+          {{- include "lakerunner.injectEnv" (list . .Values.ingestLogs) | nindent 8 }}
         {{- if .Values.aws.inject }}
         envFrom:
         - secretRef:

@@ -32,6 +32,9 @@ spec:
         runAsGroup: 2000
         fsGroup: 2000
       {{- include "lakerunner.imagePullSecrets" . | nindent 2 }}
+      {{- include "lakerunner.sched.nodeSelector" (list .Values.global.nodeSelector .Values.queryWorker.nodeSelector) | nindent 6 }}
+      {{- include "lakerunner.sched.tolerations"  (list .Values.global.tolerations  .Values.queryWorker.tolerations)  | nindent 6 }}
+      {{- include "lakerunner.sched.affinity"     (list .Values.global.affinity     .Values.queryWorker.affinity)     | nindent 6 }}
       containers:
       - name: query-worker
         securityContext:
@@ -63,7 +66,7 @@ spec:
               secretKeyRef:
                 name: {{ include "lakerunner.tokenSecretName" . }}
                 key: TOKEN
-          {{- include "lakerunner.commonEnv" . | nindent 10 }}
+          {{- include "lakerunner.injectEnv" (list . .Values.queryWorker) | nindent 8 }}
         envFrom:
           - secretRef:
               name: {{ include "lakerunner.awsSecretName" . }}

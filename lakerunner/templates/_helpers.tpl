@@ -103,6 +103,26 @@ Common environment variables
   value: "/app/config/storage_profiles.yaml"
 {{- end }}
 
+{{/*
+Inject common + component-specific env vars.
+Takes two args:
+  0: the root chart context (so we can call commonEnv with it)
+  1: the component’s values block (must have .env as a list)
+Usage:
+  {{ include "lakerunner.injectEnv" (list . .Values.queryWorker) | nindent 10 }}
+*/}}
+{{- define "lakerunner.injectEnv" -}}
+{{- $root := index . 0 -}}
+{{- $comp := index . 1 -}}
+{{- include "lakerunner.commonEnv" $root | nindent 2 -}}
+{{- with $root.Values.global.env -}}
+{{ toYaml . | nindent 2 -}}
+{{- end -}}
+{{- with $comp.env -}}
+{{ toYaml . | nindent 2 -}}
+{{- end -}}
+{{- end -}}
+
 {{/*}
 Common namespace definition
 */}}
@@ -185,3 +205,67 @@ Return the secret name for the AWS credentials.  If we have create true, we will
 {{- .Values.aws.secretName | trunc 63 | trimSuffix "-" }}
 {{- end }}
 {{- end }}
+
+{{/*
+Merge two maps; keys in second take precedence.
+Usage: {{ mergeOverwrite $map1 $map2 }}
+*/}}
+{{- define "lakerunner.mergeOverwrite" -}}
+{{- $out := dict -}}
+{{- range $k, $v := index . 0 -}}
+  {{- $_ := set $out $k $v -}}
+{{- end -}}
+{{- range $k, $v := index . 1 -}}
+  {{- $_ := set $out $k $v -}}
+{{- end -}}
+{{- $out -}}
+{{- end -}}
+
+{{/*
+  Merge two maps (global + local), emit nodeSelector: if non-empty.
+  args: [ globalMap, localMap ]
+*/}}
+{{- define "lakerunner.sched.nodeSelector" -}}
+  {{- $args   := . -}}
+  {{- $global := index $args 0 -}}
+  {{- $local  := index $args 1 -}}
+  {{- $m      := merge $global $local -}}
+  {{- if gt (len $m) 0 -}}
+nodeSelector:
+{{ toYaml $m | indent 2 }}
+  {{- end -}}
+{{- end -}}
+
+
+{{/*
+  Pick local tolerations if set, else global, emit tolerations: if non-empty.
+  args: [ globalList, localList ]
+*/}}
+{{- define "lakerunner.sched.tolerations" -}}
+  {{- $args   := . -}}
+  {{- $global := index $args 0 -}}
+  {{- $local  := index $args 1 -}}
+  {{- if gt (len $local) 0 -}}
+tolerations:
+{{ toYaml $local | indent 2 }}
+  {{- else if gt (len $global) 0 -}}
+tolerations:
+{{ toYaml $global | indent 2 }}
+  {{- end -}}
+{{- end -}}
+
+
+{{/*
+  Merge two affinity blocks, emit affinity: if non-empty.
+  args: [ globalAffinity, localAffinity ]
+*/}}
+{{- define "lakerunner.sched.affinity" -}}
+  {{- $args   := . -}}
+  {{- $global := index $args 0 -}}
+  {{- $local  := index $args 1 -}}
+  {{- $m      := merge $global $local -}}
+  {{- if gt (len $m) 0 -}}
+affinity:
+{{ toYaml $m | indent 2 }}
+  {{- end -}}
+{{- end -}}

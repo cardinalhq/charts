@@ -38,6 +38,9 @@ spec:
             type: RuntimeDefault
         image: "{{ .Values.pubsub.SQS.image.repository }}:{{ .Values.pubsub.SQS.image.tag }}"
         imagePullPolicy: {{ .Values.pubsub.SQS.image.pullPolicy }}
+      {{- include "lakerunner.sched.nodeSelector" (list .Values.global.nodeSelector .Values.pubsub.SQS.nodeSelector) | nindent 6 }}
+      {{- include "lakerunner.sched.tolerations"  (list .Values.global.tolerations  .Values.pubsub.SQS.tolerations)  | nindent 6 }}
+      {{- include "lakerunner.sched.affinity"     (list .Values.global.affinity     .Values.pubsub.SQS.affinity)     | nindent 6 }}
         env:
           - name: SQS_QUEUE_URL
             value: {{ .Values.pubsub.SQS.queueURL | quote }}
@@ -47,7 +50,7 @@ spec:
           {{- end }}
           - name: SQS_ROLE_ARN
             value: {{ .Values.pubsub.SQS.roleARN | quote }}
-          {{- include "lakerunner.commonEnv" . | nindent 10 }}
+          {{- include "lakerunner.injectEnv" (list . .Values.pubsub.SQS) | nindent 8 }}
         {{- if .Values.aws.inject }}
         envFrom:
         - secretRef:

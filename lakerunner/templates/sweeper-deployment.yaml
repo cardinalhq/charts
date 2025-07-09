@@ -28,6 +28,9 @@ spec:
         runAsGroup: 2000
         fsGroup: 2000
       {{- include "lakerunner.imagePullSecrets" . | nindent 2 }}
+      {{- include "lakerunner.sched.nodeSelector" (list .Values.global.nodeSelector .Values.sweeper.nodeSelector) | nindent 6 }}
+      {{- include "lakerunner.sched.tolerations"  (list .Values.global.tolerations  .Values.sweeper.tolerations)  | nindent 6 }}
+      {{- include "lakerunner.sched.affinity"     (list .Values.global.affinity     .Values.sweeper.affinity)     | nindent 6 }}
       containers:
       - name: sweeper
         securityContext:
@@ -43,7 +46,7 @@ spec:
         env:
           - name: TMPDIR
             value: /scratch
-          {{- include "lakerunner.commonEnv" . | nindent 10 }}
+          {{- include "lakerunner.injectEnv" (list . .Values.sweeper) | nindent 8 }}
         {{- if .Values.aws.inject }}
         envFrom:
         - secretRef:

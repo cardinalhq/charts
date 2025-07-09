@@ -38,13 +38,16 @@ spec:
             type: RuntimeDefault
         image: "{{ .Values.pubsub.HTTP.image.repository }}:{{ .Values.pubsub.HTTP.image.tag }}"
         imagePullPolicy: {{ .Values.pubsub.HTTP.image.pullPolicy }}
+      {{- include "lakerunner.sched.nodeSelector" (list .Values.global.nodeSelector .Values.pubsub.HTTP.nodeSelector) | nindent 6 }}
+      {{- include "lakerunner.sched.tolerations"  (list .Values.global.tolerations  .Values.pubsub.HTTP.tolerations)  | nindent 6 }}
+      {{- include "lakerunner.sched.affinity"     (list .Values.global.affinity     .Values.pubsub.HTTP.affinity)     | nindent 6 }}
         command: ["/app/bin/lakerunner"]
         args: ["pubsub", "http"]
         ports:
         - containerPort: 8080
           name: http
         env:
-          {{- include "lakerunner.commonEnv" . | nindent 10 }}
+          {{- include "lakerunner.injectEnv" (list . .Values.pubsub.HTTP) | nindent 8 }}
         resources:
           {{- toYaml .Values.pubsub.HTTP.resources | nindent 10 }}
         volumeMounts:
