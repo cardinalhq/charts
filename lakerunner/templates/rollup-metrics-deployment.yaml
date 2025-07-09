@@ -8,7 +8,9 @@ metadata:
     app.kubernetes.io/component: rollup-metrics
   {{ include "lakerunner.annotations" . | nindent 2 }}
 spec:
+  {{- if not .Values.rollupMetrics.autoscaling.enabled }}
   replicas: {{ .Values.rollupMetrics.replicas }}
+  {{- end }}
   selector:
     matchLabels:
       {{- include "lakerunner.selectorLabels" . | nindent 6 }}

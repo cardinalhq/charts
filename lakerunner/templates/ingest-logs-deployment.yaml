@@ -8,7 +8,9 @@ metadata:
     app.kubernetes.io/component: ingest-logs
   {{ include "lakerunner.annotations" . | nindent 2 }}
 spec:
+  {{- if not .Values.ingestLogs.autoscaling.enabled }}
   replicas: {{ .Values.ingestLogs.replicas }}
+  {{- end }}
   selector:
     matchLabels:
       {{- include "lakerunner.selectorLabels" . | nindent 6 }}

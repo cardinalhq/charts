@@ -180,6 +180,7 @@ setup:
 # Ingest Logs configuration
 ingestLogs:
   enabled: true
+  # The number of replicas to run.  This is not used if autoscaling is enabled.
   replicas: 2
   image:
     repository: public.ecr.aws/cardinalhq.io/lakerunner
@@ -203,6 +204,7 @@ ingestLogs:
 # Ingest Metrics configuration
 ingestMetrics:
   enabled: true
+  # The number of replicas to run.  This is not used if autoscaling is enabled.
   replicas: 2
   image:
     repository: public.ecr.aws/cardinalhq.io/lakerunner
@@ -226,6 +228,7 @@ ingestMetrics:
 # Compact Logs configuration
 compactLogs:
   enabled: true
+  # The number of replicas to run.  This is not used if autoscaling is enabled.
   replicas: 1
   image:
     repository: public.ecr.aws/cardinalhq.io/lakerunner
@@ -249,6 +252,7 @@ compactLogs:
 # Compact Metrics configuration
 compactMetrics:
   enabled: true
+  # The number of replicas to run.  This is not used if autoscaling is enabled.
   replicas: 1
   image:
     repository: public.ecr.aws/cardinalhq.io/lakerunner
@@ -272,6 +276,7 @@ compactMetrics:
 # Rollup Metrics configuration
 rollupMetrics:
   enabled: true
+  # The number of replicas to run.  This is not used if autoscaling is enabled.
   replicas: 1
   image:
     repository: public.ecr.aws/cardinalhq.io/lakerunner

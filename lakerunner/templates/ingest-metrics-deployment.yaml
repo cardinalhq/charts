@@ -8,7 +8,9 @@ metadata:
     app.kubernetes.io/component: ingest-metrics
   {{ include "lakerunner.annotations" . | nindent 2 }}
 spec:
+  {{- if not .Values.ingestMetrics.autoscaling.enabled }}
   replicas: {{ .Values.ingestMetrics.replicas }}
+  {{- end }}
   selector:
     matchLabels:
       {{- include "lakerunner.selectorLabels" . | nindent 6 }}
