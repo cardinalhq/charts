@@ -69,6 +69,10 @@ spec:
               secretKeyRef:
                 name: {{ include "lakerunner.tokenSecretName" . }}
                 key: TOKEN
+          - name: AKKA_DISCOVERY_KUBERNETES_API_POD_LABEL_SELECTOR
+            value: "app.kubernetes.io/instance={{ .Release.Name }},app.kubernetes.io/component=query-worker"
+          - name: QUERY_WORKER_SERVICE_NAME
+            value: {{ include "lakerunner.fullname" . }}-query-worker
           {{- include "lakerunner.injectEnv" (list . .Values.queryApi) | nindent 8 }}
         envFrom:
           - secretRef:
