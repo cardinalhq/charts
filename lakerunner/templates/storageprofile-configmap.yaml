@@ -1,3 +1,4 @@
+{{ if eq .Values.storageProfiles.source "config" }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -8,3 +9,4 @@ metadata:
 data:
   storage_profiles.yaml: |
 {{ .Values.storageProfiles.yaml | toYaml | indent 6 }}
+{{ end }}

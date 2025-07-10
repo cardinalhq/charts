@@ -50,14 +50,18 @@ spec:
           {{- include "lakerunner.injectEnv" (list . .Values.pubsub.HTTP) | nindent 8 }}
         resources:
           {{- toYaml .Values.pubsub.HTTP.resources | nindent 10 }}
+        {{- if eq .Values.storageProfiles.source "config" }}
         volumeMounts:
         - name: storage-profiles
           mountPath: /app/config
           readOnly: true
+        {{- end }}
+      {{- if eq .Values.storageProfiles.source "config" }}
       volumes:
       - name: storage-profiles
         configMap:
-          name: {{ include "lakerunner.fullname" . }}-storage-profiles
+          name: {{ include "lakerunner.storageProfilesConfigmapName" . }}
+      {{- end }}
       {{- with .Values.global.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

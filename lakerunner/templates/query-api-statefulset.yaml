@@ -60,8 +60,10 @@ spec:
             value: aws
           - name: AWS_REGION
             value: {{ .Values.aws.region | quote }}
+          {{- if eq .Values.apiKeys.source "config" }}
           - name: API_KEYS_FILE
             value: /app/config/apikeys.yaml
+          {{- end }}
           - name: TOKEN_HMAC256_KEY
             valueFrom:
               secretKeyRef:
@@ -73,22 +75,33 @@ spec:
               name: {{ include "lakerunner.awsSecretName" . }}
         resources:
           {{- toYaml .Values.queryApi.resources | nindent 10 }}
+        {{- if or (eq .Values.storageProfiles.source "config") (eq .Values.apiKeys.source "config") }}
         volumeMounts:
+        {{- end }}
+        {{- if eq .Values.storageProfiles.source "config" }}
         - name: storage-profiles
-          mountPath: /app/config/storage_profiles.yaml
-          subPath: storage_profiles.yaml
+          mountPath: /app/config
           readOnly: true
+        {{- end }}
+        {{- if eq .Values.apiKeys.source "config" }}
         - name: apikeys
           mountPath: /app/config/apikeys.yaml
           subPath: apikeys.yaml
           readOnly: true
+        {{- end }}
+      {{- if or (eq .Values.storageProfiles.source "config") (eq .Values.apiKeys.source "config") }}
       volumes:
+      {{- end }}
+      {{- if eq .Values.storageProfiles.source "config" }}
       - name: storage-profiles
         configMap:
           name: {{ include "lakerunner.storageProfilesConfigmapName" . }}
+      {{- end }}
+      {{- if eq .Values.apiKeys.source "config" }}
       - name: apikeys
         secret:
           secretName: {{ include "lakerunner.apiKeysSecretName" . }}
+      {{- end }}
       {{- with .Values.global.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
