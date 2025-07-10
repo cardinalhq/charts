@@ -54,20 +54,22 @@ global:
   # to this service account, either by annotations or through
   # systems like EKS's IAM roles for service accounts (IRSA).
   # Required.
-  serviceAccount:
-    # Create indicates whether to create the service account.
-    # If set to false, the service account must already
-    # exist in the Kubernetes cluster.
-    create: true
-    # The name of the service account to use.
-    # If `create` is set to true, this will be the name of the service
-    # account created by the Helm chart with the format `<release-name>-lakerunner`.
-    # Required.
-    name: "lakerunner"
-    # The annotations to add to the service account.
-    # This is a key: value map.
-    # Optional.
-    annotations: {}
+
+serviceAccount:
+  # Create indicates whether to create the service account.
+  # If set to false, the service account must already
+  # exist in the Kubernetes cluster.
+  create: true
+  # The name of the service account to use.
+  # If `create` is set to true, this will be the name of the service
+  # account created by the Helm chart with the format `<release-name>-lakerunner`.
+  # Required.
+  name: "lakerunner"
+  # The annotations to add to the service account.
+  # Only added if create is set to true.
+  # This is a key: value map.
+  # Optional.
+  annotations: {}
 
 # Set the AWS region and credentials for the LakeRunner deployment.
 # By default, the credentials are not created, and expected to be in an existing Kubernetes secret
