@@ -99,8 +99,10 @@ Common environment variables
       key: LRDB_PASSWORD
 - name: LRDB_SSLMODE
   value: {{ .Values.database.lrdb.sslMode | quote }}
+{{- if eq .Values.storageProfiles.source "config" }}
 - name: STORAGE_PROFILE_FILE
   value: "/app/config/storage_profiles.yaml"
+{{- end -}}
 {{- end }}
 
 {{/*

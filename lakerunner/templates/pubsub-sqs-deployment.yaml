@@ -58,14 +58,18 @@ spec:
         {{- end }}
         resources:
           {{- toYaml .Values.pubsub.SQS.resources | nindent 10 }}
+        {{- if eq .Values.storageProfiles.source "config" }}
         volumeMounts:
         - name: storage-profiles
           mountPath: /app/config
           readOnly: true
+        {{- end }}
+      {{- if eq .Values.storageProfiles.source "config" }}
       volumes:
       - name: storage-profiles
         configMap:
           name: {{ include "lakerunner.storageProfilesConfigmapName" . }}
+      {{- end }}
       {{- with .Values.global.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

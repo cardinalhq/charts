@@ -57,18 +57,22 @@ spec:
         resources:
           {{- toYaml .Values.ingestLogs.resources | nindent 10 }}
         volumeMounts:
+        {{- if eq .Values.storageProfiles.source "config" }}
         - name: storage-profiles
           mountPath: /app/config
           readOnly: true
+        {{- end }}
         - name: scratch
           mountPath: /scratch
       volumes:
       - name: scratch
         emptyDir:
           sizeLimit: {{ .Values.compactLogs.temporaryStorage.size | quote }}
+      {{- if eq .Values.storageProfiles.source "config" }}
       - name: storage-profiles
         configMap:
           name: {{ include "lakerunner.storageProfilesConfigmapName" . }}
+      {{- end }}
       {{- with .Values.global.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

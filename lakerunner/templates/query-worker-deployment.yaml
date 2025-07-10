@@ -59,8 +59,10 @@ spec:
             value: aws
           - name: AWS_REGION
             value: {{ .Values.aws.region | quote }}
+          {{- if eq .Values.apiKeys.source "config" }}
           - name: API_KEYS_FILE
             value: /app/config/apikeys.yaml
+          {{- end }}
           - name: TOKEN_HMAC256_KEY
             valueFrom:
               secretKeyRef:
@@ -73,23 +75,30 @@ spec:
         resources:
           {{- toYaml .Values.queryWorker.resources | nindent 10 }}
         volumeMounts:
+        {{- if eq .Values.storageProfiles.source "config" }}
         - name: storage-profiles
-          mountPath: /app/config/storage_profiles.yaml
-          subPath: storage_profiles.yaml
+          mountPath: /app/config
           readOnly: true
+        {{- end }}
+        {{- if eq .Values.apiKeys.source "config" }}
         - name: apikeys
           mountPath: /app/config/apikeys.yaml
           subPath: apikeys.yaml
           readOnly: true
+        {{- end }}
         - name: scratch
           mountPath: /db
       volumes:
+      {{- if eq .Values.storageProfiles.source "config" }}
       - name: storage-profiles
         configMap:
           name: {{ include "lakerunner.storageProfilesConfigmapName" . }}
+      {{- end }}
+      {{- if eq .Values.apiKeys.source "config" }}
       - name: apikeys
         secret:
-          secretName: {{ include "lakerunner.fullname" . }}-{{ .Values.apiKeys.secretName }}
+          secretName: {{ include "lakerunner.apiKeysSecretName" . }}
+      {{- end }}
       - name: scratch
         emptyDir:
           sizeLimit: {{ .Values.queryWorker.temporaryStorage.size | quote }}

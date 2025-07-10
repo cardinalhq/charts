@@ -112,6 +112,7 @@ aws:
 # At least one storage profile is required for the LakeRunner to function.
 # Required.
 storageProfiles:
+  source: config # only value for general use.
   configmapName: "storage-profiles"  # Name of the ConfigMap containing storage profiles
   create: true
   yaml: []
@@ -130,6 +131,7 @@ storageProfiles:
 # with the content in the secret under a key named `apikeys.yaml`.
 # Required.
 apiKeys:
+  source: config # only value for general use.
   secretName: "apikeys" # will have the format <release-name>-apikeys once deployed
   create: true
   yaml: []
