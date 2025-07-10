@@ -73,6 +73,8 @@ spec:
             value: "app.kubernetes.io/instance={{ .Release.Name }},app.kubernetes.io/component=query-worker"
           - name: QUERY_WORKER_SERVICE_NAME
             value: {{ include "lakerunner.fullname" . }}-query-worker
+          - name: QUERY_WORKER_DEPLOYMENT_NAME
+            value: {{ include "lakerunner.fullname" . }}-query-worker
           {{- include "lakerunner.injectEnv" (list . .Values.queryApi) | nindent 8 }}
         envFrom:
           - secretRef:
