@@ -58,8 +58,8 @@ spec:
           {{- toYaml .Values.compactLogs.resources | nindent 10 }}
         volumeMounts:
         - name: storage-profiles
-          mountPath: /app/config/storage-profiles.yaml
-          subPath: storage-profiles.yaml
+          mountPath: /app/config/storage_profiles.yaml
+          subPath: storage_profiles.yaml
           readOnly: true
         {{- end }}
         - name: scratch
