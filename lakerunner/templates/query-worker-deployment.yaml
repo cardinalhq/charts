@@ -77,7 +77,8 @@ spec:
         volumeMounts:
         {{- if eq .Values.storageProfiles.source "config" }}
         - name: storage-profiles
-          mountPath: /app/config
+          mountPath: /app/config/storage-profiles.yaml
+          subPath: storage-profiles.yaml
           readOnly: true
         {{- end }}
         {{- if eq .Values.apiKeys.source "config" }}
