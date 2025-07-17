@@ -75,6 +75,8 @@ spec:
             value: {{ include "lakerunner.fullname" . }}-query-worker
           - name: QUERY_WORKER_DEPLOYMENT_NAME
             value: {{ include "lakerunner.fullname" . }}-query-worker
+          - name: QUERY_STACK
+            value: local
           {{- include "lakerunner.injectEnv" (list . .Values.queryApi) | nindent 8 }}
         envFrom:
           - secretRef:
