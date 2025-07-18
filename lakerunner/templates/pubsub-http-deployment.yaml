@@ -47,6 +47,8 @@ spec:
         - containerPort: 8080
           name: http
         env:
+          - name: OTEL_SERVICE_NAME
+            value: {{ include "lakerunner.fullname" . }}-pubsub-http
           {{- include "lakerunner.injectEnv" (list . .Values.pubsub.HTTP) | nindent 8 }}
         resources:
           {{- toYaml .Values.pubsub.HTTP.resources | nindent 10 }}

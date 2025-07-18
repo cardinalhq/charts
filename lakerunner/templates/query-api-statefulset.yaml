@@ -50,6 +50,10 @@ spec:
             valueFrom:
               fieldRef:
                 fieldPath: metadata.namespace
+          - name: OTEL_SERVICE_NAME
+            value: {{ include "lakerunner.fullname" . }}-query-api
+          - name: METRIC_PREFIX
+            value: {{ include "lakerunner.fullname" . }}-query-api
           - name: HOME
             value: "/tmp"
           - name: NUM_MIN_QUERY_WORKERS

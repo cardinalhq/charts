@@ -49,6 +49,10 @@ spec:
         - containerPort: 7101
           name: http
         env:
+          - name: OTEL_SERVICE_NAME
+            value: {{ include "lakerunner.fullname" . }}-query-worker
+          - name: METRIC_PREFIX
+            value: {{ include "lakerunner.fullname" . }}-query-worker
           - name: HOME
             value: "/tmp"
           - name: QUERY_STACK

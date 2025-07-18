@@ -46,6 +46,8 @@ spec:
         command: ["/app/bin/lakerunner"]
         args: ["rollup-metrics"]
         env:
+          - name: OTEL_SERVICE_NAME
+            value: {{ include "lakerunner.fullname" . }}-rollup-metrics
           - name: TMPDIR
             value: /scratch
           {{- include "lakerunner.injectEnv" (list . .Values.rollupMetrics) | nindent 8 }}

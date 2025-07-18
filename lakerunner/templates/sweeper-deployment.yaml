@@ -44,6 +44,8 @@ spec:
         command: ["/app/bin/lakerunner"]
         args: ["sweeper"]
         env:
+          - name: OTEL_SERVICE_NAME
+            value: {{ include "lakerunner.fullname" . }}-sweeper
           - name: TMPDIR
             value: /scratch
           {{- include "lakerunner.injectEnv" (list . .Values.sweeper) | nindent 8 }}

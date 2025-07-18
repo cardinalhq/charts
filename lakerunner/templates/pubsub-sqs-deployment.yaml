@@ -44,6 +44,8 @@ spec:
         command: ["/app/bin/lakerunner"]
         args: ["pubsub", "sqs"]
         env:
+          - name: OTEL_SERVICE_NAME
+            value: {{ include "lakerunner.fullname" . }}-pubsub-sqs
           - name: SQS_QUEUE_URL
             value: {{ .Values.pubsub.SQS.queueURL | quote }}
           {{- if .Values.pubsub.SQS.region }}

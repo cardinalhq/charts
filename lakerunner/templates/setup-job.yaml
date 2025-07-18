@@ -41,6 +41,8 @@ spec:
         command: ["/app/bin/lakerunner"]
         args: ["migrate"]
         env:
+          - name: OTEL_SERVICE_NAME
+            value: {{ include "lakerunner.fullname" . }}-setup
           {{- include "lakerunner.injectEnv" (list . .Values.setup) | nindent 8 }}
         resources:
           {{- toYaml .Values.setup.resources | nindent 10 }}

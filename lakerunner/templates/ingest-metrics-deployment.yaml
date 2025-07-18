@@ -46,6 +46,8 @@ spec:
         command: ["/app/bin/lakerunner"]
         args: ["ingest-metrics"]
         env:
+          - name: OTEL_SERVICE_NAME
+            value: {{ include "lakerunner.fullname" . }}-ingest-metrics
           - name: TMPDIR
             value: /scratch
           {{- include "lakerunner.injectEnv" (list . .Values.ingestMetrics) | nindent 8 }}
