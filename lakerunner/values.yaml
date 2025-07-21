@@ -441,7 +441,7 @@ queryWorker:
   service:
     type: ClusterIP
   temporaryStorage:
-    size: "10Gi"
+    size: "16Gi"
   nodeSelector: {}
   tolerations: {}
   affinity: {}
