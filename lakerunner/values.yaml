@@ -17,7 +17,18 @@ global:
   # Common environment variables to inject into all containers.
   # This is a key: value map.
   # Optional.
-  env: []
+  env:
+    # Enable OpenTelemetry logs, metrics, and traces for all components.
+    # Set to "true" to enable, "false" to disable.
+    - name: ENABLE_OTLP_TELEMETRY
+      value: "false"
+    # If you want to set up the endpoint where it should send, do that here as well:
+    # - name: OTEL_EXPORTER_OTLP_ENDPOINT
+    #   value: "http://${HOST_IP}:4317"
+    # - name: HOST_IP
+    #   valueFrom:
+    #     fieldRef:
+    #       fieldPath: status.hostIP
     # - name: ENVAR1
     #   value: "value1"
     # - name: ENVAR2
