@@ -1,0 +1,15 @@
+{{- if .Values.grafana.enabled -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "lakerunner.fullname" . }}-grafana-datasources
+  labels:
+    {{- include "lakerunner.labels" . | nindent 4 }}
+    app.kubernetes.io/component: grafana
+  {{ include "lakerunner.annotations" . | nindent 2 }}
+data:
+  {{- range $key, $value := .Values.grafana.datasources }}
+  {{ $key }}: |
+    {{- toYaml $value | nindent 4 }}
+  {{- end }}
+{{- end }} 

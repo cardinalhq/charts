@@ -220,7 +220,7 @@ ingestLogs:
   replicas: 2
   image:
     repository: public.ecr.aws/cardinalhq.io/lakerunner
-    tag: "latest"
+    tag: "latest-dev"
     pullPolicy: Always
   resources:
     requests:
@@ -456,3 +456,38 @@ queryWorker:
   nodeSelector: {}
   tolerations: {}
   affinity: {}
+
+# Grafana configuration
+grafana:
+  enabled: true
+  replicas: 1
+  image:
+    repository: grafana/grafana
+    tag: "10.2.3"
+    pullPolicy: IfNotPresent
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+  service:
+    type: ClusterIP
+    port: 3000
+  plugins:
+    - https://github.com/cardinalhq/cardinalhq-lakerunner-datasource/raw/refs/heads/main/cardinalhq-lakerunner-datasource.zip;cardinalhq-lakerunner-datasource
+  datasources:
+    datasources.yaml:
+      apiVersion: 1
+      datasources:
+        - name: Cardinal
+          type: cardinalhq-lakerunner-datasource
+          access: proxy
+          isDefault: true
+          editable: true
+          jsonData:
+            # the base URL of the query-api service
+            customPath: ""
+            # the API key to use for the datasource
+            apiKey: ""
