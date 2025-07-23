@@ -463,8 +463,8 @@ grafana:
   replicas: 1
   image:
     repository: grafana/grafana
-    tag: "10.2.3"
-    pullPolicy: IfNotPresent
+    tag: "latest"
+    pullPolicy: Always
   resources:
     requests:
       cpu: 100m
@@ -489,5 +489,6 @@ grafana:
           jsonData:
             # the base URL of the query-api service
             customPath: ""
+          secureJsonData:
             # the API key to use for the datasource
             apiKey: ""
