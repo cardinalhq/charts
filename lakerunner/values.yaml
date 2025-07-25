@@ -36,13 +36,15 @@ global:
   # A node selector to apply to all pods.
   # This is standard Kubernetes node selector syntax.
   # Optional.
-  nodeSelector: {}
+  nodeSelector:
+    {}
     # node-role.kubernetes.io/worker: ""
     # spot-instance: "true"
   # A set of tolerations to apply to all pods.
   # This is standard Kubernetes toleration syntax.
   # Optional.
-  tolerations: {}
+  tolerations:
+    {}
     # - key: "spot"
     #   operator: "Equal"
     #   value: "true"
@@ -50,7 +52,8 @@ global:
   # A set of affinity rules to apply to all pods.
   # This is standard Kubernetes affinity syntax.
   # Optional.
-  affinity: {}
+  affinity:
+    {}
     # nodeAffinity:
     #   requiredDuringSchedulingIgnoredDuringExecution:
     #     nodeSelectorTerms:
@@ -91,7 +94,7 @@ serviceAccount:
 aws:
   # AWS region for the LakeRunner deployment.
   # Required.
-  region: "us-east-2"  # AWS region for the deployment
+  region: "us-east-2" # AWS region for the deployment
 
   # Name of the Kubernetes secret that contains the AWS credentials.
   # This secret should contain the keys `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`.
@@ -126,9 +129,10 @@ aws:
 # Required.
 storageProfiles:
   source: config # only value for general use.
-  configmapName: "storage-profiles"  # Name of the ConfigMap containing storage profiles
+  configmapName: "storage-profiles" # Name of the ConfigMap containing storage profiles
   create: true
-  yaml: []
+  yaml:
+    []
     # - organization_id: dddddddd-aaaa-4ff9-ae8f-365873c552f0
     #   instance_num: 1
     #   collector_name: "kubepi"
@@ -147,7 +151,8 @@ apiKeys:
   source: config # only value for general use.
   secretName: "apikeys" # will have the format <release-name>-apikeys once deployed
   create: true
-  yaml: []
+  yaml:
+    []
     # - organization_id: dddddddd-aaaa-4ff9-ae8f-365873c552f0
     #   keys:
     #     - my-api-key-1
@@ -156,8 +161,8 @@ apiKeys:
 # Database configuration
 # Required.
 database:
-  secretName: "pg-credentials"  # Name of the Kubernetes secret containing database credentials
-  create: true  # Whether to create the database credentials secret
+  secretName: "pg-credentials" # Name of the Kubernetes secret containing database credentials
+  create: true # Whether to create the database credentials secret
   # LRDB (LakeRunner Database) - PostgreSQL
   lrdb:
     # PostgreSQL hostname.
@@ -220,7 +225,7 @@ ingestLogs:
   replicas: 2
   image:
     repository: public.ecr.aws/cardinalhq.io/lakerunner
-    tag: "latest-dev"
+    tag: "latest"
     pullPolicy: Always
   resources:
     requests:
