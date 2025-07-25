@@ -8,6 +8,9 @@ metadata:
     app.kubernetes.io/component: query-worker
   {{ include "lakerunner.annotations" . | nindent 2 }}
 spec:
+  {{- if gt (int .Values.queryWorker.initialReplicas) 0 }}
+  replicas: {{ .Values.queryWorker.initialReplicas }}
+  {{- end }}
   strategy:
     type: RollingUpdate
     rollingUpdate:

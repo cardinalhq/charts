@@ -443,6 +443,10 @@ queryApi:
 # based on the number of queries being processed.
 queryWorker:
   enabled: true
+  # Initial number of replicas for local development only.
+  # This is only used when running locally and should be set to 0 for production.
+  # The QueryAPI will still manage scaling based on minWorkers and maxWorkers.
+  initialReplicas: 0
   image:
     repository: public.ecr.aws/cardinalhq.io/lakerunner/query-worker
     tag: "latest"
