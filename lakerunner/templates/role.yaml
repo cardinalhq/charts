@@ -10,7 +10,7 @@ rules:
     resources: ["pods", "services"]
     verbs: ["get", "list", "watch"]
   - apiGroups: ["apps"]
-    resources: ["deployments"]
+    resources: ["deployments", "deployments/scale"]
     verbs: ["get", "list", "watch", "patch", "update"]
   - apiGroups: ["discovery.k8s.io"]
     resources: ["endpointslices"]
