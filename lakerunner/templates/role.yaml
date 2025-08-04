@@ -6,12 +6,14 @@ metadata:
     {{- include "lakerunner.labels" . | nindent 4 }}
   {{ include "lakerunner.annotations" . | nindent 2 }}
 rules:
+  - apiGroups: [""]
+    resources: ["pods", "services"]
+    verbs: ["get", "list", "watch"]
   - apiGroups: ["apps"]
     resources: ["deployments"]
-    #resourceNames: ["query-worker"]
     verbs: ["get", "list", "watch", "patch", "update"]
-  - apiGroups: [""]
-    resources: ["pods", "services", "endpoints", "endpointslices"]
+  - apiGroups: ["discovery.k8s.io"]
+    resources: ["endpointslices"]
     verbs: ["get", "list", "watch"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
