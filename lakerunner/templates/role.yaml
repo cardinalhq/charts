@@ -11,8 +11,8 @@ rules:
     #resourceNames: ["query-worker"]
     verbs: ["get", "list", "watch", "patch", "update"]
   - apiGroups: [""]
-    resources: ["pods"]
-    verbs: ["get", "list", "watch", "update"]
+    resources: ["pods", "services", "endpoints", "endpointslices"]
+    verbs: ["get", "list", "watch"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
