@@ -74,7 +74,7 @@ spec:
                 name: {{ include "lakerunner.tokenSecretName" . }}
                 key: TOKEN
           - name: WORKER_POD_LABEL_SELECTOR
-            value: "app.kubernetes.io/instance={{ .Release.Name }},app.kubernetes.io/component=query-worker"
+            value: "lakerunner.cardinalhq.io/instance={{ .Release.Name }},lakerunner.cardinalhq.io/component=query-worker"
           - name: QUERY_WORKER_SERVICE_NAME
             value: {{ include "lakerunner.fullname" . }}-query-worker
           - name: QUERY_WORKER_DEPLOYMENT_NAME

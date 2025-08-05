@@ -46,22 +46,17 @@ Create chart name and version as used by the chart label.
 Common labels, now including .Values.global.labels.
 */}}
 {{- define "lakerunner.labels" -}}
-  {{- /* pull in any user-defined global labels (or empty map) */ -}}
   {{- $global := .Values.global.labels | default dict -}}
-  {{- /* start with chart name and selector labels */ -}}
   {{- $labels := merge
       (dict "helm.sh/chart" (include "lakerunner.chart" .))
       (include "lakerunner.selectorLabels" . | fromYaml)
   -}}
-  {{- /* add app version if set */ -}}
   {{- if .Chart.AppVersion -}}
     {{- $labels = merge $labels (dict "app.kubernetes.io/version" (.Chart.AppVersion)) -}}
   {{- end -}}
-  {{- /* always set managed-by */ -}}
   {{- $labels = merge $labels (dict "app.kubernetes.io/managed-by" .Release.Service) -}}
-  {{- /* finally merge in globals (overrides defaults on conflict) */ -}}
+  {{- $labels = merge $labels (dict "lakerunner.cardinalhq.io/instance" .Release.Service) -}}
   {{- $labels = merge $labels $global -}}
-  {{- /* emit YAML block */ -}}
   {{- toYaml $labels -}}
 {{- end }}
 
