@@ -6,6 +6,7 @@ metadata:
   labels:
     {{- include "lakerunner.labels" . | nindent 4 }}
     app.kubernetes.io/component: query-worker
+    lakerunner.cardinalhq.io/component: query-worker
   {{ include "lakerunner.annotations" . | nindent 2 }}
 spec:
   type: {{ .Values.queryWorker.service.type }}

@@ -6,6 +6,7 @@ metadata:
   labels:
     {{- include "lakerunner.labels" . | nindent 4 }}
     app.kubernetes.io/component: query-api
+    lakerunner.cardinalhq.io/component: query-api
   {{ include "lakerunner.annotations" . | nindent 2 }}
 spec:
   type: {{ .Values.queryApi.service.type }}
