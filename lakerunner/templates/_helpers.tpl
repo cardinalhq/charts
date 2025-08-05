@@ -55,7 +55,7 @@ Common labels, now including .Values.global.labels.
     {{- $labels = merge $labels (dict "app.kubernetes.io/version" (.Chart.AppVersion)) -}}
   {{- end -}}
   {{- $labels = merge $labels (dict "app.kubernetes.io/managed-by" .Release.Service) -}}
-  {{- $labels = merge $labels (dict "lakerunner.cardinalhq.io/instance" .Release.Service) -}}
+  {{- $labels = merge $labels (dict "lakerunner.cardinalhq.io/instance" .Release.Name) -}}
   {{- $labels = merge $labels $global -}}
   {{- toYaml $labels -}}
 {{- end }}
