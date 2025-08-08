@@ -23,7 +23,7 @@ spec:
       {{- include "lakerunner.annotations" . | nindent 6 }}
     spec:
       serviceAccountName: {{ include "lakerunner.serviceAccountName" . }}
-      terminationGracePeriodSeconds: 120
+      terminationGracePeriodSeconds: {{ .Values.queryApi.terminationGracePeriodSeconds }}
       securityContext:
         runAsNonRoot: true
         runAsUser: 2000

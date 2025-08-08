@@ -241,6 +241,7 @@ ingestLogs:
     minReplicas: 1
     maxReplicas: 10
     targetCPUUtilizationPercentage: 70
+  terminationGracePeriodSeconds: 600
   nodeSelector: {}
   tolerations: {}
   affinity: {}
@@ -268,6 +269,7 @@ ingestMetrics:
     minReplicas: 1
     maxReplicas: 10
     targetCPUUtilizationPercentage: 70
+  terminationGracePeriodSeconds: 600
   nodeSelector: {}
   tolerations: {}
   affinity: {}
@@ -295,6 +297,7 @@ compactLogs:
     minReplicas: 1
     maxReplicas: 10
     targetCPUUtilizationPercentage: 70
+  terminationGracePeriodSeconds: 300
   nodeSelector: {}
   tolerations: {}
   affinity: {}
@@ -322,6 +325,7 @@ compactMetrics:
     minReplicas: 1
     maxReplicas: 10
     targetCPUUtilizationPercentage: 70
+  terminationGracePeriodSeconds: 300
   nodeSelector: {}
   tolerations: {}
   affinity: {}
@@ -349,6 +353,7 @@ rollupMetrics:
     minReplicas: 1
     maxReplicas: 10
     targetCPUUtilizationPercentage: 70
+  terminationGracePeriodSeconds: 300
   nodeSelector: {}
   tolerations: {}
   affinity: {}
@@ -368,6 +373,7 @@ sweeper:
     limits:
       cpu: 250m
       memory: 80Mi
+  terminationGracePeriodSeconds: 300
   nodeSelector: {}
   tolerations: {}
   affinity: {}
@@ -390,6 +396,7 @@ pubsub:
       limits:
         cpu: 200m
         memory: 200Mi
+    terminationGracePeriodSeconds: 120
     nodeSelector: {}
     tolerations: {}
     affinity: {}
@@ -410,6 +417,7 @@ pubsub:
       limits:
         cpu: 200m
         memory: 200Mi
+    terminationGracePeriodSeconds: 120
     nodeSelector: {}
     tolerations: {}
     affinity: {}
@@ -433,6 +441,7 @@ queryApi:
     limits:
       cpu: 2000m
       memory: 8Gi
+  terminationGracePeriodSeconds: 120
   nodeSelector: {}
   tolerations: []
   affinity: {}
@@ -462,6 +471,7 @@ queryWorker:
     type: ClusterIP
   temporaryStorage:
     size: "16Gi"
+  terminationGracePeriodSeconds: 120
   nodeSelector: {}
   tolerations: {}
   affinity: {}
