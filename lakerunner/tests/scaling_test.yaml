@@ -1,0 +1,83 @@
+suite: test scaling configuration
+templates:
+  - query-api-statefulset.yaml
+  - ingest-logs-deployment.yaml
+  - ingest-logs-hpa.yaml
+  - compact-logs-deployment.yaml
+  - compact-logs-hpa.yaml
+tests:
+  - it: should set correct replicas for query api
+    set:
+      queryApi.enabled: true
+      queryApi.replicas: 3
+    templates:
+      - query-api-statefulset.yaml
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 3
+
+  - it: should set correct replicas for ingest logs when autoscaling disabled
+    set:
+      ingestLogs.enabled: true
+      ingestLogs.replicas: 5
+      ingestLogs.autoscaling.enabled: false
+    templates:
+      - ingest-logs-deployment.yaml
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 5
+
+  - it: should not set replicas when autoscaling enabled
+    set:
+      ingestLogs.enabled: true
+      ingestLogs.autoscaling.enabled: true
+    templates:
+      - ingest-logs-deployment.yaml
+    asserts:
+      - notExists:
+          path: spec.replicas
+
+  - it: should create HPA when autoscaling enabled
+    set:
+      ingestLogs.enabled: true
+      ingestLogs.autoscaling.enabled: true
+      ingestLogs.autoscaling.minReplicas: 2
+      ingestLogs.autoscaling.maxReplicas: 10
+      ingestLogs.autoscaling.targetCPUUtilizationPercentage: 80
+    templates:
+      - ingest-logs-hpa.yaml
+    asserts:
+      - isKind:
+          of: HorizontalPodAutoscaler
+      - equal:
+          path: spec.minReplicas
+          value: 2
+      - equal:
+          path: spec.maxReplicas
+          value: 10
+      - equal:
+          path: spec.metrics[0].resource.target.averageUtilization
+          value: 80
+
+  - it: should not create HPA when autoscaling disabled
+    set:
+      ingestLogs.enabled: true
+      ingestLogs.autoscaling.enabled: false
+    templates:
+      - ingest-logs-hpa.yaml
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should set correct termination grace periods
+    set:
+      ingestLogs.enabled: true
+      ingestLogs.terminationGracePeriodSeconds: 900
+    templates:
+      - ingest-logs-deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.terminationGracePeriodSeconds
+          value: 900

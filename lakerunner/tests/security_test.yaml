@@ -1,0 +1,83 @@
+suite: test security configuration
+templates:
+  - setup-job.yaml
+  - query-api-statefulset.yaml
+  - ingest-logs-deployment.yaml
+  - serviceaccount.yaml
+  - role.yaml
+tests:
+  - it: should set non-root security context for all pods
+    templates:
+      - setup-job.yaml
+      - query-api-statefulset.yaml
+      - ingest-logs-deployment.yaml
+    set:
+      queryApi.enabled: true
+      ingestLogs.enabled: true
+    asserts:
+      - equal:
+          path: spec.template.spec.securityContext.runAsNonRoot
+          value: true
+      - equal:
+          path: spec.template.spec.securityContext.runAsUser
+          value: 2000
+      - equal:
+          path: spec.template.spec.securityContext.runAsGroup
+          value: 2000
+
+  - it: should set container security context
+    templates:
+      - setup-job.yaml
+      - ingest-logs-deployment.yaml
+    set:
+      ingestLogs.enabled: true
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.allowPrivilegeEscalation
+          value: false
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.capabilities.drop[0]
+          value: "ALL"
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.seccompProfile.type
+          value: "RuntimeDefault"
+
+  - it: should create service account when enabled
+    set:
+      serviceAccount.create: true
+      serviceAccount.name: "test-sa"
+    templates:
+      - serviceaccount.yaml
+    asserts:
+      - isKind:
+          of: ServiceAccount
+      - equal:
+          path: metadata.name
+          value: "test-sa"
+
+  - it: should create role with correct permissions
+    templates:
+      - role.yaml
+    asserts:
+      - isKind:
+          of: Role
+        documentIndex: 0
+      - contains:
+          path: rules
+          content:
+            apiGroups: [""]
+            resources: ["pods", "services"]
+            verbs: ["get", "list", "watch"]
+        documentIndex: 0
+
+  - it: should use correct service account in pods
+    set:
+      serviceAccount.create: true
+      serviceAccount.name: "custom-sa"
+      ingestLogs.enabled: true
+    templates:
+      - ingest-logs-deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.serviceAccountName
+          value: "custom-sa"

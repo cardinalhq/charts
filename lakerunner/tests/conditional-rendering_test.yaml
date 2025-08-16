@@ -1,0 +1,123 @@
+suite: test conditional rendering
+templates:
+  - setup-job.yaml
+  - query-api-statefulset.yaml
+  - query-worker-deployment.yaml
+  - grafana-deployment.yaml
+  - ingest-logs-deployment.yaml
+  - ingest-metrics-deployment.yaml
+  - compact-logs-deployment.yaml
+  - compact-metrics-deployment.yaml
+  - rollup-metrics-deployment.yaml
+  - sweeper-deployment.yaml
+  - pubsub-http-deployment.yaml
+  - pubsub-sqs-deployment.yaml
+tests:
+  - it: should render setup job when enabled
+    set:
+      setup.enabled: true
+    templates:
+      - setup-job.yaml
+    asserts:
+      - isKind:
+          of: Job
+
+  - it: should not render setup job when disabled
+    set:
+      setup.enabled: false
+    templates:
+      - setup-job.yaml
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should render query api when enabled
+    set:
+      queryApi.enabled: true
+    templates:
+      - query-api-statefulset.yaml
+    asserts:
+      - isKind:
+          of: StatefulSet
+
+  - it: should not render query api when disabled
+    set:
+      queryApi.enabled: false
+    templates:
+      - query-api-statefulset.yaml
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should render grafana when enabled
+    set:
+      grafana.enabled: true
+    templates:
+      - grafana-deployment.yaml
+    asserts:
+      - isKind:
+          of: Deployment
+
+  - it: should not render grafana when disabled
+    set:
+      grafana.enabled: false
+    templates:
+      - grafana-deployment.yaml
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should render pubsub http when enabled
+    set:
+      pubsub.HTTP.enabled: true
+    templates:
+      - pubsub-http-deployment.yaml
+    asserts:
+      - isKind:
+          of: Deployment
+
+  - it: should not render pubsub http when disabled
+    set:
+      pubsub.HTTP.enabled: false
+    templates:
+      - pubsub-http-deployment.yaml
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should render pubsub sqs when enabled
+    set:
+      pubsub.SQS.enabled: true
+    templates:
+      - pubsub-sqs-deployment.yaml
+    asserts:
+      - isKind:
+          of: Deployment
+
+  - it: should not render pubsub sqs when disabled
+    set:
+      pubsub.SQS.enabled: false
+    templates:
+      - pubsub-sqs-deployment.yaml
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should render all ingest and processing components when enabled
+    set:
+      ingestLogs.enabled: true
+      ingestMetrics.enabled: true
+      compactLogs.enabled: true
+      compactMetrics.enabled: true
+      rollupMetrics.enabled: true
+      sweeper.enabled: true
+    templates:
+      - ingest-logs-deployment.yaml
+      - ingest-metrics-deployment.yaml
+      - compact-logs-deployment.yaml
+      - compact-metrics-deployment.yaml
+      - rollup-metrics-deployment.yaml
+      - sweeper-deployment.yaml
+    asserts:
+      - isKind:
+          of: Deployment

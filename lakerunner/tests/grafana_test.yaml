@@ -1,0 +1,69 @@
+suite: test grafana configuration
+templates:
+  - grafana-deployment.yaml
+tests:
+  - it: should include required cardinal plugin by default
+    set:
+      grafana.enabled: true
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].env[3].name
+          value: "GF_INSTALL_PLUGINS"
+      - equal:
+          path: spec.template.spec.containers[0].env[3].value
+          value: "https://github.com/cardinalhq/cardinalhq-lakerunner-datasource/raw/refs/heads/main/cardinalhq-lakerunner-datasource.zip;cardinalhq-lakerunner-datasource"
+
+  - it: should append additional plugins when specified
+    set:
+      grafana.enabled: true
+      grafana.additionalPlugins: "grafana-clock-panel"
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].env[3].value
+          value: "https://github.com/cardinalhq/cardinalhq-lakerunner-datasource/raw/refs/heads/main/cardinalhq-lakerunner-datasource.zip;cardinalhq-lakerunner-datasource,grafana-clock-panel"
+
+  - it: should handle multiple additional plugins
+    set:
+      grafana.enabled: true
+      grafana.additionalPlugins: "grafana-clock-panel,grafana-simple-json-datasource"
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].env[3].value
+          value: "https://github.com/cardinalhq/cardinalhq-lakerunner-datasource/raw/refs/heads/main/cardinalhq-lakerunner-datasource.zip;cardinalhq-lakerunner-datasource,grafana-clock-panel,grafana-simple-json-datasource"
+
+  - it: should support air-gapped cardinal plugin URL
+    set:
+      grafana.enabled: true
+      grafana.cardinalPlugin.url: "https://internal-registry.company.com/cardinalhq-lakerunner-datasource.zip;cardinalhq-lakerunner-datasource"
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].env[3].value
+          value: "https://internal-registry.company.com/cardinalhq-lakerunner-datasource.zip;cardinalhq-lakerunner-datasource"
+
+  - it: should support air-gapped plugin with additional plugins
+    set:
+      grafana.enabled: true
+      grafana.cardinalPlugin.url: "https://internal-registry.company.com/cardinalhq-lakerunner-datasource.zip;cardinalhq-lakerunner-datasource"
+      grafana.additionalPlugins: "grafana-clock-panel"
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].env[3].value
+          value: "https://internal-registry.company.com/cardinalhq-lakerunner-datasource.zip;cardinalhq-lakerunner-datasource,grafana-clock-panel"
+
+  - it: should set correct service port
+    set:
+      grafana.enabled: true
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].ports[0].containerPort
+          value: 3000
+      - equal:
+          path: spec.template.spec.containers[0].env[2].value
+          value: "3000"
+
+  - it: should not render when disabled
+    set:
+      grafana.enabled: false
+    asserts:
+      - hasDocuments:
+          count: 0

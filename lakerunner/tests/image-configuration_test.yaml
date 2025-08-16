@@ -1,0 +1,77 @@
+suite: test image configuration
+templates:
+  - setup-job.yaml
+  - query-api-statefulset.yaml
+  - grafana-deployment.yaml
+  - ingest-logs-deployment.yaml
+  - compact-logs-deployment.yaml
+tests:
+  - it: should use appVersion as default tag for lakerunner components
+    templates:
+      - setup-job.yaml
+      - query-api-statefulset.yaml
+      - ingest-logs-deployment.yaml
+    asserts:
+      - matchRegex:
+          path: spec.template.spec.containers[0].image
+          pattern: "public.ecr.aws/cardinalhq.io/lakerunner.*:v0.0.4$"
+
+  - it: should override with global tag
+    set:
+      global.image.tag: "v1.2.3"
+    templates:
+      - setup-job.yaml
+      - ingest-logs-deployment.yaml
+    asserts:
+      - matchRegex:
+          path: spec.template.spec.containers[0].image
+          pattern: ":v1.2.3$"
+
+  - it: should use component-specific tag when set
+    set:
+      setup.image.tag: "v2.0.0"
+      global.image.tag: "v1.2.3"
+    templates:
+      - setup-job.yaml
+    asserts:
+      - matchRegex:
+          path: spec.template.spec.containers[0].image
+          pattern: ":v2.0.0$"
+
+  - it: should use correct repository paths for different components
+    templates:
+      - query-api-statefulset.yaml
+    set:
+      queryApi.enabled: true
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: "public.ecr.aws/cardinalhq.io/lakerunner/query-api:v0.0.4"
+
+  - it: should handle external images correctly
+    templates:
+      - grafana-deployment.yaml
+    set:
+      grafana.enabled: true
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: "grafana/grafana:latest"
+
+  - it: should use default pullPolicy from global config
+    templates:
+      - setup-job.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].imagePullPolicy
+          value: "Always"
+
+  - it: should override pullPolicy when component specifies it
+    set:
+      setup.image.pullPolicy: "IfNotPresent"
+    templates:
+      - setup-job.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].imagePullPolicy
+          value: "IfNotPresent"
