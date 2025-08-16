@@ -501,8 +501,15 @@ grafana:
   service:
     type: ClusterIP
     port: 3000
-  plugins:
-    - https://github.com/cardinalhq/cardinalhq-lakerunner-datasource/releases/latest/download/cardinalhq-lakerunner-datasource.zip;cardinalhq-lakerunner-datasource
+  # CardinalHQ LakeRunner datasource plugin configuration
+  # This plugin is REQUIRED for LakeRunner to function properly
+  cardinalPlugin:
+    # URL to the CardinalHQ LakeRunner datasource plugin
+    # Change this only for air-gapped environments where you host the plugin elsewhere
+    url: "https://github.com/cardinalhq/cardinalhq-lakerunner-datasource/raw/refs/heads/main/cardinalhq-lakerunner-datasource.zip;cardinalhq-lakerunner-datasource"
+  # Additional optional Grafana plugins (semicolon-separated list)
+  # These will be installed in addition to the required CardinalHQ plugin
+  additionalPlugins: ""
   datasources:
     datasources.yaml:
       apiVersion: 1

@@ -50,7 +50,7 @@ spec:
           - name: GF_SERVER_HTTP_PORT
             value: "3000"
           - name: GF_INSTALL_PLUGINS
-            value: "https://github.com/cardinalhq/cardinalhq-lakerunner-datasource/raw/refs/heads/main/cardinalhq-lakerunner-datasource.zip;cardinalhq-lakerunner-datasource"
+            value: {{ if .Values.grafana.additionalPlugins }}{{ printf "%s,%s" .Values.grafana.cardinalPlugin.url .Values.grafana.additionalPlugins | quote }}{{ else }}{{ .Values.grafana.cardinalPlugin.url | quote }}{{ end }}
           - name: GF_SERVER_ROOT_URL
             value: "%(protocol)s://%(domain)s:%(http_port)s"
           {{- include "lakerunner.injectEnv" (list . .Values.grafana) | nindent 8 }}
