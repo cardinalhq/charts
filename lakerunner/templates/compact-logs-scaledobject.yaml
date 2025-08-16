@@ -17,9 +17,10 @@ spec:
   triggers:
   - type: postgresql
     metadata:
-      host: {{ .Values.global.keda.postgresql.host | default .Values.database.lrdb.host }}
-      port: {{ .Values.global.keda.postgresql.port | default .Values.database.lrdb.port | quote }}
-      database: {{ .Values.global.keda.postgresql.database | default .Values.database.lrdb.name }}
+      host: {{ .Values.database.lrdb.host }}
+      port: {{ .Values.database.lrdb.port | quote }}
+      dbName: {{ .Values.database.lrdb.name }}
+      sslmode: {{ .Values.database.lrdb.sslMode | default "require" }}
       query: {{ .Values.compactLogs.autoscaling.keda.postgresql.query | quote }}
       targetQueryValue: {{ .Values.compactLogs.autoscaling.keda.postgresql.targetQueryValue | quote }}
       activationTargetQueryValue: {{ .Values.compactLogs.autoscaling.keda.postgresql.activationTargetQueryValue | quote }}
@@ -27,5 +28,5 @@ spec:
       metricType: {{ .Values.compactLogs.autoscaling.keda.postgresql.metricType }}
       {{- end }}
     authenticationRef:
-      name: {{ .Values.global.keda.postgresql.authenticationRef }}
+      name: {{ .Values.global.keda.authenticationRef }}
 {{- end }}

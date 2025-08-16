@@ -2,30 +2,30 @@
 apiVersion: keda.sh/v1alpha1
 kind: TriggerAuthentication
 metadata:
-  name: {{ .Values.global.keda.postgresql.authenticationRef }}
+  name: {{ .Values.global.keda.authenticationRef }}
   labels:
     {{- include "lakerunner.labels" . | nindent 4 }}
   {{ include "lakerunner.annotations" . | nindent 2 }}
 spec:
-  {{- if .Values.global.keda.postgresql.connectionFromEnv }}
+  {{- if .Values.global.keda.connectionFromEnv }}
   secretTargetRef:
   - parameter: connection
     name: {{ include "lakerunner.databaseSecretName" . }}
-    key: {{ .Values.global.keda.postgresql.connectionFromEnv }}
+    key: {{ .Values.global.keda.connectionFromEnv }}
   {{- else }}
   secretTargetRef:
   - parameter: host
     name: {{ include "lakerunner.databaseSecretName" . }}
     key: LRDB_HOST
-  - parameter: port  
+  - parameter: port
     name: {{ include "lakerunner.databaseSecretName" . }}
     key: LRDB_PORT
-  - parameter: database
+  - parameter: dbName
     name: {{ include "lakerunner.databaseSecretName" . }}
     key: LRDB_DBNAME
-  - parameter: username
+  - parameter: userName
     name: {{ include "lakerunner.databaseSecretName" . }}
-    key: LRDB_USER  
+    key: LRDB_USER
   - parameter: password
     name: {{ include "lakerunner.databaseSecretName" . }}
     key: LRDB_PASSWORD

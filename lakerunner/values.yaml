@@ -27,17 +27,10 @@ global:
   # both KEDA ScaledObjects and manual HPA for the same workload.
   keda:
     enabled: false  # Global KEDA enable/disable
-    postgresql:
-      # Connection configuration (defaults to main LakeRunner database)
-      useExistingConnection: true  # Use database.lrdb.* settings
-      # Override connection settings for KEDA if needed
-      host: ""     # Defaults to database.lrdb.host
-      port: ""     # Defaults to database.lrdb.port  
-      database: "" # Defaults to database.lrdb.name
-      username: "" # Defaults to database.lrdb.username
-      # Authentication
-      authenticationRef: "keda-postgresql-auth"
-      connectionFromEnv: ""  # Alternative: full connection string from env var
+    # Authentication reference for PostgreSQL connection
+    authenticationRef: "keda-postgresql-auth"
+    # Alternative: use full connection string from environment variable
+    connectionFromEnv: ""
   # Additional annotations to add to all resources.
   # This is a key: value map.
   # Optional.
@@ -285,7 +278,7 @@ ingestLogs:
       maxReplicaCount: 10    # Maximum replicas
       postgresql:
         # Ingest backlog query - counts unclaimed log entries
-        query: "SELECT COUNT(*) FROM inqueue WHERE telemetry_type='logs' AND claimed_at IS NULL"
+        query: "SELECT COALESCE(COUNT(*), 0) FROM inqueue WHERE telemetry_type='logs' AND claimed_at IS NULL"
         targetQueryValue: 100           # "It's getting deep!" threshold
         activationTargetQueryValue: 10  # Start scaling threshold
         metricType: "AverageValue"      # AverageValue or Value
@@ -329,7 +322,7 @@ ingestMetrics:
       maxReplicaCount: 15    # Maximum replicas (higher for metrics)
       postgresql:
         # Ingest backlog query - counts unclaimed metric entries
-        query: "SELECT COUNT(*) FROM inqueue WHERE telemetry_type='metrics' AND claimed_at IS NULL"
+        query: "SELECT COALESCE(COUNT(*), 0) FROM inqueue WHERE telemetry_type='metrics' AND claimed_at IS NULL"
         targetQueryValue: 150           # Higher threshold for metrics
         activationTargetQueryValue: 20  # Start scaling threshold
         metricType: "AverageValue"      # AverageValue or Value
@@ -372,7 +365,7 @@ compactLogs:
       maxReplicaCount: 5      # Compaction typically needs fewer replicas
       postgresql:
         # Work queue query - counts runnable log compaction jobs
-        query: "SELECT COUNT(*) FROM work_queue WHERE needs_run=true AND runnable_at <= now() AND signal='logs' AND action='compact'"
+        query: "SELECT COALESCE(COUNT(*), 0) FROM work_queue WHERE needs_run=true AND runnable_at <= now() AND signal='logs' AND action='compact'"
         targetQueryValue: 10
         activationTargetQueryValue: 1
         metricType: "AverageValue"
@@ -415,7 +408,7 @@ compactMetrics:
       maxReplicaCount: 5      # Compaction typically needs fewer replicas
       postgresql:
         # Work queue query - counts runnable metric compaction jobs
-        query: "SELECT COUNT(*) FROM work_queue WHERE needs_run=true AND runnable_at <= now() AND signal='metrics' AND action='compact'"
+        query: "SELECT COALESCE(COUNT(*), 0) FROM work_queue WHERE needs_run=true AND runnable_at <= now() AND signal='metrics' AND action='compact'"
         targetQueryValue: 10
         activationTargetQueryValue: 1
         metricType: "AverageValue"
@@ -458,7 +451,7 @@ rollupMetrics:
       maxReplicaCount: 8      # Rollup processing can scale higher
       postgresql:
         # Work queue query - counts runnable metric rollup jobs
-        query: "SELECT COUNT(*) FROM work_queue WHERE needs_run=true AND runnable_at <= now() AND signal='metrics' AND action='rollup'"
+        query: "SELECT COALESCE(COUNT(*), 0) FROM work_queue WHERE needs_run=true AND runnable_at <= now() AND signal='metrics' AND action='rollup'"
         targetQueryValue: 15
         activationTargetQueryValue: 2
         metricType: "AverageValue"
@@ -541,7 +534,7 @@ queryApi:
     type: ClusterIP
   image:
     repository: public.ecr.aws/cardinalhq.io/lakerunner/query-api
-    tag: ""
+    tag: "latest"
     pullPolicy: ""
   resources:
     requests:
@@ -567,7 +560,7 @@ queryWorker:
   initialReplicas: 0
   image:
     repository: public.ecr.aws/cardinalhq.io/lakerunner/query-worker
-    tag: ""
+    tag: "latest"
     pullPolicy: ""
   resources:
     requests:

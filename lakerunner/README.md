@@ -115,7 +115,9 @@ ingestLogs:
         activationTargetQueryValue: 10  # Start scaling threshold
 ```
 
-**Important**: KEDA automatically creates and manages HPA resources. Do not deploy both KEDA ScaledObjects and manual HPA for the same workload as this will cause conflicts.
+**Important**:
+- KEDA automatically creates and manages HPA resources. Do not deploy both KEDA ScaledObjects and manual HPA for the same workload as this will cause conflicts.
+- KEDA uses the same PostgreSQL database configuration as LakeRunner (`database.lrdb.*` settings). If your database is in a different namespace, ensure the `database.lrdb.host` value uses a full service URL (e.g., `postgresql.database.svc.cluster.local`) as KEDA will need to contact PostgreSQL from the `keda-system` namespace.
 
 ## Secrets
 
