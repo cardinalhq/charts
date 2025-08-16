@@ -8,7 +8,8 @@ metadata:
     app.kubernetes.io/component: ingest-logs
   {{ include "lakerunner.annotations" . | nindent 2 }}
 spec:
-  {{- if not .Values.ingestLogs.autoscaling.enabled }}
+  {{- $scalingMode := include "lakerunner.autoscalingMode" (list .Values.ingestLogs.autoscaling .) }}
+  {{- if eq $scalingMode "disabled" }}
   replicas: {{ .Values.ingestLogs.replicas }}
   {{- end }}
   selector:

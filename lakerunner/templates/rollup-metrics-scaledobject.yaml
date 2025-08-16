@@ -1,0 +1,31 @@
+{{- if and .Values.rollupMetrics.enabled (eq (include "lakerunner.autoscalingMode" (list .Values.rollupMetrics.autoscaling .)) "keda") .Values.global.keda.enabled -}}
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: {{ include "lakerunner.fullname" . }}-rollup-metrics
+  labels:
+    {{- include "lakerunner.labels" . | nindent 4 }}
+    app.kubernetes.io/component: rollup-metrics
+  {{ include "lakerunner.annotations" . | nindent 2 }}
+spec:
+  scaleTargetRef:
+    name: {{ include "lakerunner.fullname" . }}-rollup-metrics
+  pollingInterval: {{ .Values.rollupMetrics.autoscaling.keda.pollingInterval }}
+  cooldownPeriod: {{ .Values.rollupMetrics.autoscaling.keda.cooldownPeriod }}
+  minReplicaCount: {{ .Values.rollupMetrics.autoscaling.keda.minReplicaCount }}
+  maxReplicaCount: {{ .Values.rollupMetrics.autoscaling.keda.maxReplicaCount }}
+  triggers:
+  - type: postgresql
+    metadata:
+      host: {{ .Values.global.keda.postgresql.host | default .Values.database.lrdb.host }}
+      port: {{ .Values.global.keda.postgresql.port | default .Values.database.lrdb.port | quote }}
+      database: {{ .Values.global.keda.postgresql.database | default .Values.database.lrdb.name }}
+      query: {{ .Values.rollupMetrics.autoscaling.keda.postgresql.query | quote }}
+      targetQueryValue: {{ .Values.rollupMetrics.autoscaling.keda.postgresql.targetQueryValue | quote }}
+      activationTargetQueryValue: {{ .Values.rollupMetrics.autoscaling.keda.postgresql.activationTargetQueryValue | quote }}
+      {{- if .Values.rollupMetrics.autoscaling.keda.postgresql.metricType }}
+      metricType: {{ .Values.rollupMetrics.autoscaling.keda.postgresql.metricType }}
+      {{- end }}
+    authenticationRef:
+      name: {{ .Values.global.keda.postgresql.authenticationRef }}
+{{- end }}

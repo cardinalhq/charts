@@ -5,9 +5,12 @@
 * A Kubernetes cluster running a modern version of Kubernetes, at least 1.28.
 * A PostgreSQL database, at least version 16.
 * An S3 (or compatible) object store configured to send object create notifications.
+* (Optional but **highly recommended**) [KEDA](https://keda.sh/) installed in your cluster for intelligent autoscaling.
 
 For AWS S3, SQS queues are used (which the helm chart assumes).  Other systems may have
 other mechanisms, and a webhook-style receiver can be enabled to support them.
+
+**Note on Scaling**: CPU-based autoscaling (HPA) is insufficient for micro-batch workloads and may cause poor performance. KEDA provides work queue-based scaling that intelligently responds to actual workload backlog, making it highly recommended for production environments.
 
 ## Installation
 
@@ -39,6 +42,80 @@ Items you may want to change, but are not required:
 
 The settings in the values.yaml file are suitable for a small to medium installation,
 but for a very small or larger installation, you will need to make adjustments.
+
+## KEDA Autoscaling
+
+LakeRunner supports intelligent work queue-based autoscaling through [KEDA](https://keda.sh/). KEDA is **highly recommended for production environments** as it provides superior scaling behavior compared to CPU-based HPA for micro-batch workloads.
+
+### Installing KEDA
+
+If KEDA is not already installed in your cluster, install it:
+
+```bash
+helm repo add kedacore https://kedacore.github.io/charts
+helm repo update
+helm install keda kedacore/keda --namespace keda-system --create-namespace
+```
+
+### Enabling KEDA Scaling
+
+To enable KEDA-based scaling in LakeRunner:
+
+```yaml
+global:
+  autoscaling:
+    mode: "keda"  # Options: "hpa", "keda", "disabled"
+  keda:
+    enabled: true
+```
+
+### Scaling Modes
+
+LakeRunner supports three scaling modes:
+
+- **`hpa`** (default): CPU-based horizontal pod autoscaling. Suitable for development but insufficient for production micro-batch workloads.
+- **`keda`**: Work queue-based scaling using PostgreSQL queries. **Recommended for production** as it scales based on actual workload backlog.
+- **`disabled`**: No autoscaling; uses static replica counts.
+
+You can set a global scaling mode and override it per component:
+
+```yaml
+global:
+  autoscaling:
+    mode: "keda"  # Global setting
+
+ingestLogs:
+  autoscaling:
+    mode: "hpa"  # Override for this component only
+```
+
+### How KEDA Scaling Works
+
+KEDA scales components based on actual work queue depth:
+
+- **Ingest components** scale based on unclaimed entries in the `inqueue` table
+- **Processing components** scale based on runnable jobs in the `work_queue` table  
+- **Intelligent thresholds** prevent over-scaling and ensure responsive performance
+- **Cooldown periods** prevent flapping during batch processing
+
+### KEDA Configuration
+
+Each scalable component supports KEDA configuration:
+
+```yaml
+ingestLogs:
+  autoscaling:
+    keda:
+      pollingInterval: 30    # How often to check queue (seconds)
+      cooldownPeriod: 300    # Wait before scaling down (seconds)
+      minReplicaCount: 1     # Minimum replicas (can be 0)
+      maxReplicaCount: 10    # Maximum replicas
+      postgresql:
+        targetQueryValue: 100           # Scale up threshold
+        activationTargetQueryValue: 10  # Start scaling threshold
+```
+
+**Important**: KEDA automatically creates and manages HPA resources. Do not deploy both KEDA ScaledObjects and manual HPA for the same workload as this will cause conflicts.
 
 ## Secrets
 

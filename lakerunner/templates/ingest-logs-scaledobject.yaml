@@ -1,0 +1,31 @@
+{{- if and .Values.ingestLogs.enabled (eq (include "lakerunner.autoscalingMode" (list .Values.ingestLogs.autoscaling .)) "keda") .Values.global.keda.enabled -}}
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: {{ include "lakerunner.fullname" . }}-ingest-logs
+  labels:
+    {{- include "lakerunner.labels" . | nindent 4 }}
+    app.kubernetes.io/component: ingest-logs
+  {{ include "lakerunner.annotations" . | nindent 2 }}
+spec:
+  scaleTargetRef:
+    name: {{ include "lakerunner.fullname" . }}-ingest-logs
+  pollingInterval: {{ .Values.ingestLogs.autoscaling.keda.pollingInterval }}
+  cooldownPeriod: {{ .Values.ingestLogs.autoscaling.keda.cooldownPeriod }}
+  minReplicaCount: {{ .Values.ingestLogs.autoscaling.keda.minReplicaCount }}
+  maxReplicaCount: {{ .Values.ingestLogs.autoscaling.keda.maxReplicaCount }}
+  triggers:
+  - type: postgresql
+    metadata:
+      host: {{ .Values.global.keda.postgresql.host | default .Values.database.lrdb.host }}
+      port: {{ .Values.global.keda.postgresql.port | default .Values.database.lrdb.port | quote }}
+      database: {{ .Values.global.keda.postgresql.database | default .Values.database.lrdb.name }}
+      query: {{ .Values.ingestLogs.autoscaling.keda.postgresql.query | quote }}
+      targetQueryValue: {{ .Values.ingestLogs.autoscaling.keda.postgresql.targetQueryValue | quote }}
+      activationTargetQueryValue: {{ .Values.ingestLogs.autoscaling.keda.postgresql.activationTargetQueryValue | quote }}
+      {{- if .Values.ingestLogs.autoscaling.keda.postgresql.metricType }}
+      metricType: {{ .Values.ingestLogs.autoscaling.keda.postgresql.metricType }}
+      {{- end }}
+    authenticationRef:
+      name: {{ .Values.global.keda.postgresql.authenticationRef }}
+{{- end }}

@@ -8,7 +8,8 @@ metadata:
     app.kubernetes.io/component: compact-logs
   {{ include "lakerunner.annotations" . | nindent 2 }}
 spec:
-  {{- if not .Values.compactLogs.autoscaling.enabled }}
+  {{- $scalingMode := include "lakerunner.autoscalingMode" (list .Values.compactLogs.autoscaling .) }}
+  {{- if eq $scalingMode "disabled" }}
   replicas: {{ .Values.compactLogs.replicas }}
   {{- end }}
   selector:

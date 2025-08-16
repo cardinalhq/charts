@@ -1,4 +1,4 @@
-{{- if and .Values.compactMetrics.enabled .Values.compactMetrics.autoscaling.enabled -}}
+{{- if and .Values.compactMetrics.enabled (eq (include "lakerunner.autoscalingMode" (list .Values.compactMetrics.autoscaling .)) "hpa") -}}
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:

@@ -300,3 +300,21 @@ Usage: {{ include "lakerunner.image" (list .Values.componentName.image .) }}
 {{- $tag := include "lakerunner.image.tag" (list $componentImage $root) -}}
 {{- printf "%s:%s" $componentImage.repository $tag -}}
 {{- end -}}
+
+{{/*
+Determine the autoscaling mode for a component.
+Takes two arguments: component autoscaling config and root context
+Returns the effective scaling mode: "hpa", "keda", or "disabled"
+Usage: {{ include "lakerunner.autoscalingMode" (list .Values.componentName.autoscaling .) }}
+*/}}
+{{- define "lakerunner.autoscalingMode" -}}
+{{- $componentAutoscaling := index . 0 -}}
+{{- $root := index . 1 -}}
+{{- if not $componentAutoscaling.enabled -}}
+disabled
+{{- else if and $componentAutoscaling.mode (ne $componentAutoscaling.mode "") -}}
+{{- $componentAutoscaling.mode -}}
+{{- else -}}
+{{- $root.Values.global.autoscaling.mode -}}
+{{- end -}}
+{{- end -}}

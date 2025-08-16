@@ -13,6 +13,31 @@ global:
     tag: ""
     # Default pull policy for all images
     pullPolicy: "Always"
+  # Global autoscaling configuration
+  autoscaling:
+    # Global scaling mode for all components (can be overridden per component)
+    # Options: "hpa" (CPU-based), "keda" (work queue-based), "disabled"
+    # PRODUCTION RECOMMENDATION: Use "keda" for production environments.
+    # CPU-based scaling (HPA) is insufficient for micro-batch workloads and may
+    # cause poor performance. Work queue-based scaling (KEDA) provides intelligent
+    # scaling based on actual workload backlog.
+    mode: "hpa"
+  # KEDA configuration (only used when scaling mode is "keda")
+  # KEDA automatically creates and manages HPA resources - do not deploy
+  # both KEDA ScaledObjects and manual HPA for the same workload.
+  keda:
+    enabled: false  # Global KEDA enable/disable
+    postgresql:
+      # Connection configuration (defaults to main LakeRunner database)
+      useExistingConnection: true  # Use database.lrdb.* settings
+      # Override connection settings for KEDA if needed
+      host: ""     # Defaults to database.lrdb.host
+      port: ""     # Defaults to database.lrdb.port  
+      database: "" # Defaults to database.lrdb.name
+      username: "" # Defaults to database.lrdb.username
+      # Authentication
+      authenticationRef: "keda-postgresql-auth"
+      connectionFromEnv: ""  # Alternative: full connection string from env var
   # Additional annotations to add to all resources.
   # This is a key: value map.
   # Optional.
@@ -245,9 +270,25 @@ ingestLogs:
     size: "10Gi"
   autoscaling:
     enabled: true
+    # Scaling mode for this component (overrides global.autoscaling.mode)
+    # Options: "hpa", "keda", "disabled", or "" to use global setting
+    mode: ""
+    # HPA configuration
     minReplicas: 1
     maxReplicas: 10
     targetCPUUtilizationPercentage: 70
+    # KEDA configuration (work queue-based scaling)
+    keda:
+      pollingInterval: 30    # How often to check the queue (seconds)
+      cooldownPeriod: 300    # Wait time before scaling down (seconds)
+      minReplicaCount: 1     # Minimum replicas (can be 0)
+      maxReplicaCount: 10    # Maximum replicas
+      postgresql:
+        # Ingest backlog query - counts unclaimed log entries
+        query: "SELECT COUNT(*) FROM inqueue WHERE telemetry_type='logs' AND claimed_at IS NULL"
+        targetQueryValue: 100           # "It's getting deep!" threshold
+        activationTargetQueryValue: 10  # Start scaling threshold
+        metricType: "AverageValue"      # AverageValue or Value
   terminationGracePeriodSeconds: 600
   nodeSelector: {}
   tolerations: {}
@@ -273,9 +314,25 @@ ingestMetrics:
     size: "10Gi"
   autoscaling:
     enabled: true
+    # Scaling mode for this component (overrides global.autoscaling.mode)
+    # Options: "hpa", "keda", "disabled", or "" to use global setting
+    mode: ""
+    # HPA configuration
     minReplicas: 1
     maxReplicas: 10
     targetCPUUtilizationPercentage: 70
+    # KEDA configuration (work queue-based scaling)
+    keda:
+      pollingInterval: 30    # How often to check the queue (seconds)
+      cooldownPeriod: 300    # Wait time before scaling down (seconds)
+      minReplicaCount: 1     # Minimum replicas (can be 0)
+      maxReplicaCount: 15    # Maximum replicas (higher for metrics)
+      postgresql:
+        # Ingest backlog query - counts unclaimed metric entries
+        query: "SELECT COUNT(*) FROM inqueue WHERE telemetry_type='metrics' AND claimed_at IS NULL"
+        targetQueryValue: 150           # Higher threshold for metrics
+        activationTargetQueryValue: 20  # Start scaling threshold
+        metricType: "AverageValue"      # AverageValue or Value
   terminationGracePeriodSeconds: 600
   nodeSelector: {}
   tolerations: {}
@@ -301,9 +358,24 @@ compactLogs:
     size: "5Gi"
   autoscaling:
     enabled: true
+    # Scaling mode for this component (overrides global.autoscaling.mode)
+    mode: ""
+    # HPA configuration
     minReplicas: 1
     maxReplicas: 10
     targetCPUUtilizationPercentage: 70
+    # KEDA configuration (work queue-based scaling)
+    keda:
+      pollingInterval: 60     # Longer interval for batch work
+      cooldownPeriod: 600     # 10-minute cooldown for compaction
+      minReplicaCount: 1
+      maxReplicaCount: 5      # Compaction typically needs fewer replicas
+      postgresql:
+        # Work queue query - counts runnable log compaction jobs
+        query: "SELECT COUNT(*) FROM work_queue WHERE needs_run=true AND runnable_at <= now() AND signal='logs' AND action='compact'"
+        targetQueryValue: 10
+        activationTargetQueryValue: 1
+        metricType: "AverageValue"
   terminationGracePeriodSeconds: 300
   nodeSelector: {}
   tolerations: {}
@@ -329,9 +401,24 @@ compactMetrics:
     size: "5Gi"
   autoscaling:
     enabled: true
+    # Scaling mode for this component (overrides global.autoscaling.mode)
+    mode: ""
+    # HPA configuration
     minReplicas: 1
     maxReplicas: 10
     targetCPUUtilizationPercentage: 70
+    # KEDA configuration (work queue-based scaling)
+    keda:
+      pollingInterval: 60     # Longer interval for batch work
+      cooldownPeriod: 600     # 10-minute cooldown for compaction
+      minReplicaCount: 1
+      maxReplicaCount: 5      # Compaction typically needs fewer replicas
+      postgresql:
+        # Work queue query - counts runnable metric compaction jobs
+        query: "SELECT COUNT(*) FROM work_queue WHERE needs_run=true AND runnable_at <= now() AND signal='metrics' AND action='compact'"
+        targetQueryValue: 10
+        activationTargetQueryValue: 1
+        metricType: "AverageValue"
   terminationGracePeriodSeconds: 300
   nodeSelector: {}
   tolerations: {}
@@ -357,9 +444,24 @@ rollupMetrics:
     size: "10Gi"
   autoscaling:
     enabled: true
+    # Scaling mode for this component (overrides global.autoscaling.mode)
+    mode: ""
+    # HPA configuration
     minReplicas: 1
     maxReplicas: 10
     targetCPUUtilizationPercentage: 70
+    # KEDA configuration (work queue-based scaling)
+    keda:
+      pollingInterval: 60     # Longer interval for batch work
+      cooldownPeriod: 600     # 10-minute cooldown for rollup processing
+      minReplicaCount: 1
+      maxReplicaCount: 8      # Rollup processing can scale higher
+      postgresql:
+        # Work queue query - counts runnable metric rollup jobs
+        query: "SELECT COUNT(*) FROM work_queue WHERE needs_run=true AND runnable_at <= now() AND signal='metrics' AND action='rollup'"
+        targetQueryValue: 15
+        activationTargetQueryValue: 2
+        metricType: "AverageValue"
   terminationGracePeriodSeconds: 300
   nodeSelector: {}
   tolerations: {}

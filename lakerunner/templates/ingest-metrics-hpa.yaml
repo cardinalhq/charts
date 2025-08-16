@@ -1,4 +1,4 @@
-{{- if and .Values.ingestMetrics.enabled .Values.ingestMetrics.autoscaling.enabled -}}
+{{- if and .Values.ingestMetrics.enabled (eq (include "lakerunner.autoscalingMode" (list .Values.ingestMetrics.autoscaling .)) "hpa") -}}
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:

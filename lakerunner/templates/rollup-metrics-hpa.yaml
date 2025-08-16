@@ -1,4 +1,4 @@
-{{- if and .Values.rollupMetrics.enabled .Values.rollupMetrics.autoscaling.enabled -}}
+{{- if and .Values.rollupMetrics.enabled (eq (include "lakerunner.autoscalingMode" (list .Values.rollupMetrics.autoscaling .)) "hpa") -}}
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:

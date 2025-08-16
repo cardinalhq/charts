@@ -29,6 +29,10 @@ template:  ## Test template rendering with various configurations
 	helm template $(TEST_RELEASE_NAME) . --set grafana.additionalPlugins="grafana-clock-panel" --debug --dry-run > /dev/null
 	@echo "  → With custom scaling"
 	helm template $(TEST_RELEASE_NAME) . --set queryApi.replicas=3 --set ingestLogs.replicas=5 --debug --dry-run > /dev/null
+	@echo "  → With KEDA scaling enabled"
+	helm template $(TEST_RELEASE_NAME) . --set global.autoscaling.mode=keda --set global.keda.enabled=true --set database.lrdb.host=postgres.example.com --debug --dry-run > /dev/null
+	@echo "  → With scaling disabled"
+	helm template $(TEST_RELEASE_NAME) . --set global.autoscaling.mode=disabled --debug --dry-run > /dev/null
 
 unittest:  ## Run helm unittest tests
 	@echo "🧪 Running unit tests..."

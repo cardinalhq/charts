@@ -8,7 +8,8 @@ metadata:
     app.kubernetes.io/component: compact-metrics
   {{ include "lakerunner.annotations" . | nindent 2 }}
 spec:
-  {{- if not .Values.compactMetrics.autoscaling.enabled }}
+  {{- $scalingMode := include "lakerunner.autoscalingMode" (list .Values.compactMetrics.autoscaling .) }}
+  {{- if eq $scalingMode "disabled" }}
   replicas: {{ .Values.compactMetrics.replicas }}
   {{- end }}
   selector:

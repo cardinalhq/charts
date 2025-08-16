@@ -1,0 +1,31 @@
+{{- if and .Values.compactLogs.enabled (eq (include "lakerunner.autoscalingMode" (list .Values.compactLogs.autoscaling .)) "keda") .Values.global.keda.enabled -}}
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: {{ include "lakerunner.fullname" . }}-compact-logs
+  labels:
+    {{- include "lakerunner.labels" . | nindent 4 }}
+    app.kubernetes.io/component: compact-logs
+  {{ include "lakerunner.annotations" . | nindent 2 }}
+spec:
+  scaleTargetRef:
+    name: {{ include "lakerunner.fullname" . }}-compact-logs
+  pollingInterval: {{ .Values.compactLogs.autoscaling.keda.pollingInterval }}
+  cooldownPeriod: {{ .Values.compactLogs.autoscaling.keda.cooldownPeriod }}
+  minReplicaCount: {{ .Values.compactLogs.autoscaling.keda.minReplicaCount }}
+  maxReplicaCount: {{ .Values.compactLogs.autoscaling.keda.maxReplicaCount }}
+  triggers:
+  - type: postgresql
+    metadata:
+      host: {{ .Values.global.keda.postgresql.host | default .Values.database.lrdb.host }}
+      port: {{ .Values.global.keda.postgresql.port | default .Values.database.lrdb.port | quote }}
+      database: {{ .Values.global.keda.postgresql.database | default .Values.database.lrdb.name }}
+      query: {{ .Values.compactLogs.autoscaling.keda.postgresql.query | quote }}
+      targetQueryValue: {{ .Values.compactLogs.autoscaling.keda.postgresql.targetQueryValue | quote }}
+      activationTargetQueryValue: {{ .Values.compactLogs.autoscaling.keda.postgresql.activationTargetQueryValue | quote }}
+      {{- if .Values.compactLogs.autoscaling.keda.postgresql.metricType }}
+      metricType: {{ .Values.compactLogs.autoscaling.keda.postgresql.metricType }}
+      {{- end }}
+    authenticationRef:
+      name: {{ .Values.global.keda.postgresql.authenticationRef }}
+{{- end }}
