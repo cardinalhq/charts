@@ -41,8 +41,8 @@ spec:
             drop: ["ALL"]
           seccompProfile:
             type: RuntimeDefault
-        image: "{{ .Values.rollupMetrics.image.repository }}:{{ .Values.rollupMetrics.image.tag }}"
-        imagePullPolicy: {{ .Values.rollupMetrics.image.pullPolicy }}
+        image: {{ include "lakerunner.image" (list .Values.rollupMetrics.image .) }}
+        imagePullPolicy: {{ .Values.rollupMetrics.image.pullPolicy | default .Values.global.image.pullPolicy }}
         command: ["/app/bin/lakerunner"]
         args: ["rollup-metrics"]
         env:

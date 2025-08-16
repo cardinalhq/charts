@@ -38,8 +38,8 @@ spec:
             drop: ["ALL"]
           seccompProfile:
             type: RuntimeDefault
-        image: "{{ .Values.ingestLogs.image.repository }}:{{ .Values.ingestLogs.image.tag }}"
-        imagePullPolicy: {{ .Values.ingestLogs.image.pullPolicy }}
+        image: {{ include "lakerunner.image" (list .Values.ingestLogs.image .) }}
+        imagePullPolicy: {{ .Values.ingestLogs.image.pullPolicy | default .Values.global.image.pullPolicy }}
       {{- include "lakerunner.sched.nodeSelector" (list .Values.global.nodeSelector .Values.ingestLogs.nodeSelector) | nindent 6 }}
       {{- include "lakerunner.sched.tolerations"  (list .Values.global.tolerations  .Values.ingestLogs.tolerations)  | nindent 6 }}
       {{- include "lakerunner.sched.affinity"     (list .Values.global.affinity     .Values.ingestLogs.affinity)     | nindent 6 }}

@@ -270,3 +270,33 @@ affinity:
 {{ toYaml $m | indent 2 }}
   {{- end -}}
 {{- end -}}
+
+{{/*
+Generate the image tag to use.
+Takes two arguments: component image config and root context
+Priority: component.tag > global.image.tag > Chart.appVersion
+Usage: {{ include "lakerunner.image.tag" (list .Values.componentName.image .) }}
+*/}}
+{{- define "lakerunner.image.tag" -}}
+{{- $componentImage := index . 0 -}}
+{{- $root := index . 1 -}}
+{{- if and $componentImage.tag (ne $componentImage.tag "") -}}
+{{- $componentImage.tag -}}
+{{- else if and $root.Values.global.image.tag (ne $root.Values.global.image.tag "") -}}
+{{- $root.Values.global.image.tag -}}
+{{- else -}}
+{{- $root.Chart.AppVersion -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Generate the full image name for components.
+Takes two arguments: component image config and root context
+Usage: {{ include "lakerunner.image" (list .Values.componentName.image .) }}
+*/}}
+{{- define "lakerunner.image" -}}
+{{- $componentImage := index . 0 -}}
+{{- $root := index . 1 -}}
+{{- $tag := include "lakerunner.image.tag" (list $componentImage $root) -}}
+{{- printf "%s:%s" $componentImage.repository $tag -}}
+{{- end -}}

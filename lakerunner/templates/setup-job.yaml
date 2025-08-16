@@ -36,8 +36,8 @@ spec:
             drop: ["ALL"]
           seccompProfile:
             type: RuntimeDefault
-        image: "{{ .Values.setup.image.repository }}:{{ .Values.setup.image.tag }}"
-        imagePullPolicy: {{ .Values.setup.image.pullPolicy }}
+        image: {{ include "lakerunner.image" (list .Values.setup.image .) }}
+        imagePullPolicy: {{ .Values.setup.image.pullPolicy | default .Values.global.image.pullPolicy }}
         command: ["/app/bin/lakerunner"]
         args: ["migrate"]
         env:

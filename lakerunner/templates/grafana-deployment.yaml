@@ -36,8 +36,8 @@ spec:
             drop: ["ALL"]
           seccompProfile:
             type: RuntimeDefault
-        image: "{{ .Values.grafana.image.repository }}:{{ .Values.grafana.image.tag }}"
-        imagePullPolicy: {{ .Values.grafana.image.pullPolicy }}
+        image: {{ include "lakerunner.image" (list .Values.grafana.image .) }}
+        imagePullPolicy: {{ .Values.grafana.image.pullPolicy | default .Values.global.image.pullPolicy }}
         ports:
         - name: http
           containerPort: 3000

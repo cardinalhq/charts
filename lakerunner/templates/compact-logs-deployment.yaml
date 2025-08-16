@@ -41,8 +41,8 @@ spec:
             drop: ["ALL"]
           seccompProfile:
             type: RuntimeDefault
-        image: "{{ .Values.compactLogs.image.repository }}:{{ .Values.compactLogs.image.tag }}"
-        imagePullPolicy: {{ .Values.compactLogs.image.pullPolicy }}
+        image: {{ include "lakerunner.image" (list .Values.compactLogs.image .) }}
+        imagePullPolicy: {{ .Values.compactLogs.image.pullPolicy | default .Values.global.image.pullPolicy }}
         command: ["/app/bin/lakerunner"]
         args: ["compact-logs"]
         env:

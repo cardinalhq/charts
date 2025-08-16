@@ -6,6 +6,13 @@ global:
   # The names of image pull secrets to use for all images.
   # Optional.
   imagePullSecrets: []
+  # Global image settings
+  image:
+    # Default tag for all lakerunner images (defaults to Chart.appVersion)
+    # Override this to use a different tag for all images
+    tag: ""
+    # Default pull policy for all images
+    pullPolicy: "Always"
   # Additional annotations to add to all resources.
   # This is a key: value map.
   # Optional.
@@ -205,8 +212,8 @@ setup:
   enabled: true
   image:
     repository: public.ecr.aws/cardinalhq.io/lakerunner
-    tag: "latest"
-    pullPolicy: Always
+    tag: ""
+    pullPolicy: ""
   resources:
     requests:
       cpu: 1100m
@@ -225,8 +232,8 @@ ingestLogs:
   replicas: 2
   image:
     repository: public.ecr.aws/cardinalhq.io/lakerunner
-    tag: "latest"
-    pullPolicy: Always
+    tag: ""
+    pullPolicy: ""
   resources:
     requests:
       cpu: 500m
@@ -253,8 +260,8 @@ ingestMetrics:
   replicas: 2
   image:
     repository: public.ecr.aws/cardinalhq.io/lakerunner
-    tag: "latest"
-    pullPolicy: Always
+    tag: ""
+    pullPolicy: ""
   resources:
     requests:
       cpu: 1100m
@@ -281,8 +288,8 @@ compactLogs:
   replicas: 1
   image:
     repository: public.ecr.aws/cardinalhq.io/lakerunner
-    tag: "latest"
-    pullPolicy: Always
+    tag: ""
+    pullPolicy: ""
   resources:
     requests:
       cpu: 1100m
@@ -309,8 +316,8 @@ compactMetrics:
   replicas: 1
   image:
     repository: public.ecr.aws/cardinalhq.io/lakerunner
-    tag: "latest"
-    pullPolicy: Always
+    tag: ""
+    pullPolicy: ""
   resources:
     requests:
       cpu: 2100m
@@ -337,8 +344,8 @@ rollupMetrics:
   replicas: 1
   image:
     repository: public.ecr.aws/cardinalhq.io/lakerunner
-    tag: "latest"
-    pullPolicy: Always
+    tag: ""
+    pullPolicy: ""
   resources:
     requests:
       cpu: 1100m
@@ -364,8 +371,8 @@ sweeper:
   replicas: 1
   image:
     repository: public.ecr.aws/cardinalhq.io/lakerunner
-    tag: "latest"
-    pullPolicy: Always
+    tag: ""
+    pullPolicy: ""
   resources:
     requests:
       cpu: 100m
@@ -387,8 +394,8 @@ pubsub:
       type: ClusterIP
     image:
       repository: public.ecr.aws/cardinalhq.io/lakerunner
-      tag: "latest"
-      pullPolicy: Always
+      tag: ""
+      pullPolicy: ""
     resources:
       requests:
         cpu: 100m
@@ -408,8 +415,8 @@ pubsub:
     roleARN: ""
     image:
       repository: public.ecr.aws/cardinalhq.io/lakerunner
-      tag: "latest"
-      pullPolicy: Always
+      tag: ""
+      pullPolicy: ""
     resources:
       requests:
         cpu: 100m
@@ -432,8 +439,8 @@ queryApi:
     type: ClusterIP
   image:
     repository: public.ecr.aws/cardinalhq.io/lakerunner/query-api
-    tag: "latest"
-    pullPolicy: Always
+    tag: ""
+    pullPolicy: ""
   resources:
     requests:
       cpu: 2000m
@@ -458,8 +465,8 @@ queryWorker:
   initialReplicas: 0
   image:
     repository: public.ecr.aws/cardinalhq.io/lakerunner/query-worker
-    tag: "latest"
-    pullPolicy: Always
+    tag: ""
+    pullPolicy: ""
   resources:
     requests:
       cpu: 3500m
@@ -483,7 +490,7 @@ grafana:
   image:
     repository: grafana/grafana
     tag: "latest"
-    pullPolicy: Always
+    pullPolicy: ""
   resources:
     requests:
       cpu: 100m

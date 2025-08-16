@@ -41,8 +41,8 @@ spec:
             drop: ["ALL"]
           seccompProfile:
             type: RuntimeDefault
-        image: "{{ .Values.queryApi.image.repository }}:{{ .Values.queryApi.image.tag }}"
-        imagePullPolicy: {{ .Values.queryApi.image.pullPolicy }}
+        image: {{ include "lakerunner.image" (list .Values.queryApi.image .) }}
+        imagePullPolicy: {{ .Values.queryApi.image.pullPolicy | default .Values.global.image.pullPolicy }}
         ports:
         - containerPort: 7101
           name: http

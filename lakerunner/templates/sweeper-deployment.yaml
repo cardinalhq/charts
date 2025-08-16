@@ -39,8 +39,8 @@ spec:
             drop: ["ALL"]
           seccompProfile:
             type: RuntimeDefault
-        image: "{{ .Values.sweeper.image.repository }}:{{ .Values.sweeper.image.tag }}"
-        imagePullPolicy: {{ .Values.sweeper.image.pullPolicy }}
+        image: {{ include "lakerunner.image" (list .Values.sweeper.image .) }}
+        imagePullPolicy: {{ .Values.sweeper.image.pullPolicy | default .Values.global.image.pullPolicy }}
         command: ["/app/bin/lakerunner"]
         args: ["sweeper"]
         env:

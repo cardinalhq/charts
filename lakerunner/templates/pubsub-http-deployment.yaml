@@ -36,8 +36,8 @@ spec:
             drop: ["ALL"]
           seccompProfile:
             type: RuntimeDefault
-        image: "{{ .Values.pubsub.HTTP.image.repository }}:{{ .Values.pubsub.HTTP.image.tag }}"
-        imagePullPolicy: {{ .Values.pubsub.HTTP.image.pullPolicy }}
+        image: {{ include "lakerunner.image" (list .Values.pubsub.HTTP.image .) }}
+        imagePullPolicy: {{ .Values.pubsub.HTTP.image.pullPolicy | default .Values.global.image.pullPolicy }}
       {{- include "lakerunner.sched.nodeSelector" (list .Values.global.nodeSelector .Values.pubsub.HTTP.nodeSelector) | nindent 6 }}
       {{- include "lakerunner.sched.tolerations"  (list .Values.global.tolerations  .Values.pubsub.HTTP.tolerations)  | nindent 6 }}
       {{- include "lakerunner.sched.affinity"     (list .Values.global.affinity     .Values.pubsub.HTTP.affinity)     | nindent 6 }}

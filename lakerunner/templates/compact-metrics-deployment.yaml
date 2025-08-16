@@ -38,8 +38,8 @@ spec:
             drop: ["ALL"]
           seccompProfile:
             type: RuntimeDefault
-        image: "{{ .Values.compactMetrics.image.repository }}:{{ .Values.compactMetrics.image.tag }}"
-        imagePullPolicy: {{ .Values.compactMetrics.image.pullPolicy }}
+        image: {{ include "lakerunner.image" (list .Values.compactMetrics.image .) }}
+        imagePullPolicy: {{ .Values.compactMetrics.image.pullPolicy | default .Values.global.image.pullPolicy }}
       {{- include "lakerunner.sched.nodeSelector" (list .Values.global.nodeSelector .Values.compactMetrics.nodeSelector) | nindent 6 }}
       {{- include "lakerunner.sched.tolerations"  (list .Values.global.tolerations  .Values.compactMetrics.tolerations)  | nindent 6 }}
       {{- include "lakerunner.sched.affinity"     (list .Values.global.affinity     .Values.compactMetrics.affinity)     | nindent 6 }}
