@@ -1,2 +1,5 @@
 out
 packages
+
+# Claude Code local settings (personal preferences, not shared)
+.claude/settings.local.json
