@@ -88,6 +88,8 @@ tests:
   - it: should render pubsub sqs when enabled
     set:
       pubsub.SQS.enabled: true
+      pubsub.SQS.queueURL: "https://sqs.us-east-2.amazonaws.com/123456789012/test-queue"
+      pubsub.SQS.region: "us-east-2"
     templates:
       - pubsub-sqs-deployment.yaml
     asserts:

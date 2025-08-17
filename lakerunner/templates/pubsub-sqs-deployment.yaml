@@ -1,4 +1,10 @@
 {{- if .Values.pubsub.SQS.enabled -}}
+{{- if not .Values.pubsub.SQS.queueURL -}}
+{{- fail "pubsub.SQS.queueURL is required when pubsub.SQS.enabled is true" -}}
+{{- end -}}
+{{- if not .Values.pubsub.SQS.region -}}
+{{- fail "pubsub.SQS.region is required when pubsub.SQS.enabled is true" -}}
+{{- end -}}
 apiVersion: apps/v1
 kind: Deployment
 metadata:

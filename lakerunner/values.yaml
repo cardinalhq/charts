@@ -17,20 +17,15 @@ global:
   autoscaling:
     # Global scaling mode for all components (can be overridden per component)
     # Options: "hpa" (CPU-based), "keda" (work queue-based), "disabled"
-    # PRODUCTION RECOMMENDATION: Use "keda" for production environments.
+    #
+    # PRODUCTION: Use "keda" for production environments.
     # CPU-based scaling (HPA) is insufficient for micro-batch workloads and may
     # cause poor performance. Work queue-based scaling (KEDA) provides intelligent
     # scaling based on actual workload backlog.
+    #
+    # You must have KEDA installed in your cluster to use "keda" mode.
+    # See https://keda.sh for installation instructions.
     mode: "hpa"
-  # KEDA configuration (only used when scaling mode is "keda")
-  # KEDA automatically creates and manages HPA resources - do not deploy
-  # both KEDA ScaledObjects and manual HPA for the same workload.
-  keda:
-    enabled: false  # Global KEDA enable/disable
-    # Authentication reference for PostgreSQL connection
-    authenticationRef: "keda-postgresql-auth"
-    # Alternative: use full connection string from environment variable
-    connectionFromEnv: ""
   # Additional annotations to add to all resources.
   # This is a key: value map.
   # Optional.
@@ -173,7 +168,7 @@ storageProfiles:
 # with the content in the secret under a key named `apikeys.yaml`.
 # Required.
 apiKeys:
-  source: config # only value for general use.
+  source: config # don't change as no other source is supported.
   secretName: "apikeys" # will have the format <release-name>-apikeys once deployed
   create: true
   yaml:
@@ -188,6 +183,8 @@ apiKeys:
 database:
   secretName: "pg-credentials" # Name of the Kubernetes secret containing database credentials
   create: true # Whether to create the database credentials secret
+  # Secret key names (only needed if using an existing secret with different key names)
+  passwordKey: "LRDB_PASSWORD" # Key name for password in the secret
   # LRDB (LakeRunner Database) - PostgreSQL
   lrdb:
     # PostgreSQL hostname.
@@ -203,7 +200,7 @@ database:
     # Required.
     username: "lakerunner"
     # PostgreSQL password.
-    # Optional, but recommended.
+    # Optional, but recommended if not using an existing secret.
     password: ""
     # SSL mode for PostgreSQL connection.  Default is "require".
     # Options are "disable", "allow", "prefer", "require", "verify-ca", and "verify-full".
@@ -263,25 +260,15 @@ ingestLogs:
     size: "10Gi"
   autoscaling:
     enabled: true
-    # Scaling mode for this component (overrides global.autoscaling.mode)
-    # Options: "hpa", "keda", "disabled", or "" to use global setting
-    mode: ""
-    # HPA configuration
     minReplicas: 1
     maxReplicas: 10
-    targetCPUUtilizationPercentage: 70
-    # KEDA configuration (work queue-based scaling)
+    hpa:
+      targetCPUUtilizationPercentage: 70
     keda:
-      pollingInterval: 30    # How often to check the queue (seconds)
-      cooldownPeriod: 300    # Wait time before scaling down (seconds)
-      minReplicaCount: 1     # Minimum replicas (can be 0)
-      maxReplicaCount: 10    # Maximum replicas
-      postgresql:
-        # Ingest backlog query - counts unclaimed log entries
-        query: "SELECT COALESCE(COUNT(*), 0) FROM inqueue WHERE telemetry_type='logs' AND claimed_at IS NULL"
-        targetQueryValue: 100           # "It's getting deep!" threshold
-        activationTargetQueryValue: 10  # Start scaling threshold
-        metricType: "AverageValue"      # AverageValue or Value
+      pollingInterval: 30          # How often to check the queue (seconds)
+      cooldownPeriod: 300          # Wait time before scaling down (seconds)
+      targetQueueDepth: 100        # Scale up when queue depth exceeds this (logs process quickly)
+      activationQueueDepth: 10     # Start scaling when queue depth reaches this
   terminationGracePeriodSeconds: 600
   nodeSelector: {}
   tolerations: {}
@@ -307,25 +294,15 @@ ingestMetrics:
     size: "10Gi"
   autoscaling:
     enabled: true
-    # Scaling mode for this component (overrides global.autoscaling.mode)
-    # Options: "hpa", "keda", "disabled", or "" to use global setting
-    mode: ""
-    # HPA configuration
     minReplicas: 1
     maxReplicas: 10
-    targetCPUUtilizationPercentage: 70
-    # KEDA configuration (work queue-based scaling)
+    hpa:
+      targetCPUUtilizationPercentage: 70
     keda:
-      pollingInterval: 30    # How often to check the queue (seconds)
-      cooldownPeriod: 300    # Wait time before scaling down (seconds)
-      minReplicaCount: 1     # Minimum replicas (can be 0)
-      maxReplicaCount: 15    # Maximum replicas (higher for metrics)
-      postgresql:
-        # Ingest backlog query - counts unclaimed metric entries
-        query: "SELECT COALESCE(COUNT(*), 0) FROM inqueue WHERE telemetry_type='metrics' AND claimed_at IS NULL"
-        targetQueryValue: 150           # Higher threshold for metrics
-        activationTargetQueryValue: 20  # Start scaling threshold
-        metricType: "AverageValue"      # AverageValue or Value
+      pollingInterval: 30          # How often to check the queue (seconds)
+      cooldownPeriod: 300          # Wait time before scaling down (seconds)
+      targetQueueDepth: 150        # Higher threshold for metrics (more resource intensive)
+      activationQueueDepth: 20     # Start scaling when queue depth reaches this
   terminationGracePeriodSeconds: 600
   nodeSelector: {}
   tolerations: {}
@@ -351,24 +328,15 @@ compactLogs:
     size: "5Gi"
   autoscaling:
     enabled: true
-    # Scaling mode for this component (overrides global.autoscaling.mode)
-    mode: ""
-    # HPA configuration
     minReplicas: 1
     maxReplicas: 10
-    targetCPUUtilizationPercentage: 70
-    # KEDA configuration (work queue-based scaling)
+    hpa:
+      targetCPUUtilizationPercentage: 70
     keda:
-      pollingInterval: 60     # Longer interval for batch work
-      cooldownPeriod: 600     # 10-minute cooldown for compaction
-      minReplicaCount: 1
-      maxReplicaCount: 5      # Compaction typically needs fewer replicas
-      postgresql:
-        # Work queue query - counts runnable log compaction jobs
-        query: "SELECT COALESCE(COUNT(*), 0) FROM work_queue WHERE needs_run=true AND runnable_at <= now() AND signal='logs' AND action='compact'"
-        targetQueryValue: 10
-        activationTargetQueryValue: 1
-        metricType: "AverageValue"
+      pollingInterval: 60          # Longer interval for batch work
+      cooldownPeriod: 600          # 10-minute cooldown for compaction
+      targetQueueDepth: 10         # Scale up when pending jobs exceed this
+      activationQueueDepth: 1      # Start scaling when any jobs are pending
   terminationGracePeriodSeconds: 300
   nodeSelector: {}
   tolerations: {}
@@ -394,24 +362,15 @@ compactMetrics:
     size: "5Gi"
   autoscaling:
     enabled: true
-    # Scaling mode for this component (overrides global.autoscaling.mode)
-    mode: ""
-    # HPA configuration
     minReplicas: 1
     maxReplicas: 10
-    targetCPUUtilizationPercentage: 70
-    # KEDA configuration (work queue-based scaling)
+    hpa:
+      targetCPUUtilizationPercentage: 70
     keda:
-      pollingInterval: 60     # Longer interval for batch work
-      cooldownPeriod: 600     # 10-minute cooldown for compaction
-      minReplicaCount: 1
-      maxReplicaCount: 5      # Compaction typically needs fewer replicas
-      postgresql:
-        # Work queue query - counts runnable metric compaction jobs
-        query: "SELECT COALESCE(COUNT(*), 0) FROM work_queue WHERE needs_run=true AND runnable_at <= now() AND signal='metrics' AND action='compact'"
-        targetQueryValue: 10
-        activationTargetQueryValue: 1
-        metricType: "AverageValue"
+      pollingInterval: 60          # Longer interval for batch work
+      cooldownPeriod: 600          # 10-minute cooldown for compaction
+      targetQueueDepth: 10         # Scale up when pending jobs exceed this
+      activationQueueDepth: 1      # Start scaling when any jobs are pending
   terminationGracePeriodSeconds: 300
   nodeSelector: {}
   tolerations: {}
@@ -437,24 +396,15 @@ rollupMetrics:
     size: "10Gi"
   autoscaling:
     enabled: true
-    # Scaling mode for this component (overrides global.autoscaling.mode)
-    mode: ""
-    # HPA configuration
     minReplicas: 1
     maxReplicas: 10
-    targetCPUUtilizationPercentage: 70
-    # KEDA configuration (work queue-based scaling)
+    hpa:
+      targetCPUUtilizationPercentage: 70
     keda:
-      pollingInterval: 60     # Longer interval for batch work
-      cooldownPeriod: 600     # 10-minute cooldown for rollup processing
-      minReplicaCount: 1
-      maxReplicaCount: 8      # Rollup processing can scale higher
-      postgresql:
-        # Work queue query - counts runnable metric rollup jobs
-        query: "SELECT COALESCE(COUNT(*), 0) FROM work_queue WHERE needs_run=true AND runnable_at <= now() AND signal='metrics' AND action='rollup'"
-        targetQueryValue: 15
-        activationTargetQueryValue: 2
-        metricType: "AverageValue"
+      pollingInterval: 60          # Longer interval for batch work
+      cooldownPeriod: 600          # 10-minute cooldown for rollup processing
+      targetQueueDepth: 15         # Scale up when pending jobs exceed this
+      activationQueueDepth: 2      # Start scaling when jobs are pending
   terminationGracePeriodSeconds: 300
   nodeSelector: {}
   tolerations: {}
@@ -503,10 +453,14 @@ pubsub:
     tolerations: {}
     affinity: {}
   SQS:
-    enabled: true
+    enabled: false
     replicas: 1
-    queueURL: "https://sqs.us-east-2.amazonaws.com/123456789012/my-queue"
-    region: "us-east-2" # should match the region of the SQS queue
+    # REQUIRED when enabled: Your SQS queue URL
+    # Example: "https://sqs.us-east-2.amazonaws.com/123456789012/my-queue"
+    queueURL: ""
+    # REQUIRED when enabled: AWS region for the SQS queue
+    # Example: "us-east-2"
+    region: ""
     roleARN: ""
     image:
       repository: public.ecr.aws/cardinalhq.io/lakerunner
@@ -600,7 +554,7 @@ grafana:
   # This plugin is REQUIRED for LakeRunner to function properly
   cardinalPlugin:
     # URL to the CardinalHQ LakeRunner datasource plugin
-    # Change this only for air-gapped environments where you host the plugin elsewhere
+    # air-gapped deployments should download the plugin and provide a local path
     url: "https://github.com/cardinalhq/cardinalhq-lakerunner-datasource/raw/refs/heads/main/cardinalhq-lakerunner-datasource.zip;cardinalhq-lakerunner-datasource"
   # Additional optional Grafana plugins (semicolon-separated list)
   # These will be installed in addition to the required CardinalHQ plugin
@@ -615,8 +569,10 @@ grafana:
           isDefault: true
           editable: true
           jsonData:
-            # the base URL of the query-api service
+            # Auto-configured to point to the deployed query-api service
+            # Leave empty to use default auto-configuration
             customPath: ""
           secureJsonData:
-            # the API key to use for the datasource
+            # REQUIRED: API key for datasource authentication
+            # Must match a key from apiKeys.yaml configuration
             apiKey: ""

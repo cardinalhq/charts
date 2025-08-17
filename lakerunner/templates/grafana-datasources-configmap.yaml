@@ -10,6 +10,14 @@ metadata:
 data:
   {{- range $key, $value := .Values.grafana.datasources }}
   {{ $key }}: |
-    {{- toYaml $value | nindent 4 }}
+    {{- $updatedValue := deepCopy $value }}
+    {{- if $updatedValue.datasources }}
+      {{- range $dsIndex, $datasource := $updatedValue.datasources }}
+        {{- if and $datasource.jsonData (not $datasource.jsonData.customPath) }}
+          {{- $_ := set $datasource.jsonData "customPath" (printf "http://%s-query-api:7101" (include "lakerunner.fullname" $)) }}
+        {{- end }}
+      {{- end }}
+    {{- end }}
+    {{- toYaml $updatedValue | nindent 4 }}
   {{- end }}
 {{- end }} 

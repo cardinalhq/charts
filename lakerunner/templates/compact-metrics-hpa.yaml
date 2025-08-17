@@ -15,13 +15,13 @@ spec:
   minReplicas: {{ .Values.compactMetrics.autoscaling.minReplicas }}
   maxReplicas: {{ .Values.compactMetrics.autoscaling.maxReplicas }}
   metrics:
-  {{- if .Values.compactMetrics.autoscaling.targetCPUUtilizationPercentage }}
+  {{- if .Values.compactMetrics.autoscaling.hpa.targetCPUUtilizationPercentage }}
   - type: Resource
     resource:
       name: cpu
       target:
         type: Utilization
-        averageUtilization: {{ .Values.compactMetrics.autoscaling.targetCPUUtilizationPercentage }}
+        averageUtilization: {{ .Values.compactMetrics.autoscaling.hpa.targetCPUUtilizationPercentage }}
   {{- end }}
   behavior:
     scaleDown:

@@ -1,4 +1,4 @@
-{{- if and .Values.ingestLogs.enabled (eq (include "lakerunner.autoscalingMode" (list .Values.ingestLogs.autoscaling .)) "keda") .Values.global.keda.enabled -}}
+{{- if and .Values.ingestLogs.enabled (eq (include "lakerunner.autoscalingMode" (list .Values.ingestLogs.autoscaling .)) "keda") -}}
 apiVersion: keda.sh/v1alpha1
 kind: ScaledObject
 metadata:
@@ -12,21 +12,20 @@ spec:
     name: {{ include "lakerunner.fullname" . }}-ingest-logs
   pollingInterval: {{ .Values.ingestLogs.autoscaling.keda.pollingInterval }}
   cooldownPeriod: {{ .Values.ingestLogs.autoscaling.keda.cooldownPeriod }}
-  minReplicaCount: {{ .Values.ingestLogs.autoscaling.keda.minReplicaCount }}
-  maxReplicaCount: {{ .Values.ingestLogs.autoscaling.keda.maxReplicaCount }}
+  minReplicaCount: {{ .Values.ingestLogs.autoscaling.minReplicas }}
+  maxReplicaCount: {{ .Values.ingestLogs.autoscaling.maxReplicas }}
   triggers:
   - type: postgresql
     metadata:
       host: {{ .Values.database.lrdb.host }}
       port: {{ .Values.database.lrdb.port | quote }}
       dbName: {{ .Values.database.lrdb.name }}
+      userName: {{ .Values.database.lrdb.username }}
       sslmode: {{ .Values.database.lrdb.sslMode | default "require" }}
-      query: {{ .Values.ingestLogs.autoscaling.keda.postgresql.query | quote }}
-      targetQueryValue: {{ .Values.ingestLogs.autoscaling.keda.postgresql.targetQueryValue | quote }}
-      activationTargetQueryValue: {{ .Values.ingestLogs.autoscaling.keda.postgresql.activationTargetQueryValue | quote }}
-      {{- if .Values.ingestLogs.autoscaling.keda.postgresql.metricType }}
-      metricType: {{ .Values.ingestLogs.autoscaling.keda.postgresql.metricType }}
-      {{- end }}
+      query: "SELECT COALESCE(COUNT(*), 0) FROM inqueue WHERE telemetry_type='logs' AND claimed_at IS NULL"
+      targetQueryValue: {{ .Values.ingestLogs.autoscaling.keda.targetQueueDepth | quote }}
+      activationTargetQueryValue: {{ .Values.ingestLogs.autoscaling.keda.activationQueueDepth | quote }}
+      metricType: "Value"
     authenticationRef:
-      name: {{ .Values.global.keda.authenticationRef }}
+      name: {{ include "lakerunner.fullname" . }}-keda-auth
 {{- end }}

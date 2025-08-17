@@ -95,7 +95,7 @@ Common environment variables
   valueFrom:
     secretKeyRef:
       name: {{ include "lakerunner.databaseSecretName" . }}
-      key: LRDB_PASSWORD
+      key: {{ .Values.database.passwordKey }}
 - name: LRDB_SSLMODE
   value: {{ .Values.database.lrdb.sslMode | quote }}
 {{- if eq .Values.storageProfiles.source "config" }}
@@ -312,8 +312,6 @@ Usage: {{ include "lakerunner.autoscalingMode" (list .Values.componentName.autos
 {{- $root := index . 1 -}}
 {{- if not $componentAutoscaling.enabled -}}
 disabled
-{{- else if and $componentAutoscaling.mode (ne $componentAutoscaling.mode "") -}}
-{{- $componentAutoscaling.mode -}}
 {{- else -}}
 {{- $root.Values.global.autoscaling.mode -}}
 {{- end -}}

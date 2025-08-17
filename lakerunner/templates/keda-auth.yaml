@@ -1,33 +1,17 @@
-{{- if .Values.global.keda.enabled -}}
+{{- if eq .Values.global.autoscaling.mode "keda" -}}
+{{- if not .Values.database.lrdb.host -}}
+{{- fail "database.lrdb.host is required when using KEDA scaling mode" -}}
+{{- end -}}
 apiVersion: keda.sh/v1alpha1
 kind: TriggerAuthentication
 metadata:
-  name: {{ .Values.global.keda.authenticationRef }}
+  name: {{ include "lakerunner.fullname" . }}-keda-auth
   labels:
     {{- include "lakerunner.labels" . | nindent 4 }}
   {{ include "lakerunner.annotations" . | nindent 2 }}
 spec:
-  {{- if .Values.global.keda.connectionFromEnv }}
   secretTargetRef:
-  - parameter: connection
-    name: {{ include "lakerunner.databaseSecretName" . }}
-    key: {{ .Values.global.keda.connectionFromEnv }}
-  {{- else }}
-  secretTargetRef:
-  - parameter: host
-    name: {{ include "lakerunner.databaseSecretName" . }}
-    key: LRDB_HOST
-  - parameter: port
-    name: {{ include "lakerunner.databaseSecretName" . }}
-    key: LRDB_PORT
-  - parameter: dbName
-    name: {{ include "lakerunner.databaseSecretName" . }}
-    key: LRDB_DBNAME
-  - parameter: userName
-    name: {{ include "lakerunner.databaseSecretName" . }}
-    key: LRDB_USER
   - parameter: password
     name: {{ include "lakerunner.databaseSecretName" . }}
-    key: LRDB_PASSWORD
-  {{- end }}
+    key: {{ .Values.database.passwordKey }}
 {{- end }}

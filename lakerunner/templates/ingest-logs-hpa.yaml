@@ -15,13 +15,13 @@ spec:
   minReplicas: {{ .Values.ingestLogs.autoscaling.minReplicas }}
   maxReplicas: {{ .Values.ingestLogs.autoscaling.maxReplicas }}
   metrics:
-  {{- if .Values.ingestLogs.autoscaling.targetCPUUtilizationPercentage }}
+  {{- if .Values.ingestLogs.autoscaling.hpa.targetCPUUtilizationPercentage }}
   - type: Resource
     resource:
       name: cpu
       target:
         type: Utilization
-        averageUtilization: {{ .Values.ingestLogs.autoscaling.targetCPUUtilizationPercentage }}
+        averageUtilization: {{ .Values.ingestLogs.autoscaling.hpa.targetCPUUtilizationPercentage }}
   {{- end }}
   behavior:
     scaleDown:

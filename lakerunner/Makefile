@@ -30,9 +30,11 @@ template:  ## Test template rendering with various configurations
 	@echo "  → With custom scaling"
 	helm template $(TEST_RELEASE_NAME) . --set queryApi.replicas=3 --set ingestLogs.replicas=5 --debug --dry-run > /dev/null
 	@echo "  → With KEDA scaling enabled"
-	helm template $(TEST_RELEASE_NAME) . --set global.autoscaling.mode=keda --set global.keda.enabled=true --set database.lrdb.host=postgres.example.com --debug --dry-run > /dev/null
-	@echo "  → With scaling disabled"
+	helm template $(TEST_RELEASE_NAME) . --set global.autoscaling.mode=keda --set database.lrdb.host=postgres.example.com --debug --dry-run > /dev/null
+	@echo "  → With scaling disabled globally"
 	helm template $(TEST_RELEASE_NAME) . --set global.autoscaling.mode=disabled --debug --dry-run > /dev/null
+	@echo "  → With component-level scaling disabled"
+	helm template $(TEST_RELEASE_NAME) . --set ingestLogs.autoscaling.enabled=false --debug --dry-run > /dev/null
 
 unittest:  ## Run helm unittest tests
 	@echo "Running unit tests..."

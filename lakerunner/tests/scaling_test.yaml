@@ -48,7 +48,7 @@ tests:
       ingestLogs.autoscaling.enabled: true
       ingestLogs.autoscaling.minReplicas: 2
       ingestLogs.autoscaling.maxReplicas: 10
-      ingestLogs.autoscaling.targetCPUUtilizationPercentage: 80
+      ingestLogs.autoscaling.hpa.targetCPUUtilizationPercentage: 80
     templates:
       - ingest-logs-hpa.yaml
     asserts:
@@ -89,12 +89,11 @@ tests:
   - it: should create ScaledObject when KEDA mode is enabled
     set:
       global.autoscaling.mode: keda
-      global.keda.enabled: true
       ingestLogs.enabled: true
       database.lrdb.host: postgres.example.com
-      ingestLogs.autoscaling.keda.minReplicaCount: 1
-      ingestLogs.autoscaling.keda.maxReplicaCount: 15
-      ingestLogs.autoscaling.keda.postgresql.targetQueryValue: 100
+      ingestLogs.autoscaling.minReplicas: 1
+      ingestLogs.autoscaling.maxReplicas: 10
+      ingestLogs.autoscaling.keda.targetQueueDepth: 100
     templates:
       - ingest-logs-scaledobject.yaml
     asserts:
@@ -105,7 +104,7 @@ tests:
           value: 1
       - equal:
           path: spec.maxReplicaCount
-          value: 15
+          value: 10
       - equal:
           path: spec.triggers[0].metadata.targetQueryValue
           value: "100"
@@ -113,7 +112,6 @@ tests:
   - it: should not create HPA when KEDA mode is enabled
     set:
       global.autoscaling.mode: keda
-      global.keda.enabled: true
       ingestLogs.enabled: true
       database.lrdb.host: postgres.example.com
     templates:
@@ -134,7 +132,7 @@ tests:
 
   - it: should create TriggerAuthentication when KEDA is enabled
     set:
-      global.keda.enabled: true
+      global.autoscaling.mode: keda
       database.lrdb.host: postgres.example.com
     templates:
       - keda-auth.yaml
@@ -143,31 +141,29 @@ tests:
           of: TriggerAuthentication
       - equal:
           path: metadata.name
-          value: keda-postgresql-auth
+          value: RELEASE-NAME-lakerunner-keda-auth
 
   - it: should not create TriggerAuthentication when KEDA is disabled
     set:
-      global.keda.enabled: false
+      global.autoscaling.mode: hpa
     templates:
       - keda-auth.yaml
     asserts:
       - hasDocuments:
           count: 0
 
-  - it: should support per-component scaling mode override
+  - it: should support per-component scaling disable
     set:
       global.autoscaling.mode: hpa
       ingestLogs.enabled: true
-      ingestLogs.autoscaling.mode: keda
-      global.keda.enabled: true
-      database.lrdb.host: postgres.example.com
+      ingestLogs.autoscaling.enabled: false
     templates:
       - ingest-logs-scaledobject.yaml
       - ingest-logs-hpa.yaml
     asserts:
       - template: ingest-logs-scaledobject.yaml
-        isKind:
-          of: ScaledObject
+        hasDocuments:
+          count: 0
       - template: ingest-logs-hpa.yaml
         hasDocuments:
           count: 0
@@ -175,7 +171,6 @@ tests:
   - it: should not set replicas when KEDA scaling is enabled
     set:
       global.autoscaling.mode: keda
-      global.keda.enabled: true
       ingestLogs.enabled: true
       ingestLogs.replicas: 5
       database.lrdb.host: postgres.example.com
