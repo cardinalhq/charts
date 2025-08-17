@@ -265,9 +265,9 @@ Usage: {{ mergeOverwrite $map1 $map2 }}
 */}}
 {{- define "lakerunner.sched.nodeSelector" -}}
   {{- $args   := . -}}
-  {{- $global := index $args 0 -}}
-  {{- $local  := index $args 1 -}}
-  {{- $m      := merge $global $local -}}
+  {{- $global := index $args 0 | default dict -}}
+  {{- $local  := index $args 1 | default dict -}}
+  {{- $m      := merge $local $global -}}
   {{- if gt (len $m) 0 -}}
 nodeSelector:
 {{ toYaml $m | indent 2 }}
@@ -281,8 +281,8 @@ nodeSelector:
 */}}
 {{- define "lakerunner.sched.tolerations" -}}
   {{- $args   := . -}}
-  {{- $global := index $args 0 -}}
-  {{- $local  := index $args 1 -}}
+  {{- $global := index $args 0 | default list -}}
+  {{- $local  := index $args 1 | default list -}}
   {{- if gt (len $local) 0 -}}
 tolerations:
 {{ toYaml $local | indent 2 }}
@@ -299,9 +299,9 @@ tolerations:
 */}}
 {{- define "lakerunner.sched.affinity" -}}
   {{- $args   := . -}}
-  {{- $global := index $args 0 -}}
-  {{- $local  := index $args 1 -}}
-  {{- $m      := merge $global $local -}}
+  {{- $global := index $args 0 | default dict -}}
+  {{- $local  := index $args 1 | default dict -}}
+  {{- $m      := merge $local $global -}}
   {{- if gt (len $m) 0 -}}
 affinity:
 {{ toYaml $m | indent 2 }}

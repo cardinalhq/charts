@@ -1,0 +1,563 @@
+suite: test scheduling controls (nodeSelector, tolerations, affinity)
+templates:
+  - ingest-logs-deployment.yaml
+  - ingest-metrics-deployment.yaml
+  - compact-logs-deployment.yaml
+  - compact-metrics-deployment.yaml
+  - rollup-metrics-deployment.yaml
+  - query-api-statefulset.yaml
+  - query-worker-deployment.yaml
+  - grafana-deployment.yaml
+  - setup-job.yaml
+  - pubsub-http-deployment.yaml
+  - pubsub-sqs-deployment.yaml
+  - sweeper-deployment.yaml
+tests:
+  - it: should not render scheduling controls when not configured
+    templates:
+      - ingest-logs-deployment.yaml
+    asserts:
+      - notExists:
+          path: spec.template.spec.nodeSelector
+      - notExists:
+          path: spec.template.spec.tolerations
+      - notExists:
+          path: spec.template.spec.affinity
+
+  - it: should render global nodeSelector for all components
+    set:
+      global.nodeSelector:
+        disktype: ssd
+        region: us-west-2
+    templates:
+      - ingest-logs-deployment.yaml
+      - query-api-statefulset.yaml
+      - query-worker-deployment.yaml
+    asserts:
+      - template: ingest-logs-deployment.yaml
+        equal:
+          path: spec.template.spec.nodeSelector.disktype
+          value: ssd
+      - template: ingest-logs-deployment.yaml
+        equal:
+          path: spec.template.spec.nodeSelector.region
+          value: us-west-2
+      - template: query-api-statefulset.yaml
+        equal:
+          path: spec.template.spec.nodeSelector.disktype
+          value: ssd
+      - template: query-worker-deployment.yaml
+        equal:
+          path: spec.template.spec.nodeSelector.disktype
+          value: ssd
+
+  - it: should render component-specific nodeSelector overriding global
+    set:
+      global.nodeSelector:
+        disktype: ssd
+        region: us-west-2
+      queryWorker.nodeSelector:
+        workload: query-intensive
+        disktype: nvme
+    templates:
+      - query-worker-deployment.yaml
+      - ingest-logs-deployment.yaml
+    asserts:
+      - template: query-worker-deployment.yaml
+        equal:
+          path: spec.template.spec.nodeSelector.workload
+          value: query-intensive
+      - template: query-worker-deployment.yaml
+        equal:
+          path: spec.template.spec.nodeSelector.disktype
+          value: nvme
+      - template: query-worker-deployment.yaml
+        equal:
+          path: spec.template.spec.nodeSelector.region
+          value: us-west-2
+      - template: ingest-logs-deployment.yaml
+        equal:
+          path: spec.template.spec.nodeSelector.disktype
+          value: ssd
+
+  - it: should render global tolerations for all components
+    set:
+      global.tolerations:
+        - key: "workload"
+          operator: "Equal"
+          value: "lakerunner"
+          effect: "NoSchedule"
+        - key: "gpu"
+          operator: "Exists"
+          effect: "NoExecute"
+          tolerationSeconds: 3600
+    templates:
+      - ingest-logs-deployment.yaml
+      - query-api-statefulset.yaml
+    asserts:
+      - template: ingest-logs-deployment.yaml
+        contains:
+          path: spec.template.spec.tolerations
+          content:
+            key: "workload"
+            operator: "Equal"
+            value: "lakerunner"
+            effect: "NoSchedule"
+      - template: ingest-logs-deployment.yaml
+        contains:
+          path: spec.template.spec.tolerations
+          content:
+            key: "gpu"
+            operator: "Exists"
+            effect: "NoExecute"
+            tolerationSeconds: 3600
+      - template: query-api-statefulset.yaml
+        contains:
+          path: spec.template.spec.tolerations
+          content:
+            key: "workload"
+            operator: "Equal"
+            value: "lakerunner"
+            effect: "NoSchedule"
+
+  - it: should render component-specific tolerations completely replacing global
+    set:
+      global.tolerations:
+        - key: "global-taint"
+          operator: "Equal"
+          value: "global-value"
+          effect: "NoSchedule"
+      queryWorker.tolerations:
+        - key: "query-worker-taint"
+          operator: "Equal"
+          value: "query-intensive"
+          effect: "NoSchedule"
+        - key: "memory-intensive"
+          operator: "Exists"
+          effect: "NoExecute"
+    templates:
+      - query-worker-deployment.yaml
+      - ingest-logs-deployment.yaml
+    asserts:
+      - template: query-worker-deployment.yaml
+        contains:
+          path: spec.template.spec.tolerations
+          content:
+            key: "query-worker-taint"
+            operator: "Equal"
+            value: "query-intensive"
+            effect: "NoSchedule"
+      - template: query-worker-deployment.yaml
+        contains:
+          path: spec.template.spec.tolerations
+          content:
+            key: "memory-intensive"
+            operator: "Exists"
+            effect: "NoExecute"
+      - template: query-worker-deployment.yaml
+        notContains:
+          path: spec.template.spec.tolerations
+          content:
+            key: "global-taint"
+      - template: ingest-logs-deployment.yaml
+        contains:
+          path: spec.template.spec.tolerations
+          content:
+            key: "global-taint"
+            operator: "Equal"
+            value: "global-value"
+            effect: "NoSchedule"
+
+  - it: should render global affinity for all components
+    set:
+      global.affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: "kubernetes.io/arch"
+                operator: In
+                values: ["amd64"]
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app: lakerunner
+              topologyKey: "kubernetes.io/hostname"
+    templates:
+      - ingest-logs-deployment.yaml
+      - query-api-statefulset.yaml
+    asserts:
+      - template: ingest-logs-deployment.yaml
+        equal:
+          path: spec.template.spec.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms[0].matchExpressions[0].key
+          value: "kubernetes.io/arch"
+      - template: ingest-logs-deployment.yaml
+        equal:
+          path: spec.template.spec.affinity.podAntiAffinity.preferredDuringSchedulingIgnoredDuringExecution[0].weight
+          value: 100
+      - template: query-api-statefulset.yaml
+        equal:
+          path: spec.template.spec.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms[0].matchExpressions[0].key
+          value: "kubernetes.io/arch"
+
+  - it: should merge component-specific affinity with global affinity
+    set:
+      global.affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: "kubernetes.io/arch"
+                operator: In
+                values: ["amd64"]
+      queryWorker.affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            preference:
+              matchExpressions:
+              - key: "workload"
+                operator: In
+                values: ["query-intensive"]
+        podAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchLabels:
+                component: query-worker
+            topologyKey: "kubernetes.io/hostname"
+    templates:
+      - query-worker-deployment.yaml
+      - ingest-logs-deployment.yaml
+    asserts:
+      - template: query-worker-deployment.yaml
+        equal:
+          path: spec.template.spec.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms[0].matchExpressions[0].key
+          value: "kubernetes.io/arch"
+      - template: query-worker-deployment.yaml
+        equal:
+          path: spec.template.spec.affinity.nodeAffinity.preferredDuringSchedulingIgnoredDuringExecution[0].weight
+          value: 100
+      - template: query-worker-deployment.yaml
+        equal:
+          path: spec.template.spec.affinity.podAffinity.requiredDuringSchedulingIgnoredDuringExecution[0].labelSelector.matchLabels.component
+          value: query-worker
+      - template: ingest-logs-deployment.yaml
+        equal:
+          path: spec.template.spec.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms[0].matchExpressions[0].key
+          value: "kubernetes.io/arch"
+      - template: ingest-logs-deployment.yaml
+        notExists:
+          path: spec.template.spec.affinity.podAffinity
+
+  - it: should handle realistic query-worker dedicated node scenario
+    set:
+      global.nodeSelector:
+        cluster-tier: standard
+      global.tolerations:
+        - key: "cluster-shared"
+          operator: "Equal"
+          value: "true"
+          effect: "NoSchedule"
+      queryWorker:
+        nodeSelector:
+          workload-type: query-intensive
+          instance-family: memory-optimized
+        tolerations:
+          - key: "query-worker-dedicated"
+            operator: "Equal"
+            value: "true"
+            effect: "NoSchedule"
+          - key: "expensive-nodes"
+            operator: "Exists"
+            effect: "NoExecute"
+        affinity:
+          nodeAffinity:
+            requiredDuringSchedulingIgnoredDuringExecution:
+              nodeSelectorTerms:
+              - matchExpressions:
+                - key: "node-pool"
+                  operator: In
+                  values: ["query-workers"]
+          podAntiAffinity:
+            requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  app.kubernetes.io/component: query-worker
+              topologyKey: "kubernetes.io/hostname"
+    templates:
+      - query-worker-deployment.yaml
+      - ingest-logs-deployment.yaml
+    asserts:
+      # Query worker should have merged nodeSelector
+      - template: query-worker-deployment.yaml
+        equal:
+          path: spec.template.spec.nodeSelector.cluster-tier
+          value: standard
+      - template: query-worker-deployment.yaml
+        equal:
+          path: spec.template.spec.nodeSelector.workload-type
+          value: query-intensive
+      - template: query-worker-deployment.yaml
+        equal:
+          path: spec.template.spec.nodeSelector.instance-family
+          value: memory-optimized
+      # Query worker should have component-specific tolerations (not global)
+      - template: query-worker-deployment.yaml
+        contains:
+          path: spec.template.spec.tolerations
+          content:
+            key: "query-worker-dedicated"
+            operator: "Equal"
+            value: "true"
+            effect: "NoSchedule"
+      - template: query-worker-deployment.yaml
+        contains:
+          path: spec.template.spec.tolerations
+          content:
+            key: "expensive-nodes"
+            operator: "Exists"
+            effect: "NoExecute"
+      - template: query-worker-deployment.yaml
+        notContains:
+          path: spec.template.spec.tolerations
+          content:
+            key: "cluster-shared"
+      # Query worker should have specific affinity
+      - template: query-worker-deployment.yaml
+        equal:
+          path: spec.template.spec.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms[0].matchExpressions[0].key
+          value: "node-pool"
+      - template: query-worker-deployment.yaml
+        contains:
+          path: spec.template.spec.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms[0].matchExpressions[0].values
+          content: "query-workers"
+      - template: query-worker-deployment.yaml
+        equal:
+          path: spec.template.spec.affinity.podAntiAffinity.requiredDuringSchedulingIgnoredDuringExecution[0].labelSelector.matchLabels["app.kubernetes.io/component"]
+          value: query-worker
+      # Other components should use global settings
+      - template: ingest-logs-deployment.yaml
+        equal:
+          path: spec.template.spec.nodeSelector.cluster-tier
+          value: standard
+      - template: ingest-logs-deployment.yaml
+        notExists:
+          path: spec.template.spec.nodeSelector.workload-type
+      - template: ingest-logs-deployment.yaml
+        contains:
+          path: spec.template.spec.tolerations
+          content:
+            key: "cluster-shared"
+            operator: "Equal"
+            value: "true"
+            effect: "NoSchedule"
+
+  - it: should handle mixed scheduling scenario with multiple components
+    set:
+      global.nodeSelector:
+        environment: production
+        region: us-west-2
+      global.tolerations:
+        - key: "production"
+          operator: "Equal"
+          value: "true"
+          effect: "NoSchedule"
+      queryWorker:
+        nodeSelector:
+          workload: query-heavy
+      compactLogs:
+        tolerations:
+          - key: "storage-intensive"
+            operator: "Equal"
+            value: "true"
+            effect: "NoSchedule"
+      rollupMetrics:
+        affinity:
+          nodeAffinity:
+            preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              preference:
+                matchExpressions:
+                - key: "cpu-intensive"
+                  operator: In
+                  values: ["true"]
+    templates:
+      - query-worker-deployment.yaml
+      - compact-logs-deployment.yaml
+      - rollup-metrics-deployment.yaml
+      - ingest-logs-deployment.yaml
+    asserts:
+      # Query worker: merged nodeSelector, global tolerations
+      - template: query-worker-deployment.yaml
+        equal:
+          path: spec.template.spec.nodeSelector.environment
+          value: production
+      - template: query-worker-deployment.yaml
+        equal:
+          path: spec.template.spec.nodeSelector.workload
+          value: query-heavy
+      - template: query-worker-deployment.yaml
+        contains:
+          path: spec.template.spec.tolerations
+          content:
+            key: "production"
+            operator: "Equal"
+            value: "true"
+            effect: "NoSchedule"
+      # Compact logs: global nodeSelector, component tolerations
+      - template: compact-logs-deployment.yaml
+        equal:
+          path: spec.template.spec.nodeSelector.environment
+          value: production
+      - template: compact-logs-deployment.yaml
+        contains:
+          path: spec.template.spec.tolerations
+          content:
+            key: "storage-intensive"
+            operator: "Equal"
+            value: "true"
+            effect: "NoSchedule"
+      - template: compact-logs-deployment.yaml
+        notContains:
+          path: spec.template.spec.tolerations
+          content:
+            key: "production"
+      # Rollup metrics: global nodeSelector, global tolerations, component affinity
+      - template: rollup-metrics-deployment.yaml
+        equal:
+          path: spec.template.spec.nodeSelector.environment
+          value: production
+      - template: rollup-metrics-deployment.yaml
+        contains:
+          path: spec.template.spec.tolerations
+          content:
+            key: "production"
+            operator: "Equal"
+            value: "true"
+            effect: "NoSchedule"
+      - template: rollup-metrics-deployment.yaml
+        equal:
+          path: spec.template.spec.affinity.nodeAffinity.preferredDuringSchedulingIgnoredDuringExecution[0].weight
+          value: 100
+      # Ingest logs: all global settings
+      - template: ingest-logs-deployment.yaml
+        equal:
+          path: spec.template.spec.nodeSelector.environment
+          value: production
+      - template: ingest-logs-deployment.yaml
+        contains:
+          path: spec.template.spec.tolerations
+          content:
+            key: "production"
+            operator: "Equal"
+            value: "true"
+            effect: "NoSchedule"
+      - template: ingest-logs-deployment.yaml
+        notExists:
+          path: spec.template.spec.affinity
+
+  - it: should handle empty scheduling configurations
+    set:
+      global.nodeSelector: {}
+      global.tolerations: []
+      global.affinity: {}
+      queryWorker.nodeSelector: {}
+      queryWorker.tolerations: []
+      queryWorker.affinity: {}
+    templates:
+      - query-worker-deployment.yaml
+      - ingest-logs-deployment.yaml
+    asserts:
+      - template: query-worker-deployment.yaml
+        notExists:
+          path: spec.template.spec.nodeSelector
+      - template: query-worker-deployment.yaml
+        notExists:
+          path: spec.template.spec.tolerations
+      - template: query-worker-deployment.yaml
+        notExists:
+          path: spec.template.spec.affinity
+      - template: ingest-logs-deployment.yaml
+        notExists:
+          path: spec.template.spec.nodeSelector
+      - template: ingest-logs-deployment.yaml
+        notExists:
+          path: spec.template.spec.tolerations
+      - template: ingest-logs-deployment.yaml
+        notExists:
+          path: spec.template.spec.affinity
+
+  - it: should work across all pod-creating resources consistently
+    set:
+      global.nodeSelector:
+        shared-label: global-value
+      setup.nodeSelector:
+        setup-specific: job-node
+      queryApi.tolerations:
+        - key: "stateful-workload"
+          operator: "Equal"
+          value: "true"
+          effect: "NoSchedule"
+      grafana.affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 50
+            preference:
+              matchExpressions:
+              - key: "ui-workload"
+                operator: In
+                values: ["true"]
+      grafana.enabled: true
+      setup.enabled: true
+      queryApi.enabled: true
+    templates:
+      - setup-job.yaml
+      - query-api-statefulset.yaml
+      - grafana-deployment.yaml
+      - sweeper-deployment.yaml
+    asserts:
+      # Setup job should have merged nodeSelector
+      - template: setup-job.yaml
+        equal:
+          path: spec.template.spec.nodeSelector.shared-label
+          value: global-value
+      - template: setup-job.yaml
+        equal:
+          path: spec.template.spec.nodeSelector.setup-specific
+          value: job-node
+      # Query API should have global nodeSelector but component tolerations
+      - template: query-api-statefulset.yaml
+        equal:
+          path: spec.template.spec.nodeSelector.shared-label
+          value: global-value
+      - template: query-api-statefulset.yaml
+        contains:
+          path: spec.template.spec.tolerations
+          content:
+            key: "stateful-workload"
+            operator: "Equal"
+            value: "true"
+            effect: "NoSchedule"
+      # Grafana should have global nodeSelector and component affinity
+      - template: grafana-deployment.yaml
+        equal:
+          path: spec.template.spec.nodeSelector.shared-label
+          value: global-value
+      - template: grafana-deployment.yaml
+        equal:
+          path: spec.template.spec.affinity.nodeAffinity.preferredDuringSchedulingIgnoredDuringExecution[0].weight
+          value: 50
+      # Sweeper should have only global nodeSelector
+      - template: sweeper-deployment.yaml
+        equal:
+          path: spec.template.spec.nodeSelector.shared-label
+          value: global-value
+      - template: sweeper-deployment.yaml
+        notExists:
+          path: spec.template.spec.tolerations
+      - template: sweeper-deployment.yaml
+        notExists:
+          path: spec.template.spec.affinity
