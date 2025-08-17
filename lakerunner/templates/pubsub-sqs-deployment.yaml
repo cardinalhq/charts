@@ -45,9 +45,6 @@ spec:
             type: RuntimeDefault
         image: {{ include "lakerunner.image" (list .Values.pubsub.SQS.image .) }}
         imagePullPolicy: {{ .Values.pubsub.SQS.image.pullPolicy | default .Values.global.image.pullPolicy }}
-      {{- include "lakerunner.sched.nodeSelector" (list .Values.global.nodeSelector .Values.pubsub.SQS.nodeSelector) | nindent 6 }}
-      {{- include "lakerunner.sched.tolerations"  (list .Values.global.tolerations  .Values.pubsub.SQS.tolerations)  | nindent 6 }}
-      {{- include "lakerunner.sched.affinity"     (list .Values.global.affinity     .Values.pubsub.SQS.affinity)     | nindent 6 }}
         command: ["/app/bin/lakerunner"]
         args: ["pubsub", "sqs"]
         env:
@@ -62,8 +59,8 @@ spec:
           {{- include "lakerunner.injectEnv" (list . .Values.pubsub.SQS) | nindent 8 }}
         {{- if .Values.aws.inject }}
         envFrom:
-        - secretRef:
-            name: {{ include "lakerunner.awsSecretName" . }}
+          - secretRef:
+              name: {{ include "lakerunner.awsSecretName" . }}
         {{- end }}
         resources:
           {{- toYaml .Values.pubsub.SQS.resources | nindent 10 }}
@@ -74,6 +71,9 @@ spec:
           subPath: storage_profiles.yaml
           readOnly: true
         {{- end }}
+      {{- include "lakerunner.sched.nodeSelector" (list .Values.global.nodeSelector .Values.pubsub.SQS.nodeSelector) | nindent 6 }}
+      {{- include "lakerunner.sched.tolerations"  (list .Values.global.tolerations  .Values.pubsub.SQS.tolerations)  | nindent 6 }}
+      {{- include "lakerunner.sched.affinity"     (list .Values.global.affinity     .Values.pubsub.SQS.affinity)     | nindent 6 }}
       {{- if eq .Values.storageProfiles.source "config" }}
       volumes:
       - name: storage-profiles

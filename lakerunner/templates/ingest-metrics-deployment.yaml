@@ -41,9 +41,6 @@ spec:
             type: RuntimeDefault
         image: {{ include "lakerunner.image" (list .Values.ingestMetrics.image .) }}
         imagePullPolicy: {{ .Values.ingestMetrics.image.pullPolicy | default .Values.global.image.pullPolicy }}
-      {{- include "lakerunner.sched.nodeSelector" (list .Values.global.nodeSelector .Values.ingestMetrics.nodeSelector) | nindent 6 }}
-      {{- include "lakerunner.sched.tolerations"  (list .Values.global.tolerations  .Values.ingestMetrics.tolerations)  | nindent 6 }}
-      {{- include "lakerunner.sched.affinity"     (list .Values.global.affinity     .Values.ingestMetrics.affinity)     | nindent 6 }}
         command: ["/app/bin/lakerunner"]
         args: ["ingest-metrics"]
         env:
@@ -54,8 +51,8 @@ spec:
           {{- include "lakerunner.injectEnv" (list . .Values.ingestMetrics) | nindent 8 }}
         {{- if .Values.aws.inject }}
         envFrom:
-        - secretRef:
-            name: {{ include "lakerunner.awsSecretName" . }}
+          - secretRef:
+              name: {{ include "lakerunner.awsSecretName" . }}
         {{- end }}
         resources:
           {{- toYaml .Values.ingestMetrics.resources | nindent 10 }}
@@ -68,6 +65,9 @@ spec:
         {{- end }}
         - name: scratch
           mountPath: /scratch
+      {{- include "lakerunner.sched.nodeSelector" (list .Values.global.nodeSelector .Values.ingestMetrics.nodeSelector) | nindent 6 }}
+      {{- include "lakerunner.sched.tolerations"  (list .Values.global.tolerations  .Values.ingestMetrics.tolerations)  | nindent 6 }}
+      {{- include "lakerunner.sched.affinity"     (list .Values.global.affinity     .Values.ingestMetrics.affinity)     | nindent 6 }}
       volumes:
       - name: scratch
         emptyDir:

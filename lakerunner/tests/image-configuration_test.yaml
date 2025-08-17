@@ -92,3 +92,46 @@ tests:
       - equal:
           path: spec.template.spec.containers[0].imagePullPolicy
           value: "IfNotPresent"
+
+  - it: should use global pullPolicy across all components
+    set:
+      global.image.pullPolicy: "Never"
+    templates:
+      - setup-job.yaml
+      - ingest-logs-deployment.yaml
+      - compact-logs-deployment.yaml
+    asserts:
+      - template: setup-job.yaml
+        equal:
+          path: spec.template.spec.containers[0].imagePullPolicy
+          value: "Never"
+      - template: ingest-logs-deployment.yaml
+        equal:
+          path: spec.template.spec.containers[0].imagePullPolicy
+          value: "Never"
+      - template: compact-logs-deployment.yaml
+        equal:
+          path: spec.template.spec.containers[0].imagePullPolicy
+          value: "Never"
+
+  - it: should prioritize component pullPolicy over global pullPolicy
+    set:
+      global.image.pullPolicy: "Always"
+      setup.image.pullPolicy: "IfNotPresent"
+    templates:
+      - setup-job.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].imagePullPolicy
+          value: "IfNotPresent"
+
+  - it: should apply global pullPolicy to external images
+    set:
+      global.image.pullPolicy: "IfNotPresent"
+      grafana.enabled: true
+    templates:
+      - grafana-deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].imagePullPolicy
+          value: "IfNotPresent"

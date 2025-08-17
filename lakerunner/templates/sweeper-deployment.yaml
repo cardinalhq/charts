@@ -51,8 +51,8 @@ spec:
           {{- include "lakerunner.injectEnv" (list . .Values.sweeper) | nindent 8 }}
         {{- if .Values.aws.inject }}
         envFrom:
-        - secretRef:
-            name: {{ include "lakerunner.awsSecretName" . }}
+          - secretRef:
+              name: {{ include "lakerunner.awsSecretName" . }}
         {{- end }}
         resources:
           {{- toYaml .Values.sweeper.resources | nindent 10 }}

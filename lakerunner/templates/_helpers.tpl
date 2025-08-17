@@ -276,19 +276,17 @@ nodeSelector:
 
 
 {{/*
-  Pick local tolerations if set, else global, emit tolerations: if non-empty.
+  Merge global and local tolerations, emit tolerations: if non-empty.
   args: [ globalList, localList ]
 */}}
 {{- define "lakerunner.sched.tolerations" -}}
   {{- $args   := . -}}
   {{- $global := index $args 0 | default list -}}
   {{- $local  := index $args 1 | default list -}}
-  {{- if gt (len $local) 0 -}}
+  {{- $merged := concat $local $global -}}
+  {{- if gt (len $merged) 0 -}}
 tolerations:
-{{ toYaml $local | indent 2 }}
-  {{- else if gt (len $global) 0 -}}
-tolerations:
-{{ toYaml $global | indent 2 }}
+{{ toYaml $merged | indent 2 }}
   {{- end -}}
 {{- end -}}
 
