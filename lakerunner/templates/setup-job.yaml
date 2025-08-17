@@ -24,7 +24,7 @@ spec:
         runAsUser: 65532
         runAsGroup: 65532
         fsGroup: 65532
-      {{- include "lakerunner.imagePullSecrets" . | nindent 2 }}
+      {{- include "lakerunner.imagePullSecrets" . | nindent 6 }}
       {{- include "lakerunner.sched.nodeSelector" (list .Values.global.nodeSelector .Values.setup.nodeSelector) | nindent 6 }}
       {{- include "lakerunner.sched.tolerations"  (list .Values.global.tolerations  .Values.setup.tolerations)  | nindent 6 }}
       {{- include "lakerunner.sched.affinity"     (list .Values.global.affinity     .Values.setup.affinity)     | nindent 6 }}

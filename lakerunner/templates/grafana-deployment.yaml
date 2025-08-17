@@ -27,7 +27,7 @@ spec:
         runAsUser: 472
         runAsGroup: 472
         fsGroup: 472
-      {{- include "lakerunner.imagePullSecrets" . | nindent 2 }}
+      {{- include "lakerunner.imagePullSecrets" . | nindent 6 }}
       containers:
       - name: grafana
         securityContext:
