@@ -27,9 +27,9 @@ spec:
       terminationGracePeriodSeconds: {{ .Values.compactMetrics.terminationGracePeriodSeconds }}
       securityContext:
         runAsNonRoot: true
-        runAsUser: 2000
-        runAsGroup: 2000
-        fsGroup: 2000
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
       {{- include "lakerunner.imagePullSecrets" . | nindent 2 }}
       containers:
       - name: compact-metrics
