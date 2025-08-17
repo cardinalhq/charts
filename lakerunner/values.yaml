@@ -114,7 +114,7 @@ serviceAccount:
 aws:
   # AWS region for the LakeRunner deployment.
   # Required.
-  region: "us-east-2" # AWS region for the deployment
+  region: "CHANGEME" # AWS region for the deployment - REQUIRED, set to your actual region
 
   # Name of the Kubernetes secret that contains the AWS credentials.
   # This secret should contain the keys `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`.
@@ -472,7 +472,7 @@ pubsub:
     # REQUIRED when enabled: Your SQS queue URL
     # Example: "https://sqs.us-east-2.amazonaws.com/123456789012/my-queue"
     queueURL: ""
-    # REQUIRED when enabled: AWS region for the SQS queue
+    # AWS region for the SQS queue - defaults to global aws.region if not specified
     # Example: "us-east-2"
     region: ""
     roleARN: ""

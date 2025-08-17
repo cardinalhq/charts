@@ -141,8 +141,6 @@ Grafana continues to use its standard configuration:
 * **Group ID**: 472
 * **FSGroup**: 472
 
-This security context configuration ensures compatibility with distroless base images while maintaining security hardening across all components.
-
 ## Secrets
 
 Secrets are used for all credentials.  They can be provided in the values files (not recommended) or

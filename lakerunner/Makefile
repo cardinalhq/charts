@@ -13,32 +13,32 @@ test: lint template unittest  ## Run all tests (Layer 1 + Layer 2)
 
 lint:  ## Run helm lint on the chart
 	@echo "Linting $(CHART_NAME) chart..."
-	helm lint .
+	helm lint . --values tests/test-values.yaml
 
 template:  ## Test template rendering with various configurations
 	@echo "Testing template rendering..."
 	@echo "  → Default configuration"
-	helm template $(TEST_RELEASE_NAME) . --debug --dry-run > /dev/null
+	helm template $(TEST_RELEASE_NAME) . --set aws.region=us-west-2 --debug --dry-run > /dev/null
 	@echo "  → With global tag override"
-	helm template $(TEST_RELEASE_NAME) . --set global.image.tag=v1.2.3 --debug --dry-run > /dev/null
+	helm template $(TEST_RELEASE_NAME) . --set aws.region=us-west-2 --set global.image.tag=v1.2.3 --debug --dry-run > /dev/null
 	@echo "  → With disabled components"
-	helm template $(TEST_RELEASE_NAME) . --set queryApi.enabled=false --set grafana.enabled=false --debug --dry-run > /dev/null
+	helm template $(TEST_RELEASE_NAME) . --set aws.region=us-west-2 --set queryApi.enabled=false --set grafana.enabled=false --debug --dry-run > /dev/null
 	@echo "  → With air-gapped Grafana plugin"
-	helm template $(TEST_RELEASE_NAME) . --set grafana.cardinalPlugin.url="https://internal.example.com/plugin.zip;cardinalhq-lakerunner-datasource" --debug --dry-run > /dev/null
+	helm template $(TEST_RELEASE_NAME) . --set aws.region=us-west-2 --set grafana.cardinalPlugin.url="https://internal.example.com/plugin.zip;cardinalhq-lakerunner-datasource" --debug --dry-run > /dev/null
 	@echo "  → With additional Grafana plugins"
-	helm template $(TEST_RELEASE_NAME) . --set grafana.additionalPlugins="grafana-clock-panel" --debug --dry-run > /dev/null
+	helm template $(TEST_RELEASE_NAME) . --set aws.region=us-west-2 --set grafana.additionalPlugins="grafana-clock-panel" --debug --dry-run > /dev/null
 	@echo "  → With custom scaling"
-	helm template $(TEST_RELEASE_NAME) . --set queryApi.replicas=3 --set ingestLogs.replicas=5 --debug --dry-run > /dev/null
+	helm template $(TEST_RELEASE_NAME) . --set aws.region=us-west-2 --set queryApi.replicas=3 --set ingestLogs.replicas=5 --debug --dry-run > /dev/null
 	@echo "  → With KEDA scaling enabled"
-	helm template $(TEST_RELEASE_NAME) . --set global.autoscaling.mode=keda --set database.lrdb.host=postgres.example.com --debug --dry-run > /dev/null
+	helm template $(TEST_RELEASE_NAME) . --set aws.region=us-west-2 --set global.autoscaling.mode=keda --set database.lrdb.host=postgres.example.com --debug --dry-run > /dev/null
 	@echo "  → With scaling disabled globally"
-	helm template $(TEST_RELEASE_NAME) . --set global.autoscaling.mode=disabled --debug --dry-run > /dev/null
+	helm template $(TEST_RELEASE_NAME) . --set aws.region=us-west-2 --set global.autoscaling.mode=disabled --debug --dry-run > /dev/null
 	@echo "  → With component-level scaling disabled"
-	helm template $(TEST_RELEASE_NAME) . --set ingestLogs.autoscaling.enabled=false --debug --dry-run > /dev/null
+	helm template $(TEST_RELEASE_NAME) . --set aws.region=us-west-2 --set ingestLogs.autoscaling.enabled=false --debug --dry-run > /dev/null
 
 unittest:  ## Run helm unittest tests
 	@echo "Running unit tests..."
-	helm unittest .
+	helm unittest . -v tests/test-values.yaml
 
 clean:  ## Clean up test artifacts and packaged charts
 	@echo "Cleaning up test artifacts and packaged charts..."
@@ -48,11 +48,11 @@ clean:  ## Clean up test artifacts and packaged charts
 # Development helpers
 template-debug:  ## Render templates and show output for debugging
 	@echo "Rendering templates for debugging..."
-	helm template $(TEST_RELEASE_NAME) . --debug
+	helm template $(TEST_RELEASE_NAME) . --set aws.region=us-west-2 --debug
 
 template-save:  ## Save rendered templates to file for inspection
 	@echo "Saving rendered templates to $(CHART_NAME)-rendered.yaml..."
-	helm template $(TEST_RELEASE_NAME) . > $(CHART_NAME)-rendered.yaml
+	helm template $(TEST_RELEASE_NAME) . --set aws.region=us-west-2 > $(CHART_NAME)-rendered.yaml
 	@echo "Templates saved to $(CHART_NAME)-rendered.yaml"
 
 test-with-values:  ## Test with custom values file (usage: make test-with-values VALUES_FILE=my-values.yaml)

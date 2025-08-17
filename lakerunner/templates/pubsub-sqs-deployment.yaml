@@ -2,8 +2,9 @@
 {{- if not .Values.pubsub.SQS.queueURL -}}
 {{- fail "pubsub.SQS.queueURL is required when pubsub.SQS.enabled is true" -}}
 {{- end -}}
-{{- if not .Values.pubsub.SQS.region -}}
-{{- fail "pubsub.SQS.region is required when pubsub.SQS.enabled is true" -}}
+{{- $sqsRegion := .Values.pubsub.SQS.region | default .Values.aws.region -}}
+{{- if or (not $sqsRegion) (eq $sqsRegion "") (eq $sqsRegion "CHANGEME") (eq $sqsRegion "us-test-1") -}}
+{{- fail (printf "pubsub.SQS.region (or aws.region as fallback) must be set to a valid AWS region when pubsub.SQS.enabled is true (current value: %q)" $sqsRegion) -}}
 {{- end -}}
 apiVersion: apps/v1
 kind: Deployment
@@ -54,10 +55,8 @@ spec:
             value: {{ include "lakerunner.fullname" . }}-pubsub-sqs
           - name: SQS_QUEUE_URL
             value: {{ .Values.pubsub.SQS.queueURL | quote }}
-          {{- if .Values.pubsub.SQS.region }}
           - name: SQS_REGION
-            value: {{ .Values.pubsub.SQS.region | quote }}
-          {{- end }}
+            value: {{ .Values.pubsub.SQS.region | default .Values.aws.region | quote }}
           - name: SQS_ROLE_ARN
             value: {{ .Values.pubsub.SQS.roleARN | quote }}
           {{- include "lakerunner.injectEnv" (list . .Values.pubsub.SQS) | nindent 8 }}

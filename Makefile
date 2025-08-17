@@ -44,11 +44,20 @@ lint:  ## Run helm lint on all charts
 	@failed_charts=""; \
 	for chart in $(CHARTS); do \
 		echo "$(YELLOW)  → Linting $$chart$(RESET)"; \
-		if ! helm lint $$chart; then \
-			echo "$(RED)Lint failed for $$chart$(RESET)"; \
-			failed_charts="$$failed_charts $$chart"; \
+		if [ -f "$$chart/Makefile" ]; then \
+			if ! $(MAKE) -C $$chart lint; then \
+				echo "$(RED)Lint failed for $$chart$(RESET)"; \
+				failed_charts="$$failed_charts $$chart"; \
+			else \
+				echo "$(GREEN)Lint passed for $$chart$(RESET)"; \
+			fi; \
 		else \
-			echo "$(GREEN)Lint passed for $$chart$(RESET)"; \
+			if ! helm lint $$chart; then \
+				echo "$(RED)Lint failed for $$chart$(RESET)"; \
+				failed_charts="$$failed_charts $$chart"; \
+			else \
+				echo "$(GREEN)Lint passed for $$chart$(RESET)"; \
+			fi; \
 		fi; \
 	done; \
 	if [ -n "$$failed_charts" ]; then \
@@ -89,11 +98,20 @@ unittest:  ## Run helm unittest for all charts
 	for chart in $(CHARTS); do \
 		echo "$(YELLOW)  → Running unit tests for $$chart$(RESET)"; \
 		if [ -d "$$chart/tests" ] && [ -n "$$(ls $$chart/tests/*_test.yaml 2>/dev/null)" ]; then \
-			if ! helm unittest $$chart; then \
-				echo "$(RED)Unit tests failed for $$chart$(RESET)"; \
-				failed_charts="$$failed_charts $$chart"; \
+			if [ -f "$$chart/Makefile" ]; then \
+				if ! $(MAKE) -C $$chart unittest; then \
+					echo "$(RED)Unit tests failed for $$chart$(RESET)"; \
+					failed_charts="$$failed_charts $$chart"; \
+				else \
+					echo "$(GREEN)Unit tests passed for $$chart$(RESET)"; \
+				fi; \
 			else \
-				echo "$(GREEN)Unit tests passed for $$chart$(RESET)"; \
+				if ! helm unittest $$chart; then \
+					echo "$(RED)Unit tests failed for $$chart$(RESET)"; \
+					failed_charts="$$failed_charts $$chart"; \
+				else \
+					echo "$(GREEN)Unit tests passed for $$chart$(RESET)"; \
+				fi; \
 			fi; \
 		else \
 			echo "$(YELLOW)No unit tests found for $$chart (no tests/*_test.yaml files)$(RESET)"; \
@@ -194,14 +212,24 @@ ci:  ## Run tests suitable for CI/CD (no colors, structured output)
 	for chart in $(CHARTS); do \
 		total_charts=$$((total_charts + 1)); \
 		echo "Testing chart: $$chart"; \
-		if helm lint $$chart > /dev/null 2>&1 && \
-		   helm template $(TEST_RELEASE_NAME) $$chart --debug --dry-run > /dev/null 2>&1 && \
-		   ([ ! -d "$$chart/tests" ] || helm unittest $$chart > /dev/null 2>&1); then \
-			echo "  PASS: $$chart"; \
-			passed_charts=$$((passed_charts + 1)); \
+		if [ -f "$$chart/Makefile" ]; then \
+			if $(MAKE) -C $$chart test > /dev/null 2>&1; then \
+				echo "  PASS: $$chart"; \
+				passed_charts=$$((passed_charts + 1)); \
+			else \
+				echo "  FAIL: $$chart"; \
+				failed_charts="$$failed_charts $$chart"; \
+			fi; \
 		else \
-			echo "  FAIL: $$chart"; \
-			failed_charts="$$failed_charts $$chart"; \
+			if helm lint $$chart > /dev/null 2>&1 && \
+			   helm template $(TEST_RELEASE_NAME) $$chart --debug --dry-run > /dev/null 2>&1 && \
+			   ([ ! -d "$$chart/tests" ] || helm unittest $$chart > /dev/null 2>&1); then \
+				echo "  PASS: $$chart"; \
+				passed_charts=$$((passed_charts + 1)); \
+			else \
+				echo "  FAIL: $$chart"; \
+				failed_charts="$$failed_charts $$chart"; \
+			fi; \
 		fi; \
 	done; \
 	echo "Results: $$passed_charts/$$total_charts charts passed"; \

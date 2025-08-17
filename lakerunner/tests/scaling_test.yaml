@@ -8,6 +8,12 @@ templates:
   - compact-logs-hpa.yaml
   - compact-logs-scaledobject.yaml
   - keda-auth.yaml
+values:
+  - ../values.yaml
+set:
+  aws.region: us-west-2
+  queryApi.enabled: true
+  queryWorker.enabled: true
 tests:
   - it: should set correct replicas for query api
     set:

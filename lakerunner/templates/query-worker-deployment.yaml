@@ -1,4 +1,7 @@
 {{- if .Values.queryWorker.enabled -}}
+{{- if or (not .Values.aws.region) (eq .Values.aws.region "") (eq .Values.aws.region "CHANGEME") (eq .Values.aws.region "us-test-1") -}}
+{{- fail (printf "aws.region must be set to a valid AWS region when queryWorker is enabled (current value: %q)" .Values.aws.region) -}}
+{{- end -}}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
