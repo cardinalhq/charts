@@ -1,0 +1,141 @@
+suite: test annotations configuration
+templates:
+  - ingest-logs-deployment.yaml
+  - query-api-statefulset.yaml
+  - grafana-deployment.yaml
+  - setup-job.yaml
+tests:
+  - it: should apply global annotations to all resources
+    set:
+      global.annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: "/metrics"
+        example.com/owner: "platform-team"
+    templates:
+      - ingest-logs-deployment.yaml
+    asserts:
+      - equal:
+          path: metadata.annotations["prometheus.io/scrape"]
+          value: "true"
+      - equal:
+          path: metadata.annotations["prometheus.io/path"]
+          value: "/metrics"
+      - equal:
+          path: metadata.annotations["example.com/owner"]
+          value: "platform-team"
+
+  - it: should apply global annotations to StatefulSet
+    set:
+      queryApi.enabled: true
+      global.annotations:
+        deployment.kubernetes.io/revision: "2"
+    templates:
+      - query-api-statefulset.yaml
+    asserts:
+      - equal:
+          path: metadata.annotations["deployment.kubernetes.io/revision"]
+          value: "2"
+      - equal:
+          path: spec.template.metadata.annotations["deployment.kubernetes.io/revision"]
+          value: "2"
+
+  - it: should apply global annotations to Job resources
+    set:
+      setup.enabled: true
+      global.annotations:
+        batch.kubernetes.io/job-tracking: "true"
+    templates:
+      - setup-job.yaml
+    asserts:
+      - equal:
+          path: metadata.annotations["batch.kubernetes.io/job-tracking"]
+          value: "true"
+
+  - it: should work with empty global annotations
+    set:
+      global.annotations: {}
+    templates:
+      - ingest-logs-deployment.yaml
+    asserts:
+      - notExists:
+          path: metadata.annotations
+
+  - it: should handle special characters in annotation values
+    set:
+      global.annotations:
+        "nginx.ingress.kubernetes.io/configuration-snippet": |
+          more_set_headers "X-Custom-Header: value";
+        "cert-manager.io/cluster-issuer": "letsencrypt-prod"
+    templates:
+      - ingest-logs-deployment.yaml
+    asserts:
+      - equal:
+          path: metadata.annotations["cert-manager.io/cluster-issuer"]
+          value: "letsencrypt-prod"
+      - matchRegex:
+          path: metadata.annotations["nginx.ingress.kubernetes.io/configuration-snippet"]
+          pattern: ".*more_set_headers.*"
+
+  - it: should apply per-component annotations when supported
+    set:
+      ingestLogs.annotations:
+        component-specific: "logs-processor"
+        prometheus.io/port: "8080"
+      global.annotations:
+        prometheus.io/scrape: "true"
+    templates:
+      - ingest-logs-deployment.yaml
+    asserts:
+      # Should have both global and component annotations
+      - equal:
+          path: metadata.annotations["prometheus.io/scrape"]
+          value: "true"
+      - equal:
+          path: metadata.annotations.component-specific
+          value: "logs-processor"
+      - equal:
+          path: metadata.annotations["prometheus.io/port"]
+          value: "8080"
+
+  - it: should prioritize component annotations over global annotations
+    set:
+      ingestLogs.annotations:
+        prometheus.io/scrape: "false"
+      global.annotations:
+        prometheus.io/scrape: "true"
+    templates:
+      - ingest-logs-deployment.yaml
+    asserts:
+      - equal:
+          path: metadata.annotations["prometheus.io/scrape"]
+          value: "false"
+
+  - it: should handle mixed global and component annotations
+    set:
+      ingestLogs.annotations:
+        app.kubernetes.io/component-config: "custom-config"
+        fluentd.log-level: "debug"
+      global.annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: "/metrics"
+        app.kubernetes.io/managed-by: "helm"
+    templates:
+      - ingest-logs-deployment.yaml
+    asserts:
+      # Global annotations should be present
+      - equal:
+          path: metadata.annotations["prometheus.io/scrape"]
+          value: "true"
+      - equal:
+          path: metadata.annotations["prometheus.io/path"]
+          value: "/metrics"
+      - equal:
+          path: metadata.annotations["app.kubernetes.io/managed-by"]
+          value: "helm"
+      # Component annotations should also be present
+      - equal:
+          path: metadata.annotations["app.kubernetes.io/component-config"]
+          value: "custom-config"
+      - equal:
+          path: metadata.annotations["fluentd.log-level"]
+          value: "debug"

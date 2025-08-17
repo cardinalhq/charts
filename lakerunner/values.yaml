@@ -236,6 +236,8 @@ setup:
     limits:
       cpu: 1100m
       memory: 250Mi
+  labels: {}
+  annotations: {}
   nodeSelector: {}
   tolerations: {}
   affinity: {}
@@ -270,6 +272,8 @@ ingestLogs:
       targetQueueDepth: 100        # Scale up when queue depth exceeds this (logs process quickly)
       activationQueueDepth: 10     # Start scaling when queue depth reaches this
   terminationGracePeriodSeconds: 600
+  labels: {}
+  annotations: {}
   nodeSelector: {}
   tolerations: {}
   affinity: {}
@@ -304,6 +308,8 @@ ingestMetrics:
       targetQueueDepth: 150        # Higher threshold for metrics (more resource intensive)
       activationQueueDepth: 20     # Start scaling when queue depth reaches this
   terminationGracePeriodSeconds: 600
+  labels: {}
+  annotations: {}
   nodeSelector: {}
   tolerations: {}
   affinity: {}
@@ -338,6 +344,8 @@ compactLogs:
       targetQueueDepth: 10         # Scale up when pending jobs exceed this
       activationQueueDepth: 1      # Start scaling when any jobs are pending
   terminationGracePeriodSeconds: 300
+  labels: {}
+  annotations: {}
   nodeSelector: {}
   tolerations: {}
   affinity: {}
@@ -372,6 +380,8 @@ compactMetrics:
       targetQueueDepth: 10         # Scale up when pending jobs exceed this
       activationQueueDepth: 1      # Start scaling when any jobs are pending
   terminationGracePeriodSeconds: 300
+  labels: {}
+  annotations: {}
   nodeSelector: {}
   tolerations: {}
   affinity: {}
@@ -406,6 +416,8 @@ rollupMetrics:
       targetQueueDepth: 15         # Scale up when pending jobs exceed this
       activationQueueDepth: 2      # Start scaling when jobs are pending
   terminationGracePeriodSeconds: 300
+  labels: {}
+  annotations: {}
   nodeSelector: {}
   tolerations: {}
   affinity: {}
@@ -426,6 +438,8 @@ sweeper:
       cpu: 250m
       memory: 80Mi
   terminationGracePeriodSeconds: 300
+  labels: {}
+  annotations: {}
   nodeSelector: {}
   tolerations: {}
   affinity: {}
@@ -528,6 +542,8 @@ queryWorker:
   temporaryStorage:
     size: "16Gi"
   terminationGracePeriodSeconds: 120
+  labels: {}
+  annotations: {}
   nodeSelector: {}
   tolerations: {}
   affinity: {}
