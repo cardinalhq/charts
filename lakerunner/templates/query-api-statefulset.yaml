@@ -1,4 +1,7 @@
 {{- if .Values.queryApi.enabled -}}
+{{- if or (not .Values.aws.region) (eq .Values.aws.region "") (eq .Values.aws.region "CHANGEME") (eq .Values.aws.region "us-test-1") -}}
+{{- fail (printf "aws.region must be set to a valid AWS region when queryApi is enabled (current value: %q)" .Values.aws.region) -}}
+{{- end -}}
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -26,10 +29,10 @@ spec:
       terminationGracePeriodSeconds: {{ .Values.queryApi.terminationGracePeriodSeconds }}
       securityContext:
         runAsNonRoot: true
-        runAsUser: 2000
-        runAsGroup: 2000
-        fsGroup: 2000
-      {{- include "lakerunner.imagePullSecrets" . | nindent 2 }}
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+      {{- include "lakerunner.imagePullSecrets" . | nindent 6 }}
       {{- include "lakerunner.sched.nodeSelector" (list .Values.global.nodeSelector .Values.queryApi.nodeSelector) | nindent 6 }}
       {{- include "lakerunner.sched.tolerations"  (list .Values.global.tolerations  .Values.queryApi.tolerations)  | nindent 6 }}
       {{- include "lakerunner.sched.affinity"     (list .Values.global.affinity     .Values.queryApi.affinity)     | nindent 6 }}

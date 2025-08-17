@@ -1,0 +1,163 @@
+suite: test basic scheduling functionality
+templates:
+  - ingest-logs-deployment.yaml
+  - query-worker-deployment.yaml
+  - grafana-deployment.yaml
+tests:
+  - it: should not render scheduling when not configured
+    templates:
+      - ingest-logs-deployment.yaml
+    asserts:
+      - notExists:
+          path: spec.template.spec.nodeSelector
+      - notExists:
+          path: spec.template.spec.tolerations
+      - notExists:
+          path: spec.template.spec.affinity
+
+  - it: should render global nodeSelector
+    set:
+      global.nodeSelector:
+        disktype: ssd
+    templates:
+      - ingest-logs-deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.nodeSelector.disktype
+          value: ssd
+
+  - it: should render component nodeSelector overriding global
+    set:
+      global.nodeSelector:
+        disktype: ssd
+        region: us-west
+      queryWorker.nodeSelector:
+        disktype: nvme
+        workload: query
+    templates:
+      - query-worker-deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.nodeSelector.disktype
+          value: nvme
+      - equal:
+          path: spec.template.spec.nodeSelector.region
+          value: us-west
+      - equal:
+          path: spec.template.spec.nodeSelector.workload
+          value: query
+
+  - it: should apply grafana scheduling
+    set:
+      grafana.enabled: true
+      grafana.nodeSelector:
+        ui-node: "true"
+    templates:
+      - grafana-deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.nodeSelector.ui-node
+          value: "true"
+
+  - it: should render global tolerations
+    set:
+      global.tolerations:
+        - key: "spot"
+          operator: "Equal"
+          value: "true"
+          effect: "NoSchedule"
+        - key: "preemptible"
+          operator: "Exists"
+          effect: "PreferNoSchedule"
+    templates:
+      - ingest-logs-deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.tolerations[0].key
+          value: "spot"
+      - equal:
+          path: spec.template.spec.tolerations[0].operator
+          value: "Equal"
+      - equal:
+          path: spec.template.spec.tolerations[0].value
+          value: "true"
+      - equal:
+          path: spec.template.spec.tolerations[0].effect
+          value: "NoSchedule"
+      - equal:
+          path: spec.template.spec.tolerations[1].key
+          value: "preemptible"
+      - equal:
+          path: spec.template.spec.tolerations[1].operator
+          value: "Exists"
+      - equal:
+          path: spec.template.spec.tolerations[1].effect
+          value: "PreferNoSchedule"
+
+  - it: should render global affinity
+    set:
+      global.affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: "node-role.kubernetes.io/worker"
+                    operator: In
+                    values:
+                      - "true"
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app: lakerunner
+                topologyKey: "kubernetes.io/hostname"
+    templates:
+      - ingest-logs-deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms[0].matchExpressions[0].key
+          value: "node-role.kubernetes.io/worker"
+      - equal:
+          path: spec.template.spec.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms[0].matchExpressions[0].operator
+          value: "In"
+      - equal:
+          path: spec.template.spec.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms[0].matchExpressions[0].values[0]
+          value: "true"
+      - equal:
+          path: spec.template.spec.affinity.podAntiAffinity.preferredDuringSchedulingIgnoredDuringExecution[0].weight
+          value: 100
+
+  - it: should merge global and component tolerations
+    set:
+      global.tolerations:
+        - key: "global-taint"
+          operator: "Equal"
+          value: "true"
+          effect: "NoSchedule"
+      queryWorker.tolerations:
+        - key: "query-taint"
+          operator: "Exists"
+          effect: "NoExecute"
+    templates:
+      - query-worker-deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.tolerations[0].key
+          value: "query-taint"
+      - equal:
+          path: spec.template.spec.tolerations[1].key
+          value: "global-taint"
+
+  - it: should handle empty global tolerations and affinity
+    set:
+      global.tolerations: []
+      global.affinity: {}
+    templates:
+      - ingest-logs-deployment.yaml
+    asserts:
+      - notExists:
+          path: spec.template.spec.tolerations
+      - notExists:
+          path: spec.template.spec.affinity

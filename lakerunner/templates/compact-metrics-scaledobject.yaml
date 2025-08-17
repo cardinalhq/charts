@@ -1,0 +1,31 @@
+{{- if and .Values.compactMetrics.enabled (eq (include "lakerunner.autoscalingMode" (list .Values.compactMetrics.autoscaling .)) "keda") -}}
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: {{ include "lakerunner.fullname" . }}-compact-metrics
+  labels:
+    {{- include "lakerunner.labels" . | nindent 4 }}
+    app.kubernetes.io/component: compact-metrics
+  {{ include "lakerunner.annotations" . | nindent 2 }}
+spec:
+  scaleTargetRef:
+    name: {{ include "lakerunner.fullname" . }}-compact-metrics
+  pollingInterval: {{ .Values.compactMetrics.autoscaling.keda.pollingInterval }}
+  cooldownPeriod: {{ .Values.compactMetrics.autoscaling.keda.cooldownPeriod }}
+  minReplicaCount: {{ .Values.compactMetrics.autoscaling.minReplicas }}
+  maxReplicaCount: {{ .Values.compactMetrics.autoscaling.maxReplicas }}
+  triggers:
+  - type: postgresql
+    metadata:
+      host: {{ .Values.database.lrdb.host }}
+      port: {{ .Values.database.lrdb.port | quote }}
+      dbName: {{ .Values.database.lrdb.name }}
+      userName: {{ .Values.database.lrdb.username }}
+      sslmode: {{ .Values.database.lrdb.sslMode | default "require" }}
+      query: "SELECT COALESCE(COUNT(*), 0) FROM work_queue WHERE needs_run=true AND runnable_at <= now() AND signal='metrics' AND action='compact'"
+      targetQueryValue: {{ .Values.compactMetrics.autoscaling.keda.targetQueueDepth | quote }}
+      activationTargetQueryValue: {{ .Values.compactMetrics.autoscaling.keda.activationQueueDepth | quote }}
+      metricType: "Value"
+    authenticationRef:
+      name: {{ include "lakerunner.fullname" . }}-keda-auth
+{{- end }}

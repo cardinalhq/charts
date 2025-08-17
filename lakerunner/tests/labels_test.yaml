@@ -1,0 +1,122 @@
+suite: test labels configuration
+templates:
+  - ingest-logs-deployment.yaml
+  - query-api-statefulset.yaml
+  - grafana-deployment.yaml
+  - setup-job.yaml
+tests:
+  - it: should apply global labels to all resources
+    set:
+      global.labels:
+        environment: "production"
+        team: "platform"
+        cost-center: "engineering"
+    templates:
+      - ingest-logs-deployment.yaml
+    asserts:
+      - equal:
+          path: metadata.labels.environment
+          value: "production"
+      - equal:
+          path: metadata.labels.team
+          value: "platform"
+      - equal:
+          path: metadata.labels["cost-center"]
+          value: "engineering"
+      # Standard chart labels should still be present
+      - equal:
+          path: metadata.labels["app.kubernetes.io/name"]
+          value: "lakerunner"
+      - equal:
+          path: metadata.labels["app.kubernetes.io/instance"]
+          value: "RELEASE-NAME"
+
+  - it: should apply global labels to StatefulSet
+    set:
+      queryApi.enabled: true
+      global.labels:
+        environment: "staging"
+    templates:
+      - query-api-statefulset.yaml
+    asserts:
+      - equal:
+          path: metadata.labels.environment
+          value: "staging"
+      - equal:
+          path: spec.template.metadata.labels.environment
+          value: "staging"
+
+
+  - it: should apply global labels to Job resources
+    set:
+      setup.enabled: true
+      global.labels:
+        environment: "dev"
+    templates:
+      - setup-job.yaml
+    asserts:
+      - equal:
+          path: metadata.labels.environment
+          value: "dev"
+
+  - it: should work with empty global labels
+    set:
+      global.labels: {}
+    templates:
+      - ingest-logs-deployment.yaml
+    asserts:
+      - equal:
+          path: metadata.labels["app.kubernetes.io/name"]
+          value: "lakerunner"
+      - notExists:
+          path: metadata.labels.environment
+
+  - it: should handle special characters in label values
+    set:
+      global.labels:
+        "app.domain.com/component": "ingest-service"
+        "kubernetes.io/special-label": "value-with-dashes"
+    templates:
+      - ingest-logs-deployment.yaml
+    asserts:
+      - equal:
+          path: metadata.labels["app.domain.com/component"]
+          value: "ingest-service"
+      - equal:
+          path: metadata.labels["kubernetes.io/special-label"]
+          value: "value-with-dashes"
+
+  - it: should apply per-component labels when supported
+    set:
+      ingestLogs.labels:
+        component-specific: "logs-processor"
+        workload-type: "batch"
+      global.labels:
+        environment: "production"
+    templates:
+      - ingest-logs-deployment.yaml
+    asserts:
+      # Should have both global and component labels
+      - equal:
+          path: metadata.labels.environment
+          value: "production"
+      - equal:
+          path: metadata.labels.component-specific
+          value: "logs-processor"
+      - equal:
+          path: metadata.labels.workload-type
+          value: "batch"
+
+  - it: should prioritize component labels over global labels
+    set:
+      ingestLogs.labels:
+        environment: "component-override"
+      global.labels:
+        environment: "global-value"
+    templates:
+      - ingest-logs-deployment.yaml
+    asserts:
+      - equal:
+          path: metadata.labels.environment
+          value: "component-override"
+

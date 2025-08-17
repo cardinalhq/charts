@@ -1,4 +1,4 @@
-{{- if and .Values.compactLogs.enabled .Values.compactLogs.autoscaling.enabled -}}
+{{- if and .Values.compactLogs.enabled (eq (include "lakerunner.autoscalingMode" (list .Values.compactLogs.autoscaling .)) "hpa") -}}
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
@@ -15,13 +15,13 @@ spec:
   minReplicas: {{ .Values.compactLogs.autoscaling.minReplicas }}
   maxReplicas: {{ .Values.compactLogs.autoscaling.maxReplicas }}
   metrics:
-  {{- if .Values.compactLogs.autoscaling.targetCPUUtilizationPercentage }}
+  {{- if .Values.compactLogs.autoscaling.hpa.targetCPUUtilizationPercentage }}
   - type: Resource
     resource:
       name: cpu
       target:
         type: Utilization
-        averageUtilization: {{ .Values.compactLogs.autoscaling.targetCPUUtilizationPercentage }}
+        averageUtilization: {{ .Values.compactLogs.autoscaling.hpa.targetCPUUtilizationPercentage }}
   {{- end }}
   behavior:
     scaleDown:

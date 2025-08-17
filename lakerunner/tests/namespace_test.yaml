@@ -1,0 +1,45 @@
+suite: test namespace configuration
+templates:
+  - role.yaml
+tests:
+  - it: should use release namespace by default
+    templates:
+      - role.yaml
+    asserts:
+      - equal:
+          path: subjects[0].namespace
+          value: NAMESPACE
+        documentIndex: 1
+
+  - it: should use global.namespaceOverride when specified
+    set:
+      global.namespaceOverride: "custom-namespace"
+    templates:
+      - role.yaml
+    asserts:
+      - equal:
+          path: subjects[0].namespace
+          value: "custom-namespace"
+        documentIndex: 1
+
+  - it: should handle empty namespaceOverride gracefully
+    set:
+      global.namespaceOverride: ""
+    templates:
+      - role.yaml
+    asserts:
+      - equal:
+          path: subjects[0].namespace
+          value: NAMESPACE
+        documentIndex: 1
+
+  - it: should handle null namespaceOverride gracefully
+    set:
+      global.namespaceOverride: null
+    templates:
+      - role.yaml
+    asserts:
+      - equal:
+          path: subjects[0].namespace
+          value: NAMESPACE
+        documentIndex: 1

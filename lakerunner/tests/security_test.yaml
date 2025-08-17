@@ -20,10 +20,10 @@ tests:
           value: true
       - equal:
           path: spec.template.spec.securityContext.runAsUser
-          value: 2000
+          value: 65532
       - equal:
           path: spec.template.spec.securityContext.runAsGroup
-          value: 2000
+          value: 65532
 
   - it: should set container security context
     templates:

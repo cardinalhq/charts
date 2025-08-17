@@ -2,6 +2,7 @@ suite: test image configuration
 templates:
   - setup-job.yaml
   - query-api-statefulset.yaml
+  - query-worker-deployment.yaml
   - grafana-deployment.yaml
   - ingest-logs-deployment.yaml
   - compact-logs-deployment.yaml
@@ -9,12 +10,11 @@ tests:
   - it: should use appVersion as default tag for lakerunner components
     templates:
       - setup-job.yaml
-      - query-api-statefulset.yaml
       - ingest-logs-deployment.yaml
     asserts:
       - matchRegex:
           path: spec.template.spec.containers[0].image
-          pattern: "public.ecr.aws/cardinalhq.io/lakerunner.*:v0.0.4$"
+          pattern: "public.ecr.aws/cardinalhq.io/lakerunner.*:v1.1.0-rc1$"
 
   - it: should override with global tag
     set:
@@ -46,7 +46,24 @@ tests:
     asserts:
       - equal:
           path: spec.template.spec.containers[0].image
-          value: "public.ecr.aws/cardinalhq.io/lakerunner/query-api:v0.0.4"
+          value: "public.ecr.aws/cardinalhq.io/lakerunner/query-api:latest"
+
+  - it: should use latest tag for query components
+    templates:
+      - query-api-statefulset.yaml
+      - query-worker-deployment.yaml
+    set:
+      queryApi.enabled: true
+      queryWorker.enabled: true
+    asserts:
+      - template: query-api-statefulset.yaml
+        matchRegex:
+          path: spec.template.spec.containers[0].image
+          pattern: ":latest$"
+      - template: query-worker-deployment.yaml
+        matchRegex:
+          path: spec.template.spec.containers[0].image
+          pattern: ":latest$"
 
   - it: should handle external images correctly
     templates:
@@ -71,6 +88,49 @@ tests:
       setup.image.pullPolicy: "IfNotPresent"
     templates:
       - setup-job.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].imagePullPolicy
+          value: "IfNotPresent"
+
+  - it: should use global pullPolicy across all components
+    set:
+      global.image.pullPolicy: "Never"
+    templates:
+      - setup-job.yaml
+      - ingest-logs-deployment.yaml
+      - compact-logs-deployment.yaml
+    asserts:
+      - template: setup-job.yaml
+        equal:
+          path: spec.template.spec.containers[0].imagePullPolicy
+          value: "Never"
+      - template: ingest-logs-deployment.yaml
+        equal:
+          path: spec.template.spec.containers[0].imagePullPolicy
+          value: "Never"
+      - template: compact-logs-deployment.yaml
+        equal:
+          path: spec.template.spec.containers[0].imagePullPolicy
+          value: "Never"
+
+  - it: should prioritize component pullPolicy over global pullPolicy
+    set:
+      global.image.pullPolicy: "Always"
+      setup.image.pullPolicy: "IfNotPresent"
+    templates:
+      - setup-job.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].imagePullPolicy
+          value: "IfNotPresent"
+
+  - it: should apply global pullPolicy to external images
+    set:
+      global.image.pullPolicy: "IfNotPresent"
+      grafana.enabled: true
+    templates:
+      - grafana-deployment.yaml
     asserts:
       - equal:
           path: spec.template.spec.containers[0].imagePullPolicy

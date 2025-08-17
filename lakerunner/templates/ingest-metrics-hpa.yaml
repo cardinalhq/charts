@@ -1,4 +1,4 @@
-{{- if and .Values.ingestMetrics.enabled .Values.ingestMetrics.autoscaling.enabled -}}
+{{- if and .Values.ingestMetrics.enabled (eq (include "lakerunner.autoscalingMode" (list .Values.ingestMetrics.autoscaling .)) "hpa") -}}
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
@@ -15,13 +15,13 @@ spec:
   minReplicas: {{ .Values.ingestMetrics.autoscaling.minReplicas }}
   maxReplicas: {{ .Values.ingestMetrics.autoscaling.maxReplicas }}
   metrics:
-  {{- if .Values.ingestMetrics.autoscaling.targetCPUUtilizationPercentage }}
+  {{- if .Values.ingestMetrics.autoscaling.hpa.targetCPUUtilizationPercentage }}
   - type: Resource
     resource:
       name: cpu
       target:
         type: Utilization
-        averageUtilization: {{ .Values.ingestMetrics.autoscaling.targetCPUUtilizationPercentage }}
+        averageUtilization: {{ .Values.ingestMetrics.autoscaling.hpa.targetCPUUtilizationPercentage }}
   {{- end }}
   behavior:
     scaleDown:

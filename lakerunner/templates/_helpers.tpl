@@ -61,6 +61,28 @@ Common labels, now including .Values.global.labels.
 {{- end }}
 
 {{/*
+Common labels with component-specific labels support.
+Usage: {{ include "lakerunner.labelsWithComponent" (list . .Values.componentName.labels) }}
+*/}}
+{{- define "lakerunner.labelsWithComponent" -}}
+  {{- $context := index . 0 -}}
+  {{- $componentLabels := index . 1 | default dict -}}
+  {{- $global := $context.Values.global.labels | default dict -}}
+  {{- $coreLabels := merge
+      (dict "helm.sh/chart" (include "lakerunner.chart" $context))
+      (include "lakerunner.selectorLabels" $context | fromYaml)
+  -}}
+  {{- if $context.Chart.AppVersion -}}
+    {{- $coreLabels = merge $coreLabels (dict "app.kubernetes.io/version" ($context.Chart.AppVersion)) -}}
+  {{- end -}}
+  {{- $coreLabels = merge $coreLabels (dict "app.kubernetes.io/managed-by" $context.Release.Service) -}}
+  {{- $coreLabels = merge $coreLabels (dict "lakerunner.cardinalhq.io/instance" $context.Release.Name) -}}
+  {{- $withGlobal := merge $global $coreLabels -}}
+  {{- $finalLabels := merge $componentLabels $withGlobal -}}
+  {{- toYaml $finalLabels -}}
+{{- end }}
+
+{{/*
 Selector labels
 */}}
 {{- define "lakerunner.selectorLabels" -}}
@@ -95,7 +117,7 @@ Common environment variables
   valueFrom:
     secretKeyRef:
       name: {{ include "lakerunner.databaseSecretName" . }}
-      key: LRDB_PASSWORD
+      key: {{ .Values.database.passwordKey }}
 - name: LRDB_SSLMODE
   value: {{ .Values.database.lrdb.sslMode | quote }}
 {{- if eq .Values.storageProfiles.source "config" }}
@@ -143,13 +165,28 @@ or nothing if the map is empty.
 {{- end -}}
 
 {{/*
-“Smart” annotations helper: emits the header + pairs when non-empty.
+"Smart" annotations helper: emits the header + pairs when non-empty.
 */}}
 {{- define "lakerunner.annotations" -}}
 {{- if and .Values.global.annotations (gt (len .Values.global.annotations) 0) -}}
 annotations:
 {{ include "lakerunner.annotationPairs" . }}
 {{- end -}}
+{{- end -}}
+
+{{/*
+"Smart" annotations helper with component-specific annotations support.
+Usage: {{ include "lakerunner.annotationsWithComponent" (list . .Values.componentName.annotations) }}
+*/}}
+{{- define "lakerunner.annotationsWithComponent" -}}
+  {{- $context := index . 0 -}}
+  {{- $componentAnnotations := index . 1 | default dict -}}
+  {{- $global := $context.Values.global.annotations | default dict -}}
+  {{- $finalAnnotations := merge $componentAnnotations $global -}}
+  {{- if gt (len $finalAnnotations) 0 -}}
+annotations:
+{{ toYaml $finalAnnotations | indent 2 }}
+  {{- end -}}
 {{- end -}}
 
 {{/*
@@ -228,9 +265,9 @@ Usage: {{ mergeOverwrite $map1 $map2 }}
 */}}
 {{- define "lakerunner.sched.nodeSelector" -}}
   {{- $args   := . -}}
-  {{- $global := index $args 0 -}}
-  {{- $local  := index $args 1 -}}
-  {{- $m      := merge $global $local -}}
+  {{- $global := index $args 0 | default dict -}}
+  {{- $local  := index $args 1 | default dict -}}
+  {{- $m      := merge $local $global -}}
   {{- if gt (len $m) 0 -}}
 nodeSelector:
 {{ toYaml $m | indent 2 }}
@@ -239,19 +276,17 @@ nodeSelector:
 
 
 {{/*
-  Pick local tolerations if set, else global, emit tolerations: if non-empty.
+  Merge global and local tolerations, emit tolerations: if non-empty.
   args: [ globalList, localList ]
 */}}
 {{- define "lakerunner.sched.tolerations" -}}
   {{- $args   := . -}}
-  {{- $global := index $args 0 -}}
-  {{- $local  := index $args 1 -}}
-  {{- if gt (len $local) 0 -}}
+  {{- $global := index $args 0 | default list -}}
+  {{- $local  := index $args 1 | default list -}}
+  {{- $merged := concat $local $global -}}
+  {{- if gt (len $merged) 0 -}}
 tolerations:
-{{ toYaml $local | indent 2 }}
-  {{- else if gt (len $global) 0 -}}
-tolerations:
-{{ toYaml $global | indent 2 }}
+{{ toYaml $merged | indent 2 }}
   {{- end -}}
 {{- end -}}
 
@@ -262,9 +297,9 @@ tolerations:
 */}}
 {{- define "lakerunner.sched.affinity" -}}
   {{- $args   := . -}}
-  {{- $global := index $args 0 -}}
-  {{- $local  := index $args 1 -}}
-  {{- $m      := merge $global $local -}}
+  {{- $global := index $args 0 | default dict -}}
+  {{- $local  := index $args 1 | default dict -}}
+  {{- $m      := merge $local $global -}}
   {{- if gt (len $m) 0 -}}
 affinity:
 {{ toYaml $m | indent 2 }}
@@ -299,4 +334,20 @@ Usage: {{ include "lakerunner.image" (list .Values.componentName.image .) }}
 {{- $root := index . 1 -}}
 {{- $tag := include "lakerunner.image.tag" (list $componentImage $root) -}}
 {{- printf "%s:%s" $componentImage.repository $tag -}}
+{{- end -}}
+
+{{/*
+Determine the autoscaling mode for a component.
+Takes two arguments: component autoscaling config and root context
+Returns the effective scaling mode: "hpa", "keda", or "disabled"
+Usage: {{ include "lakerunner.autoscalingMode" (list .Values.componentName.autoscaling .) }}
+*/}}
+{{- define "lakerunner.autoscalingMode" -}}
+{{- $componentAutoscaling := index . 0 -}}
+{{- $root := index . 1 -}}
+{{- if not $componentAutoscaling.enabled -}}
+disabled
+{{- else -}}
+{{- $root.Values.global.autoscaling.mode -}}
+{{- end -}}
 {{- end -}}

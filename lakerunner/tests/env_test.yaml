@@ -1,0 +1,316 @@
+suite: test environment variable handling
+templates:
+  - ingest-logs-deployment.yaml
+  - ingest-metrics-deployment.yaml
+  - compact-logs-deployment.yaml
+  - compact-metrics-deployment.yaml
+  - rollup-metrics-deployment.yaml
+  - query-api-statefulset.yaml
+  - query-worker-deployment.yaml
+  - grafana-deployment.yaml
+  - setup-job.yaml
+  - pubsub-http-deployment.yaml
+  - pubsub-sqs-deployment.yaml
+  - sweeper-deployment.yaml
+tests:
+  - it: should render common environment variables for all components
+    set:
+      database.lrdb.host: "postgresql.default.svc.cluster.local"
+    templates:
+      - ingest-logs-deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: LRDB_HOST
+            value: "postgresql.default.svc.cluster.local"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: LRDB_PORT
+            value: "5432"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: LRDB_DBNAME
+            value: "lakerunner"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: LRDB_USER
+            value: "lakerunner"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: LRDB_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: RELEASE-NAME-lakerunner-pg-credentials
+                key: LRDB_PASSWORD
+
+  - it: should render global env variables across all components
+    set:
+      global.env:
+        - name: GLOBAL_LOG_LEVEL
+          value: "info"
+        - name: GLOBAL_FEATURE_FLAG
+          value: "true"
+    templates:
+      - ingest-logs-deployment.yaml
+      - query-api-statefulset.yaml
+      - grafana-deployment.yaml
+    asserts:
+      - template: ingest-logs-deployment.yaml
+        contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GLOBAL_LOG_LEVEL
+            value: "info"
+      - template: ingest-logs-deployment.yaml
+        contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GLOBAL_FEATURE_FLAG
+            value: "true"
+      - template: query-api-statefulset.yaml
+        contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GLOBAL_LOG_LEVEL
+            value: "info"
+      - template: grafana-deployment.yaml
+        contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GLOBAL_LOG_LEVEL
+            value: "info"
+
+  - it: should render component-specific env variables
+    set:
+      ingestLogs.env:
+        - name: COMPONENT_SPECIFIC_VAR
+          value: "logs-component"
+        - name: LOG_BUFFER_SIZE
+          value: "1024"
+    templates:
+      - ingest-logs-deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: COMPONENT_SPECIFIC_VAR
+            value: "logs-component"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: LOG_BUFFER_SIZE
+            value: "1024"
+
+  - it: should render component-specific env with valueFrom
+    set:
+      queryApi.env:
+        - name: API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: api-secret
+              key: key
+        - name: CONFIG_MAP_VAL
+          valueFrom:
+            configMapKeyRef:
+              name: config-map
+              key: config
+    templates:
+      - query-api-statefulset.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: API_KEY
+            valueFrom:
+              secretKeyRef:
+                name: api-secret
+                key: key
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: CONFIG_MAP_VAL
+            valueFrom:
+              configMapKeyRef:
+                name: config-map
+                key: config
+
+  - it: should merge global and component env variables correctly
+    set:
+      global.env:
+        - name: GLOBAL_VAR
+          value: "global-value"
+        - name: SHARED_VAR
+          value: "global-shared"
+      compactLogs.env:
+        - name: COMPONENT_VAR
+          value: "component-value"
+        - name: SHARED_VAR
+          value: "component-shared"
+    templates:
+      - compact-logs-deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GLOBAL_VAR
+            value: "global-value"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: COMPONENT_VAR
+            value: "component-value"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: SHARED_VAR
+            value: "component-shared"
+
+  - it: should handle empty global env
+    set:
+      global.env: []
+      database.lrdb.host: "postgresql.default.svc.cluster.local"
+      rollupMetrics.env:
+        - name: ONLY_COMPONENT_VAR
+          value: "only-component"
+    templates:
+      - rollup-metrics-deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: ONLY_COMPONENT_VAR
+            value: "only-component"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: LRDB_HOST
+            value: "postgresql.default.svc.cluster.local"
+
+  - it: should handle null global env
+    set:
+      global.env: null
+      database.lrdb.host: "postgresql.default.svc.cluster.local"
+      ingestMetrics.env:
+        - name: METRICS_VAR
+          value: "metrics-value"
+    templates:
+      - ingest-metrics-deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: METRICS_VAR
+            value: "metrics-value"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: LRDB_HOST
+            value: "postgresql.default.svc.cluster.local"
+
+  - it: should handle empty component env
+    set:
+      global.env:
+        - name: GLOBAL_ONLY
+          value: "global-only"
+      database.lrdb.host: "postgresql.default.svc.cluster.local"
+      sweeper.env: []
+    templates:
+      - sweeper-deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GLOBAL_ONLY
+            value: "global-only"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: LRDB_HOST
+            value: "postgresql.default.svc.cluster.local"
+
+  - it: should render service-specific environment variables
+    templates:
+      - ingest-logs-deployment.yaml
+      - query-api-statefulset.yaml
+      - setup-job.yaml
+    asserts:
+      - template: ingest-logs-deployment.yaml
+        contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: OTEL_SERVICE_NAME
+            value: RELEASE-NAME-lakerunner-ingest-logs
+      - template: query-api-statefulset.yaml
+        contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: OTEL_SERVICE_NAME
+            value: RELEASE-NAME-lakerunner-query-api
+      - template: setup-job.yaml
+        contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: OTEL_SERVICE_NAME
+            value: RELEASE-NAME-lakerunner-setup
+
+  - it: should render complex environment configurations with mixed types
+    set:
+      global.env:
+        - name: GLOBAL_STRING
+          value: "global-value"
+        - name: GLOBAL_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: global-secret
+              key: value
+      database.lrdb.host: "postgresql.default.svc.cluster.local"
+      pubsub:
+        HTTP:
+          enabled: true
+          env:
+            - name: HTTP_TIMEOUT
+              value: "30"
+            - name: HTTP_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: http-secret
+                  key: api-key
+    templates:
+      - pubsub-http-deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GLOBAL_STRING
+            value: "global-value"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GLOBAL_SECRET
+            valueFrom:
+              secretKeyRef:
+                name: global-secret
+                key: value
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: HTTP_TIMEOUT
+            value: "30"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: HTTP_API_KEY
+            valueFrom:
+              secretKeyRef:
+                name: http-secret
+                key: api-key
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: LRDB_HOST
+            value: "postgresql.default.svc.cluster.local"

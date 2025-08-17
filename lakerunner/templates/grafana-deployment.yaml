@@ -27,7 +27,10 @@ spec:
         runAsUser: 472
         runAsGroup: 472
         fsGroup: 472
-      {{- include "lakerunner.imagePullSecrets" . | nindent 2 }}
+      {{- include "lakerunner.imagePullSecrets" . | nindent 6 }}
+      {{- include "lakerunner.sched.nodeSelector" (list .Values.global.nodeSelector .Values.grafana.nodeSelector) | nindent 6 }}
+      {{- include "lakerunner.sched.tolerations"  (list .Values.global.tolerations  .Values.grafana.tolerations)  | nindent 6 }}
+      {{- include "lakerunner.sched.affinity"     (list .Values.global.affinity     .Values.grafana.affinity)     | nindent 6 }}
       containers:
       - name: grafana
         securityContext:

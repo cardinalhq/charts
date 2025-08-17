@@ -4,9 +4,10 @@
 
 * A Kubernetes cluster running a modern version of Kubernetes, at least 1.28.
 * A PostgreSQL database, at least version 16.
-* An S3 (or compatible) object store configured to send object create notifications.
+* An S3 (or compatible) object store configured to send object create notifications either via SQS or a web hook.
+* (Optional but **recommended for production use**) [KEDA](https://keda.sh/) installed in your cluster for intelligent autoscaling.
 
-For AWS S3, SQS queues are used (which the helm chart assumes).  Other systems may have
+For AWS S3, SQS queues for bucket notifications should be used.  Other systems may have
 other mechanisms, and a webhook-style receiver can be enabled to support them.
 
 ## Installation
@@ -15,7 +16,7 @@ Create a `values-local.yaml` file (see below) and run:
 
 ```sh
 helm install lakerunner oci://public.ecr.aws/cardinalhq.io/lakerunner \
-   --version 0.2.36 \
+   --version 0.3.0 \
    --values values-local.yaml \
    --namespace lakerunner --create-namespace
 ```
@@ -29,7 +30,7 @@ The [default `values.yaml`](https://github.com/cardinalhq/charts/blob/main/laker
 * PostgreSQL password, or a secret to get it from.
 * Storage Profiles
 * API Keys
-* Inter-process token
+* Inter-process token, randomly generated.
 * If using a non-AWS S3, select the webhook-style pubsub receiver and disable the SQS one.
 
 Items you may want to change, but are not required:
@@ -39,6 +40,106 @@ Items you may want to change, but are not required:
 
 The settings in the values.yaml file are suitable for a small to medium installation,
 but for a very small or larger installation, you will need to make adjustments.
+
+## KEDA Autoscaling
+
+LakeRunner supports intelligent work queue-based autoscaling through [KEDA](https://keda.sh/). KEDA is **highly recommended for production environments** as it provides superior scaling behavior compared to CPU-based HPA for micro-batch workloads.
+
+### Installing KEDA
+
+If KEDA is not already installed in your cluster, install it:
+
+```bash
+helm repo add kedacore https://kedacore.github.io/charts
+helm repo update
+helm install keda kedacore/keda --namespace keda-system --create-namespace
+```
+
+### Enabling KEDA Scaling
+
+To enable KEDA-based scaling in LakeRunner:
+
+```yaml
+global:
+  autoscaling:
+    mode: "keda"
+```
+
+### Scaling Modes
+
+LakeRunner supports three scaling modes:
+
+* **`hpa`** (default): CPU-based horizontal pod autoscaling. Suitable for development but insufficient for production micro-batch workloads.
+* **`keda`**: Work queue-based scaling using PostgreSQL queries. **Recommended for production** as it scales based on actual workload backlog.
+* **`disabled`**: No autoscaling; uses static replica counts.
+
+You can set a global scaling mode and disable it for individual components:
+
+```yaml
+global:
+  autoscaling:
+    mode: "keda"
+
+ingestLogs:
+  autoscaling:
+    enabled: false  # Disable autoscaling for this component only
+```
+
+### How KEDA Scaling Works
+
+KEDA scales components based on actual workload backlog rather than CPU usage:
+
+* **Queue-based scaling**: Components scale up when work is pending, scale down when idle
+* **Intelligent thresholds**: Pre-configured to prevent over-scaling while ensuring responsiveness
+* **Cooldown periods**: Prevent scaling flapping during batch processing cycles
+
+### KEDA Configuration
+
+Each scalable component supports KEDA configuration:
+
+```yaml
+ingestLogs:
+  autoscaling:
+    minReplicas: 1         # Used by both HPA and KEDA
+    maxReplicas: 10        # Used by both HPA and KEDA
+    keda:
+      pollingInterval: 30    # How often to check queue (seconds)
+      cooldownPeriod: 300    # Wait before scaling down (seconds)
+```
+
+KEDA scaling thresholds are pre-configured with sensible defaults but can be customized if needed.
+
+### KEDA Database Integration
+
+KEDA automatically uses the same database credentials configured in the `database.lrdb` section - no additional configuration is required. When you enable KEDA mode, it will:
+
+* Use the same PostgreSQL connection details as your LakeRunner components
+* Automatically create the necessary TriggerAuthentication resource
+* Scale based on the actual work queue depth in your database
+
+Simply ensure your database configuration is complete:
+
+```yaml
+database:
+  lrdb:
+    host: "your-postgres-host"      # Required
+    port: 5432                      # Default: 5432
+    name: "lakerunner"             # Default: "lakerunner"
+    username: "lakerunner"         # Default: "lakerunner"
+    password: "your-password"      # Required if not from a pre-defined secret
+```
+
+## Security Context and Distroless Compatibility
+
+LakeRunner containers run as a non-root user and drop all capabilities.
+
+### Grafana Component
+
+Grafana continues to use its standard configuration:
+
+* **User ID**: 472 (standard Grafana user)
+* **Group ID**: 472
+* **FSGroup**: 472
 
 ## Secrets
 
