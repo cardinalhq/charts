@@ -4,9 +4,9 @@ kind: Deployment
 metadata:
   name: {{ include "lakerunner.fullname" . }}-ingest-logs
   labels:
-    {{- include "lakerunner.labels" . | nindent 4 }}
+    {{- include "lakerunner.labelsWithComponent" (list . .Values.ingestLogs.labels) | nindent 4 }}
     app.kubernetes.io/component: ingest-logs
-  {{ include "lakerunner.annotations" . | nindent 2 }}
+  {{ include "lakerunner.annotationsWithComponent" (list . .Values.ingestLogs.annotations) | nindent 2 }}
 spec:
   {{- $scalingMode := include "lakerunner.autoscalingMode" (list .Values.ingestLogs.autoscaling .) }}
   {{- if eq $scalingMode "disabled" }}
@@ -19,9 +19,9 @@ spec:
   template:
     metadata:
       labels:
-        {{- include "lakerunner.labels" . | nindent 8 }}
+        {{- include "lakerunner.labelsWithComponent" (list . .Values.ingestLogs.labels) | nindent 8 }}
         app.kubernetes.io/component: ingest-logs
-      {{- include "lakerunner.annotations" . | nindent 6 }}
+      {{- include "lakerunner.annotationsWithComponent" (list . .Values.ingestLogs.annotations) | nindent 6 }}
     spec:
       serviceAccountName: {{ include "lakerunner.serviceAccountName" . }}
       terminationGracePeriodSeconds: {{ .Values.ingestLogs.terminationGracePeriodSeconds }}

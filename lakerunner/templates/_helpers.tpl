@@ -61,6 +61,28 @@ Common labels, now including .Values.global.labels.
 {{- end }}
 
 {{/*
+Common labels with component-specific labels support.
+Usage: {{ include "lakerunner.labelsWithComponent" (list . .Values.componentName.labels) }}
+*/}}
+{{- define "lakerunner.labelsWithComponent" -}}
+  {{- $context := index . 0 -}}
+  {{- $componentLabels := index . 1 | default dict -}}
+  {{- $global := $context.Values.global.labels | default dict -}}
+  {{- $coreLabels := merge
+      (dict "helm.sh/chart" (include "lakerunner.chart" $context))
+      (include "lakerunner.selectorLabels" $context | fromYaml)
+  -}}
+  {{- if $context.Chart.AppVersion -}}
+    {{- $coreLabels = merge $coreLabels (dict "app.kubernetes.io/version" ($context.Chart.AppVersion)) -}}
+  {{- end -}}
+  {{- $coreLabels = merge $coreLabels (dict "app.kubernetes.io/managed-by" $context.Release.Service) -}}
+  {{- $coreLabels = merge $coreLabels (dict "lakerunner.cardinalhq.io/instance" $context.Release.Name) -}}
+  {{- $withGlobal := merge $global $coreLabels -}}
+  {{- $finalLabels := merge $componentLabels $withGlobal -}}
+  {{- toYaml $finalLabels -}}
+{{- end }}
+
+{{/*
 Selector labels
 */}}
 {{- define "lakerunner.selectorLabels" -}}
@@ -143,13 +165,28 @@ or nothing if the map is empty.
 {{- end -}}
 
 {{/*
-“Smart” annotations helper: emits the header + pairs when non-empty.
+"Smart" annotations helper: emits the header + pairs when non-empty.
 */}}
 {{- define "lakerunner.annotations" -}}
 {{- if and .Values.global.annotations (gt (len .Values.global.annotations) 0) -}}
 annotations:
 {{ include "lakerunner.annotationPairs" . }}
 {{- end -}}
+{{- end -}}
+
+{{/*
+"Smart" annotations helper with component-specific annotations support.
+Usage: {{ include "lakerunner.annotationsWithComponent" (list . .Values.componentName.annotations) }}
+*/}}
+{{- define "lakerunner.annotationsWithComponent" -}}
+  {{- $context := index . 0 -}}
+  {{- $componentAnnotations := index . 1 | default dict -}}
+  {{- $global := $context.Values.global.annotations | default dict -}}
+  {{- $finalAnnotations := merge $componentAnnotations $global -}}
+  {{- if gt (len $finalAnnotations) 0 -}}
+annotations:
+{{ toYaml $finalAnnotations | indent 2 }}
+  {{- end -}}
 {{- end -}}
 
 {{/*
