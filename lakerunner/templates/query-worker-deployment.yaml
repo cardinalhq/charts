@@ -80,6 +80,8 @@ spec:
               secretKeyRef:
                 name: {{ include "lakerunner.tokenSecretName" . }}
                 key: TOKEN
+          - name: QUERY_API_ENDPOINT
+            value: "http://{{ include "lakerunner.fullname" . }}-query-api:7101"
           {{- include "lakerunner.injectEnv" (list . .Values.queryWorker) | nindent 8 }}
         envFrom:
           - secretRef:
