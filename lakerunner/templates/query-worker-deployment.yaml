@@ -80,8 +80,12 @@ spec:
               secretKeyRef:
                 name: {{ include "lakerunner.tokenSecretName" . }}
                 key: TOKEN
-          - name: QUERY_API_ENDPOINT
-            value: "http://{{ include "lakerunner.fullname" . }}-query-api:7101"
+          - name: QUERY_API_PORT
+            value: "7101"
+          - name: QUERY_API_LABEL_SELECTOR
+            value: "lakerunner.cardinalhq.io/instance={{ .Release.Name }},lakerunner.cardinalhq.io/component=query-api"
+          - name: QUERY_API_DEPLOYMENT_TYPE
+            value: "statefulset"
           {{- include "lakerunner.injectEnv" (list . .Values.queryWorker) | nindent 8 }}
         envFrom:
           - secretRef:
