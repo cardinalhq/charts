@@ -133,17 +133,22 @@ jobs:
           git tag "${RELEASE_TAG}"
           git push origin "${RELEASE_TAG}"
           
+          # Create release notes
+          cat > release_notes.md << EOF
+          Stable release ${RELEASE_VERSION} promoted from RC ${RC_VERSION}.
+          
+          ## Installation
+          \`helm install my-release oci://public.ecr.aws/cardinalhq.io/lakerunner --version ${RELEASE_VERSION}\`
+          
+          ## Promoted from
+          - RC Version: ${RC_VERSION}
+          - RC Release: https://github.com/${{ github.repository }}/releases/tag/lakerunner-${RC_VERSION}
+          EOF
+          
           # Create GitHub release (not pre-release)
           gh release create "${RELEASE_TAG}" \
             --title "LakeRunner ${RELEASE_VERSION}" \
-            --notes "Stable release ${RELEASE_VERSION} promoted from RC ${RC_VERSION}.
-
-## Installation
-\`helm install my-release oci://public.ecr.aws/cardinalhq.io/lakerunner --version ${RELEASE_VERSION}\`
-
-## Promoted from
-- RC Version: ${RC_VERSION}
-- RC Release: https://github.com/${{ github.repository }}/releases/tag/lakerunner-${RC_VERSION}" \
+            --notes-file release_notes.md \
             "packages/lakerunner-${RELEASE_VERSION}.tgz"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
