@@ -12,7 +12,7 @@ global:
     # Override this to use a different tag for all images
     tag: ""
     # Default pull policy for all images
-    pullPolicy: "Always"
+    pullPolicy: "IfNotPresent"
   # Global autoscaling configuration
   autoscaling:
     # Global scaling mode for all components (can be overridden per component)
