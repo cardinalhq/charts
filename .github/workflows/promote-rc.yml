@@ -1,0 +1,180 @@
+name: Promote RC to Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      rc_version:
+        description: 'RC version to promote (e.g., 0.4.1-rc1)'
+        required: true
+        type: string
+
+jobs:
+  promote-rc:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+      
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: '3.12.0'
+          
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+          
+      - name: Login to ECR
+        run: |
+          aws ecr-public get-login-password --region us-east-1 | \
+            helm registry login --username AWS --password-stdin public.ecr.aws
+            
+      - name: Validate RC version
+        id: validate
+        run: |
+          RC_VERSION="${{ github.event.inputs.rc_version }}"
+          
+          # Validate RC version format
+          if [[ ! "$RC_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+-rc[0-9]+$ ]]; then
+            echo "❌ Invalid RC version format. Expected: X.Y.Z-rcN (e.g., 0.4.1-rc1)"
+            exit 1
+          fi
+          
+          # Extract base version (remove -rc suffix)
+          RELEASE_VERSION=$(echo "$RC_VERSION" | sed 's/-rc[0-9]*$//')
+          
+          # Check if RC tag exists
+          RC_TAG="lakerunner-${RC_VERSION}"
+          if ! git tag -l | grep -q "^${RC_TAG}$"; then
+            echo "❌ RC tag ${RC_TAG} does not exist. Available tags:"
+            git tag -l "lakerunner-*-rc*" | tail -5
+            exit 1
+          fi
+          
+          # Check if release version already exists
+          RELEASE_TAG="lakerunner-${RELEASE_VERSION}"
+          if git tag -l | grep -q "^${RELEASE_TAG}$"; then
+            echo "❌ Release tag ${RELEASE_TAG} already exists!"
+            exit 1
+          fi
+          
+          echo "rc_version=${RC_VERSION}" >> $GITHUB_OUTPUT
+          echo "release_version=${RELEASE_VERSION}" >> $GITHUB_OUTPUT
+          echo "rc_tag=${RC_TAG}" >> $GITHUB_OUTPUT
+          echo "release_tag=${RELEASE_TAG}" >> $GITHUB_OUTPUT
+          
+          echo "✅ Validation passed:"
+          echo "  RC: ${RC_VERSION} → Release: ${RELEASE_VERSION}"
+          
+      - name: Download RC chart from ECR
+        run: |
+          RC_VERSION="${{ steps.validate.outputs.rc_version }}"
+          REGISTRY="public.ecr.aws/cardinalhq.io"
+          
+          mkdir -p temp-rc
+          cd temp-rc
+          
+          # Pull the RC version from ECR
+          helm pull "oci://${REGISTRY}/lakerunner" --version "${RC_VERSION}"
+          
+          # Extract the chart
+          tar -xzf "lakerunner-${RC_VERSION}.tgz"
+          
+          echo "✅ Downloaded RC ${RC_VERSION} from ECR"
+          
+      - name: Update chart for release
+        run: |
+          RC_VERSION="${{ steps.validate.outputs.rc_version }}"
+          RELEASE_VERSION="${{ steps.validate.outputs.release_version }}"
+          
+          cd temp-rc/lakerunner
+          
+          # Update Chart.yaml version (remove RC suffix)
+          sed -i "s/^version:.*/version: ${RELEASE_VERSION}/" Chart.yaml
+          
+          # Show the updated Chart.yaml
+          echo "Updated Chart.yaml for release:"
+          grep -E "^(version|appVersion):" Chart.yaml
+          
+      - name: Package release chart
+        run: |
+          RELEASE_VERSION="${{ steps.validate.outputs.release_version }}"
+          
+          cd temp-rc
+          mkdir -p ../packages
+          
+          # Package the updated chart
+          helm package lakerunner --destination ../packages
+          
+          echo "✅ Packaged release version ${RELEASE_VERSION}"
+          
+      - name: Push release to ECR
+        run: |
+          RELEASE_VERSION="${{ steps.validate.outputs.release_version }}"
+          REGISTRY="public.ecr.aws/cardinalhq.io"
+          
+          helm push "packages/lakerunner-${RELEASE_VERSION}.tgz" "oci://${REGISTRY}"
+          echo "✅ Pushed to: oci://${REGISTRY}/lakerunner:${RELEASE_VERSION}"
+          
+      - name: Create release tag and GitHub release
+        run: |
+          RC_VERSION="${{ steps.validate.outputs.rc_version }}"
+          RELEASE_VERSION="${{ steps.validate.outputs.release_version }}"
+          RELEASE_TAG="${{ steps.validate.outputs.release_tag }}"
+          
+          # Create and push release tag
+          git tag "${RELEASE_TAG}"
+          git push origin "${RELEASE_TAG}"
+          
+          # Create GitHub release (not pre-release)
+          gh release create "${RELEASE_TAG}" \
+            --title "LakeRunner ${RELEASE_VERSION}" \
+            --notes "Stable release ${RELEASE_VERSION} promoted from RC ${RC_VERSION}.
+            
+## Installation
+\`\`\`bash
+helm install my-release oci://public.ecr.aws/cardinalhq.io/lakerunner --version ${RELEASE_VERSION}
+\`\`\`
+
+## Promoted from
+- RC Version: ${RC_VERSION}
+- RC Release: https://github.com/${{ github.repository }}/releases/tag/lakerunner-${RC_VERSION}" \
+            "packages/lakerunner-${RELEASE_VERSION}.tgz"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          
+      - name: Update Chart.yaml in repo for next development
+        run: |
+          RELEASE_VERSION="${{ steps.validate.outputs.release_version }}"
+          
+          cd lakerunner
+          
+          # Update the Chart.yaml in the repository to the new release version
+          sed -i "s/^version:.*/version: ${RELEASE_VERSION}/" Chart.yaml
+          
+          # Commit the version update
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add Chart.yaml
+          git commit -m "Bump chart version to ${RELEASE_VERSION} after promotion"
+          git push
+          
+      - name: Summary
+        run: |
+          RC_VERSION="${{ steps.validate.outputs.rc_version }}"
+          RELEASE_VERSION="${{ steps.validate.outputs.release_version }}"
+          
+          echo "🎉 Successfully promoted ${RC_VERSION} to ${RELEASE_VERSION}!"
+          echo ""
+          echo "📦 ECR: oci://public.ecr.aws/cardinalhq.io/lakerunner:${RELEASE_VERSION}"
+          echo "🏷️ GitHub: https://github.com/${{ github.repository }}/releases/tag/lakerunner-${RELEASE_VERSION}"
+          echo ""
+          echo "🚀 Production installation:"
+          echo "helm install my-release oci://public.ecr.aws/cardinalhq.io/lakerunner --version ${RELEASE_VERSION}"

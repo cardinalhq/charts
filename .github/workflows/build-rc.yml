@@ -1,0 +1,123 @@
+name: Build RC Version
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Chart version (without RC suffix, e.g., 0.4.1)'
+        required: true
+        type: string
+      rc_number:
+        description: 'RC number (defaults to next available)'
+        required: false
+        type: string
+        default: ''
+
+jobs:
+  build-rc:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+      
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: '3.12.0'
+          
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+          
+      - name: Login to ECR
+        run: |
+          aws ecr-public get-login-password --region us-east-1 | \
+            helm registry login --username AWS --password-stdin public.ecr.aws
+            
+      - name: Determine RC version
+        id: rc_version
+        run: |
+          BASE_VERSION="${{ github.event.inputs.version }}"
+          RC_NUMBER="${{ github.event.inputs.rc_number }}"
+          
+          # If RC number not provided, find the next available one
+          if [ -z "$RC_NUMBER" ]; then
+            # Check existing tags to find highest RC number for this version
+            EXISTING_RC=$(git tag -l "${BASE_VERSION}-rc*" | \
+              sed "s/${BASE_VERSION}-rc//" | \
+              sort -n | \
+              tail -1)
+            
+            if [ -z "$EXISTING_RC" ]; then
+              RC_NUMBER="1"
+            else
+              RC_NUMBER=$((EXISTING_RC + 1))
+            fi
+          fi
+          
+          RC_VERSION="${BASE_VERSION}-rc${RC_NUMBER}"
+          echo "rc_version=${RC_VERSION}" >> $GITHUB_OUTPUT
+          echo "base_version=${BASE_VERSION}" >> $GITHUB_OUTPUT
+          echo "Building RC version: ${RC_VERSION}"
+          
+      - name: Update Chart.yaml with RC version
+        run: |
+          cd lakerunner
+          # Update version in Chart.yaml
+          sed -i "s/^version:.*/version: ${{ steps.rc_version.outputs.rc_version }}/" Chart.yaml
+          
+          # Show the updated Chart.yaml for verification
+          echo "Updated Chart.yaml:"
+          grep -E "^(version|appVersion):" Chart.yaml
+          
+      - name: Package chart
+        run: |
+          cd lakerunner
+          helm package . --destination ../packages
+          
+      - name: Push to ECR
+        run: |
+          RC_VERSION="${{ steps.rc_version.outputs.rc_version }}"
+          REGISTRY="public.ecr.aws/cardinalhq.io"
+          
+          helm push "packages/lakerunner-${RC_VERSION}.tgz" "oci://${REGISTRY}"
+          echo "Pushed to: oci://${REGISTRY}/lakerunner:${RC_VERSION}"
+          
+      - name: Create Git tag and release
+        run: |
+          RC_VERSION="${{ steps.rc_version.outputs.rc_version }}"
+          TAG_NAME="lakerunner-${RC_VERSION}"
+          
+          # Create and push tag
+          git tag "${TAG_NAME}"
+          git push origin "${TAG_NAME}"
+          
+          # Create GitHub pre-release
+          gh release create "${TAG_NAME}" \
+            --title "LakeRunner ${RC_VERSION}" \
+            --notes "Release candidate ${RC_VERSION} for testing. Install with: \`helm install my-release oci://public.ecr.aws/cardinalhq.io/lakerunner --version ${RC_VERSION}\`" \
+            --prerelease \
+            "packages/lakerunner-${RC_VERSION}.tgz"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          
+      - name: Summary
+        run: |
+          RC_VERSION="${{ steps.rc_version.outputs.rc_version }}"
+          echo "✅ RC ${RC_VERSION} built and published successfully!"
+          echo ""
+          echo "📦 ECR: oci://public.ecr.aws/cardinalhq.io/lakerunner:${RC_VERSION}"
+          echo "🏷️ GitHub: https://github.com/${{ github.repository }}/releases/tag/lakerunner-${RC_VERSION}"
+          echo ""
+          echo "🧪 To test this RC:"
+          echo "helm install test-release oci://public.ecr.aws/cardinalhq.io/lakerunner --version ${RC_VERSION}"
+          echo ""
+          echo "✨ When testing passes, promote with:"
+          echo "gh workflow run promote-rc.yml -f rc_version=${RC_VERSION}"

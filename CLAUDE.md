@@ -8,7 +8,45 @@ This is a Helm charts repository for CardinalHQ products, specifically containin
 
 ## Chart Management Commands
 
-### Package and Publish Charts
+### Release Management
+
+The chart follows an RC-first release strategy where all releases must go through a Release Candidate (RC) phase for testing before promotion to a stable release.
+
+#### Build RC Version
+```bash
+# Build next RC version automatically (e.g., 0.4.1-rc1)
+make build-rc VERSION=0.4.1
+
+# Build specific RC number
+make build-rc VERSION=0.4.1 RC=2
+
+# Alternative: Use the script directly
+./.github/scripts/rc-manager.sh build-rc 0.4.1
+```
+
+#### Promote RC to Release
+```bash
+# After testing passes, promote RC to stable release
+make promote-rc RC=0.4.1-rc1
+
+# Alternative: Use the script directly
+./.github/scripts/rc-manager.sh promote-rc 0.4.1-rc1
+```
+
+#### Release Status and Management
+```bash
+# Show current chart status and recent versions
+make rc-status
+
+# List all available RC and release versions
+make rc-list
+
+# Monitor GitHub Actions progress
+gh run list --workflow=build-rc.yml
+gh run list --workflow=promote-rc.yml
+```
+
+#### Manual Package and Publish (Legacy)
 ```bash
 # Package a chart
 helm package lakerunner --destination out
@@ -18,9 +56,6 @@ aws ecr-public get-login-password --region us-east-1 | helm registry login --use
 
 # Push chart to registry
 helm push "out/lakerunner-<version>.tgz" "oci://public.ecr.aws/cardinalhq.io"
-
-# Or use the automated script
-./.github/scripts/publish-charts.sh
 ```
 
 ### Chart Development

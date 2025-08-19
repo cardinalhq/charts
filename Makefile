@@ -15,7 +15,7 @@ YELLOW := \033[33m
 CYAN := \033[36m
 RESET := \033[0m
 
-.PHONY: help test check lint template unittest clean list-charts test-chart package publish
+.PHONY: help test check lint template unittest clean list-charts test-chart package publish build-rc promote-rc rc-status rc-list
 
 help:  ## Show this help message
 	@echo "$(CYAN)CardinalHQ Helm Charts Testing$(RESET)"
@@ -178,6 +178,34 @@ publish: package  ## Package and publish all charts to ECR registry (assumes you
 		echo "$(GREEN)    $$chart version $$CHART_VERSION published$(RESET)"; \
 	done
 	@echo "$(GREEN)All charts published successfully!$(RESET)"
+
+# RC Release Management
+build-rc:  ## Build RC version (usage: make build-rc VERSION=0.4.1 [RC=2])
+ifndef VERSION
+	@echo "$(RED)Please specify VERSION=<version> (e.g., VERSION=0.4.1)$(RESET)"
+	@echo "Available commands:"
+	@echo "  make build-rc VERSION=0.4.1        # Creates 0.4.1-rc1 (or next available)"
+	@echo "  make build-rc VERSION=0.4.1 RC=2   # Creates 0.4.1-rc2 specifically"
+	@exit 1
+endif
+	@echo "$(CYAN)Building RC version for $(VERSION)...$(RESET)"
+	@./.github/scripts/rc-manager.sh build-rc $(VERSION) $(RC)
+
+promote-rc:  ## Promote RC to release (usage: make promote-rc RC=0.4.1-rc1)
+ifndef RC
+	@echo "$(RED)Please specify RC=<rc-version> (e.g., RC=0.4.1-rc1)$(RESET)"
+	@echo "Available RC versions:"
+	@git tag -l "lakerunner-*-rc*" | sort -V | tail -5 || echo "  No RC versions found"
+	@exit 1
+endif
+	@echo "$(CYAN)Promoting RC $(RC) to release...$(RESET)"
+	@./.github/scripts/rc-manager.sh promote-rc $(RC)
+
+rc-status:  ## Show current RC and release status
+	@./.github/scripts/rc-manager.sh status
+
+rc-list:  ## List available RC and release versions
+	@./.github/scripts/rc-manager.sh list
 
 # Dependency management
 deps:  ## Update dependencies for all charts
