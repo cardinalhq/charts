@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.4.0
+
+* **NEW**: Simplified Grafana Cardinal datasource configuration
+  - New `grafana.cardinal.*` configuration section for easier setup
+  - Only requires `grafana.cardinal.apiKey` for basic configuration
+  - Auto-configures endpoint to deployed query-api service
+  - Optional customization: endpoint, name, isDefault, editable
+  - Backward compatible: existing `grafana.datasources` configuration still works
+  - Creates separate `lakerunner.yaml` file to avoid conflicts with additional datasources
+
+* **VALIDATION**: Add database configuration validation for multiple Grafana replicas
+  - Prevents deployment of multiple Grafana replicas without external database configuration
+  - Fails fast with clear error message instead of runtime pod failures
+  - Validates for `GF_DATABASE_TYPE` environment variable in both `grafana.env` and `global.env`
+  - Single replica deployments continue to work without external database (uses SQLite)
+
 ## 0.3.0
 
 * **MAJOR**: Add KEDA autoscaling support with intelligent work queue-based scaling

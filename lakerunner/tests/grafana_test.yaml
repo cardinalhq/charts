@@ -1,8 +1,11 @@
 suite: test grafana configuration
 templates:
   - grafana-deployment.yaml
+  - grafana-datasources-configmap.yaml
 tests:
   - it: should include required cardinal plugin by default
+    templates:
+      - grafana-deployment.yaml
     set:
       grafana.enabled: true
     asserts:
@@ -14,6 +17,8 @@ tests:
           value: "https://github.com/cardinalhq/cardinalhq-lakerunner-datasource/raw/refs/heads/main/cardinalhq-lakerunner-datasource.zip;cardinalhq-lakerunner-datasource"
 
   - it: should append additional plugins when specified
+    templates:
+      - grafana-deployment.yaml
     set:
       grafana.enabled: true
       grafana.additionalPlugins: "grafana-clock-panel"
@@ -23,6 +28,8 @@ tests:
           value: "https://github.com/cardinalhq/cardinalhq-lakerunner-datasource/raw/refs/heads/main/cardinalhq-lakerunner-datasource.zip;cardinalhq-lakerunner-datasource,grafana-clock-panel"
 
   - it: should handle multiple additional plugins
+    templates:
+      - grafana-deployment.yaml
     set:
       grafana.enabled: true
       grafana.additionalPlugins: "grafana-clock-panel,grafana-simple-json-datasource"
@@ -32,6 +39,8 @@ tests:
           value: "https://github.com/cardinalhq/cardinalhq-lakerunner-datasource/raw/refs/heads/main/cardinalhq-lakerunner-datasource.zip;cardinalhq-lakerunner-datasource,grafana-clock-panel,grafana-simple-json-datasource"
 
   - it: should support air-gapped cardinal plugin URL
+    templates:
+      - grafana-deployment.yaml
     set:
       grafana.enabled: true
       grafana.cardinalPlugin.url: "https://internal-registry.company.com/cardinalhq-lakerunner-datasource.zip;cardinalhq-lakerunner-datasource"
@@ -41,6 +50,8 @@ tests:
           value: "https://internal-registry.company.com/cardinalhq-lakerunner-datasource.zip;cardinalhq-lakerunner-datasource"
 
   - it: should support air-gapped plugin with additional plugins
+    templates:
+      - grafana-deployment.yaml
     set:
       grafana.enabled: true
       grafana.cardinalPlugin.url: "https://internal-registry.company.com/cardinalhq-lakerunner-datasource.zip;cardinalhq-lakerunner-datasource"
@@ -51,6 +62,8 @@ tests:
           value: "https://internal-registry.company.com/cardinalhq-lakerunner-datasource.zip;cardinalhq-lakerunner-datasource,grafana-clock-panel"
 
   - it: should set correct service port
+    templates:
+      - grafana-deployment.yaml
     set:
       grafana.enabled: true
     asserts:
@@ -60,6 +73,165 @@ tests:
       - equal:
           path: spec.template.spec.containers[0].env[2].value
           value: "3000"
+
+  - it: should allow minimal cardinal datasource configuration
+    templates:
+      - grafana-datasources-configmap.yaml
+    set:
+      grafana.enabled: true
+      aws.region: "us-west-2"
+      grafana.cardinal.apiKey: "test-api-key-123"
+    asserts:
+      - matchRegex:
+          path: data["lakerunner.yaml"]
+          pattern: 'apiKey: "test-api-key-123"'
+      - matchRegex:
+          path: data["lakerunner.yaml"]
+          pattern: 'name: Cardinal'
+      - matchRegex:
+          path: data["lakerunner.yaml"]
+          pattern: 'type: cardinalhq-lakerunner-datasource'
+      - matchRegex:
+          path: data["lakerunner.yaml"]
+          pattern: 'customPath: http://RELEASE-NAME-lakerunner-query-api:7101'
+      - matchRegex:
+          path: data["lakerunner.yaml"]
+          pattern: 'isDefault: true'
+      - matchRegex:
+          path: data["lakerunner.yaml"]
+          pattern: 'editable: true'
+
+  - it: should allow custom cardinal endpoint configuration
+    templates:
+      - grafana-datasources-configmap.yaml
+    set:
+      grafana.enabled: true
+      aws.region: "us-west-2"
+      grafana.cardinal.apiKey: "test-key-456"
+      grafana.cardinal.endpoint: "http://custom-api:8080"
+    asserts:
+      - matchRegex:
+          path: data["lakerunner.yaml"]
+          pattern: 'apiKey: "test-key-456"'
+      - matchRegex:
+          path: data["lakerunner.yaml"]
+          pattern: 'customPath: "http://custom-api:8080"'
+
+  - it: should allow custom cardinal datasource name and properties
+    templates:
+      - grafana-datasources-configmap.yaml
+    set:
+      grafana.enabled: true
+      aws.region: "us-west-2"
+      grafana.cardinal.apiKey: "test-key-789"
+      grafana.cardinal.name: "My Cardinal Instance"
+      grafana.cardinal.isDefault: false
+      grafana.cardinal.editable: false
+    asserts:
+      - matchRegex:
+          path: data["lakerunner.yaml"]
+          pattern: 'name: My Cardinal Instance'
+      - matchRegex:
+          path: data["lakerunner.yaml"]
+          pattern: 'isDefault: false'
+      - matchRegex:
+          path: data["lakerunner.yaml"]
+          pattern: 'editable: false'
+      - matchRegex:
+          path: data["lakerunner.yaml"]
+          pattern: 'apiKey: "test-key-789"'
+
+  - it: should allow additional datasources alongside cardinal
+    templates:
+      - grafana-datasources-configmap.yaml
+    set:
+      grafana.enabled: true
+      aws.region: "us-west-2"
+      grafana.cardinal.apiKey: "cardinal-key"
+      grafana.datasources:
+        prometheus.yaml:
+          apiVersion: 1
+          datasources:
+            - name: Prometheus
+              type: prometheus
+              url: http://prometheus:9090
+    asserts:
+      - matchRegex:
+          path: data["lakerunner.yaml"]
+          pattern: 'apiKey: "cardinal-key"'
+      - matchRegex:
+          path: data["prometheus.yaml"]
+          pattern: 'name: Prometheus'
+      - matchRegex:
+          path: data["prometheus.yaml"]
+          pattern: 'type: prometheus'
+
+  - it: should fail when multiple replicas without external database
+    templates:
+      - grafana-deployment.yaml
+    set:
+      grafana.enabled: true
+      grafana.replicas: 3
+      aws.region: "us-west-2"
+    asserts:
+      - failedTemplate:
+          errorMessage: "Grafana replicas is set to 3 but GF_DATABASE_TYPE is not configured. Multiple Grafana replicas require an external database (PostgreSQL/MySQL) since SQLite cannot be shared. Please configure grafana.env with GF_DATABASE_TYPE and related database connection settings."
+
+  - it: should allow multiple replicas with external database in grafana.env
+    templates:
+      - grafana-deployment.yaml
+    set:
+      grafana.enabled: true
+      grafana.replicas: 2
+      aws.region: "us-west-2"
+      grafana.env:
+        - name: GF_DATABASE_TYPE
+          value: "postgres"
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 2
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GF_DATABASE_TYPE
+            value: "postgres"
+
+  - it: should allow multiple replicas with external database in global.env
+    templates:
+      - grafana-deployment.yaml
+    set:
+      grafana.enabled: true
+      grafana.replicas: 2
+      aws.region: "us-west-2"
+      global.env:
+        - name: GF_DATABASE_TYPE
+          value: "mysql"
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 2
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GF_DATABASE_TYPE
+            value: "mysql"
+
+  - it: should allow single replica without external database
+    templates:
+      - grafana-deployment.yaml
+    set:
+      grafana.enabled: true
+      grafana.replicas: 1
+      aws.region: "us-west-2"
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 1
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GF_DATABASE_TYPE
 
   - it: should not render when disabled
     set:

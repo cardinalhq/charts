@@ -16,7 +16,7 @@ Create a `values-local.yaml` file (see below) and run:
 
 ```sh
 helm install lakerunner oci://public.ecr.aws/cardinalhq.io/lakerunner \
-   --version 0.3.0 \
+   --version 0.4.0 \
    --values values-local.yaml \
    --namespace lakerunner --create-namespace
 ```
@@ -199,3 +199,101 @@ apiKeys:
 The `organization_id` should match ones used in the storage profile.
 
 Multiple keys can be used.  If the Lakerunner query API is not used, these can be left blank.
+
+## Grafana Configuration
+
+LakeRunner includes an integrated Grafana instance for visualization and dashboards. The chart provides simplified configuration for the Cardinal LakeRunner datasource.
+
+### Basic Configuration
+
+The minimal configuration requires only an API key:
+
+```yaml
+grafana:
+  cardinal:
+    apiKey: "your-api-key-here"  # Must match a key from apiKeys configuration
+```
+
+This automatically:
+- Configures the Cardinal LakeRunner datasource
+- Sets the endpoint to the deployed query-api service
+- Makes it the default datasource in Grafana
+
+### Advanced Configuration
+
+You can customize the Cardinal datasource:
+
+```yaml
+grafana:
+  cardinal:
+    apiKey: "your-api-key-here"
+    endpoint: "http://custom-query-api:8080"  # Optional: custom endpoint
+    name: "My Cardinal Instance"             # Optional: custom name (default: "Cardinal")
+    isDefault: false                         # Optional: not the default datasource
+    editable: false                          # Optional: read-only in Grafana UI
+```
+
+### Multiple Replicas and External Database
+
+For high availability with multiple Grafana replicas, you must configure an external database since SQLite cannot be shared:
+
+```yaml
+grafana:
+  replicas: 3  # Requires external database
+  cardinal:
+    apiKey: "your-api-key-here"
+  env:
+    - name: GF_DATABASE_TYPE
+      value: "postgres"
+    - name: GF_DATABASE_HOST
+      valueFrom:
+        secretKeyRef:
+          name: grafana-db-secret
+          key: host
+    - name: GF_DATABASE_NAME
+      value: "grafana"
+    - name: GF_DATABASE_USER
+      valueFrom:
+        secretKeyRef:
+          name: grafana-db-secret
+          key: username
+    - name: GF_DATABASE_PASSWORD
+      valueFrom:
+        secretKeyRef:
+          name: grafana-db-secret
+          key: password
+```
+
+### Additional Datasources
+
+You can add additional datasources alongside the Cardinal datasource:
+
+```yaml
+grafana:
+  cardinal:
+    apiKey: "cardinal-key"
+  datasources:
+    prometheus.yaml:
+      apiVersion: 1
+      datasources:
+        - name: Prometheus
+          type: prometheus
+          url: http://prometheus:9090
+```
+
+### Environment Variables
+
+Grafana supports configuration via environment variables. Common examples:
+
+```yaml
+grafana:
+  env:
+    - name: GF_SECURITY_ADMIN_PASSWORD
+      value: "custom-admin-password"
+    - name: GF_SMTP_ENABLED
+      value: "true"
+    - name: GF_SMTP_HOST
+      value: "smtp.example.com:587"
+```
+
+For the complete list of Grafana configuration options, see the [Grafana documentation](https://grafana.com/docs/grafana/latest/setup-grafana/configure-grafana/).

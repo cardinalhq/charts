@@ -550,7 +550,24 @@ queryWorker:
 # Grafana configuration
 grafana:
   enabled: true
-  replicas: 1
+  replicas: 1  # For replicas > 1, configure external database via grafana.env (see Grafana docs)
+  # CardinalHQ LakeRunner datasource configuration
+  # This provides a simplified way to configure the Cardinal datasource
+  # Required.
+  cardinal:
+    # REQUIRED: API key for datasource authentication
+    # Must match a key from apiKeys.yaml configuration
+    apiKey: ""
+    # Optional: Custom endpoint URL for the Cardinal datasource
+    # If not specified, auto-configured to point to the deployed query-api service
+    # Example: "http://my-custom-query-api:8080"
+    endpoint: ""
+    # Optional: Custom name for the datasource (defaults to "Cardinal")
+    name: "Cardinal"
+    # Optional: Whether this datasource should be the default (defaults to true)
+    isDefault: true
+    # Optional: Whether this datasource should be editable in Grafana UI (defaults to true)
+    editable: true
   image:
     repository: grafana/grafana
     tag: "latest"
@@ -574,20 +591,15 @@ grafana:
   # Additional optional Grafana plugins (semicolon-separated list)
   # These will be installed in addition to the required CardinalHQ plugin
   additionalPlugins: ""
+  # Additional datasource configurations
+  # Use this to add extra datasources beyond the Cardinal datasource
+  # Each key becomes a filename in the datasources provisioning directory
+  # Optional.
   datasources:
-    datasources.yaml:
-      apiVersion: 1
-      datasources:
-        - name: Cardinal
-          type: cardinalhq-lakerunner-datasource
-          access: proxy
-          isDefault: true
-          editable: true
-          jsonData:
-            # Auto-configured to point to the deployed query-api service
-            # Leave empty to use default auto-configuration
-            customPath: ""
-          secureJsonData:
-            # REQUIRED: API key for datasource authentication
-            # Must match a key from apiKeys.yaml configuration
-            apiKey: ""
+    {}
+    # example-datasource.yaml:
+    #   apiVersion: 1
+    #   datasources:
+    #     - name: Prometheus
+    #       type: prometheus
+    #       url: http://prometheus:9090

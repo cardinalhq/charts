@@ -8,6 +8,32 @@ metadata:
     app.kubernetes.io/component: grafana
   {{ include "lakerunner.annotations" . | nindent 2 }}
 data:
+  {{/* Generate the Cardinal LakeRunner datasource configuration */}}
+  lakerunner.yaml: |
+    apiVersion: 1
+    datasources:
+    - name: {{ .Values.grafana.cardinal.name | default "Cardinal" }}
+      type: cardinalhq-lakerunner-datasource
+      access: proxy
+      {{- if hasKey .Values.grafana.cardinal "isDefault" }}
+      isDefault: {{ .Values.grafana.cardinal.isDefault }}
+      {{- else }}
+      isDefault: true
+      {{- end }}
+      {{- if hasKey .Values.grafana.cardinal "editable" }}
+      editable: {{ .Values.grafana.cardinal.editable }}
+      {{- else }}
+      editable: true
+      {{- end }}
+      jsonData:
+        {{- if .Values.grafana.cardinal.endpoint }}
+        customPath: {{ .Values.grafana.cardinal.endpoint | quote }}
+        {{- else }}
+        customPath: http://{{ include "lakerunner.fullname" . }}-query-api:7101
+        {{- end }}
+      secureJsonData:
+        apiKey: {{ .Values.grafana.cardinal.apiKey | quote }}
+  {{/* Generate additional user-defined datasource configurations */}}
   {{- range $key, $value := .Values.grafana.datasources }}
   {{ $key }}: |
     {{- $updatedValue := deepCopy $value }}

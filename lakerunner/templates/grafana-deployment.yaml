@@ -1,4 +1,21 @@
 {{- if .Values.grafana.enabled -}}
+{{- /* Check if multiple replicas require external database configuration */ -}}
+{{- if gt (.Values.grafana.replicas | int) 1 -}}
+  {{- $hasExternalDB := false -}}
+  {{- range .Values.grafana.env -}}
+    {{- if eq .name "GF_DATABASE_TYPE" -}}
+      {{- $hasExternalDB = true -}}
+    {{- end -}}
+  {{- end -}}
+  {{- range .Values.global.env -}}
+    {{- if eq .name "GF_DATABASE_TYPE" -}}
+      {{- $hasExternalDB = true -}}
+    {{- end -}}
+  {{- end -}}
+  {{- if not $hasExternalDB -}}
+    {{- fail (printf "Grafana replicas is set to %d but GF_DATABASE_TYPE is not configured. Multiple Grafana replicas require an external database (PostgreSQL/MySQL) since SQLite cannot be shared. Please configure grafana.env with GF_DATABASE_TYPE and related database connection settings." (.Values.grafana.replicas | int)) -}}
+  {{- end -}}
+{{- end -}}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
