@@ -12,13 +12,13 @@ TEST_RELEASE_NAME := test-release
 GREEN := \033[32m
 RED := \033[31m
 YELLOW := \033[33m
-BLUE := \033[34m
+CYAN := \033[36m
 RESET := \033[0m
 
-.PHONY: help test lint template unittest clean list-charts test-chart package publish
+.PHONY: help test check lint template unittest clean list-charts test-chart package publish
 
 help:  ## Show this help message
-	@echo "$(BLUE)CardinalHQ Helm Charts Testing$(RESET)"
+	@echo "$(CYAN)CardinalHQ Helm Charts Testing$(RESET)"
 	@echo ""
 	@echo "$(YELLOW)Available charts:$(RESET)"
 	@for chart in $(CHARTS); do echo "  - $$chart"; done
@@ -33,14 +33,16 @@ help:  ## Show this help message
 	@echo "  make unittest CHART=lakerunner    # Run unit tests for specific chart"
 
 list-charts:  ## List all discovered charts
-	@echo "$(BLUE)Discovered charts:$(RESET)"
+	@echo "$(CYAN)Discovered charts:$(RESET)"
 	@for chart in $(CHARTS); do echo "  $(GREEN)*$(RESET) $$chart"; done
 
 test: lint template unittest  ## Run all tests for all charts (Layer 1 + Layer 2)
 	@echo "$(GREEN)All tests completed successfully!$(RESET)"
 
+check: test  ## Alias for test - run lints and tests for all charts
+
 lint:  ## Run helm lint on all charts
-	@echo "$(BLUE)Linting all charts...$(RESET)"
+	@echo "$(CYAN)Linting all charts...$(RESET)"
 	@failed_charts=""; \
 	for chart in $(CHARTS); do \
 		echo "$(YELLOW)  → Linting $$chart$(RESET)"; \
@@ -66,7 +68,7 @@ lint:  ## Run helm lint on all charts
 	fi
 
 template:  ## Test template rendering for all charts
-	@echo "$(BLUE)Testing template rendering for all charts...$(RESET)"
+	@echo "$(CYAN)Testing template rendering for all charts...$(RESET)"
 	@failed_charts=""; \
 	for chart in $(CHARTS); do \
 		echo "$(YELLOW)  → Testing template rendering for $$chart$(RESET)"; \
@@ -79,7 +81,7 @@ template:  ## Test template rendering for all charts
 			fi; \
 		else \
 			echo "$(YELLOW)No Makefile found for $$chart, running basic template test$(RESET)"; \
-			if ! helm template $(TEST_RELEASE_NAME) $$chart --debug --dry-run > /dev/null; then \
+			if ! helm template $(TEST_RELEASE_NAME) $$chart --dry-run > /dev/null 2>&1; then \
 				echo "$(RED)Basic template rendering failed for $$chart$(RESET)"; \
 				failed_charts="$$failed_charts $$chart"; \
 			else \
@@ -93,7 +95,7 @@ template:  ## Test template rendering for all charts
 	fi
 
 unittest:  ## Run helm unittest for all charts
-	@echo "$(BLUE)Running unit tests for all charts...$(RESET)"
+	@echo "$(CYAN)Running unit tests for all charts...$(RESET)"
 	@failed_charts=""; \
 	for chart in $(CHARTS); do \
 		echo "$(YELLOW)  → Running unit tests for $$chart$(RESET)"; \
@@ -133,19 +135,19 @@ endif
 		echo "Available charts: $(CHARTS)"; \
 		exit 1; \
 	fi
-	@echo "$(BLUE)Testing chart: $(CHART)$(RESET)"
+	@echo "$(CYAN)Testing chart: $(CHART)$(RESET)"
 	@if [ -f "$(CHART)/Makefile" ]; then \
 		$(MAKE) -C $(CHART) test; \
 	else \
 		echo "$(YELLOW)No Makefile found for $(CHART), running basic tests$(RESET)"; \
 		helm lint $(CHART); \
-		helm template $(TEST_RELEASE_NAME) $(CHART) --debug --dry-run > /dev/null; \
+		helm template $(TEST_RELEASE_NAME) $(CHART) --dry-run > /dev/null 2>&1; \
 		if [ -d "$(CHART)/tests" ]; then helm unittest $(CHART); fi; \
 	fi
 	@echo "$(GREEN)Tests completed for $(CHART)$(RESET)"
 
 clean:  ## Clean up test artifacts for all charts
-	@echo "$(BLUE)Cleaning up test artifacts...$(RESET)"
+	@echo "$(CYAN)Cleaning up test artifacts...$(RESET)"
 	@for chart in $(CHARTS); do \
 		echo "$(YELLOW)  → Cleaning $$chart$(RESET)"; \
 		if [ -f "$$chart/Makefile" ]; then \
@@ -158,7 +160,7 @@ clean:  ## Clean up test artifacts for all charts
 
 # Package all charts
 package:  ## Package all charts
-	@echo "$(BLUE)Packaging all charts...$(RESET)"
+	@echo "$(CYAN)Packaging all charts...$(RESET)"
 	@mkdir -p packages
 	@for chart in $(CHARTS); do \
 		echo "$(YELLOW)  → Packaging $$chart$(RESET)"; \
@@ -167,7 +169,7 @@ package:  ## Package all charts
 	@echo "$(GREEN)All charts packaged in packages/ directory$(RESET)"
 
 publish: package  ## Package and publish all charts to ECR registry (assumes you're already logged in)
-	@echo "$(BLUE)Publishing all charts to ECR registry...$(RESET)"
+	@echo "$(CYAN)Publishing all charts to ECR registry...$(RESET)"
 	@REGISTRY="public.ecr.aws/cardinalhq.io"; \
 	for chart in $(CHARTS); do \
 		echo "$(YELLOW)  → Publishing $$chart$(RESET)"; \
@@ -179,7 +181,7 @@ publish: package  ## Package and publish all charts to ECR registry (assumes you
 
 # Dependency management
 deps:  ## Update dependencies for all charts
-	@echo "$(BLUE)Updating dependencies for all charts...$(RESET)"
+	@echo "$(CYAN)Updating dependencies for all charts...$(RESET)"
 	@for chart in $(CHARTS); do \
 		if [ -f "$$chart/Chart.yaml" ] && grep -q "^dependencies:" $$chart/Chart.yaml 2>/dev/null; then \
 			echo "$(YELLOW)  → Updating dependencies for $$chart$(RESET)"; \
@@ -222,7 +224,7 @@ ci:  ## Run tests suitable for CI/CD (no colors, structured output)
 			fi; \
 		else \
 			if helm lint $$chart > /dev/null 2>&1 && \
-			   helm template $(TEST_RELEASE_NAME) $$chart --debug --dry-run > /dev/null 2>&1 && \
+			   helm template $(TEST_RELEASE_NAME) $$chart --dry-run > /dev/null 2>&1 && \
 			   ([ ! -d "$$chart/tests" ] || helm unittest $$chart > /dev/null 2>&1); then \
 				echo "  PASS: $$chart"; \
 				passed_charts=$$((passed_charts + 1)); \
@@ -240,7 +242,7 @@ ci:  ## Run tests suitable for CI/CD (no colors, structured output)
 
 # Development helpers
 watch:  ## Watch for changes and run tests (requires entr)
-	@echo "$(BLUE)Watching for changes (requires 'entr' command)...$(RESET)"
+	@echo "$(CYAN)Watching for changes (requires 'entr' command)...$(RESET)"
 	@if ! command -v entr > /dev/null; then \
 		echo "$(RED)'entr' command not found. Install with: brew install entr$(RESET)"; \
 		exit 1; \
@@ -249,7 +251,7 @@ watch:  ## Watch for changes and run tests (requires entr)
 
 # Show chart information
 info:  ## Show information about all charts
-	@echo "$(BLUE)Chart Information$(RESET)"
+	@echo "$(CYAN)Chart Information$(RESET)"
 	@for chart in $(CHARTS); do \
 		echo ""; \
 		echo "$(YELLOW)Chart: $$chart$(RESET)"; \

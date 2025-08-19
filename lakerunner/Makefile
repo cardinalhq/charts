@@ -3,7 +3,7 @@
 CHART_NAME := lakerunner
 TEST_RELEASE_NAME := test-release
 
-.PHONY: help test lint template unittest clean package publish
+.PHONY: help test check lint template unittest clean package publish
 
 help:  ## Show this help message
 	@echo "Available targets:"
@@ -11,30 +11,22 @@ help:  ## Show this help message
 
 test: lint template unittest  ## Run all tests (Layer 1 + Layer 2)
 
+check: test  ## Alias for test - run lints and tests
+
 lint:  ## Run helm lint on the chart
 	@echo "Linting $(CHART_NAME) chart..."
 	helm lint . --values tests/test-values.yaml
 
 template:  ## Test template rendering with various configurations
-	@echo "Testing template rendering..."
-	@echo "  → Default configuration"
-	helm template $(TEST_RELEASE_NAME) . --set aws.region=us-west-2 --debug --dry-run > /dev/null
-	@echo "  → With global tag override"
-	helm template $(TEST_RELEASE_NAME) . --set aws.region=us-west-2 --set global.image.tag=v1.2.3 --debug --dry-run > /dev/null
-	@echo "  → With disabled components"
-	helm template $(TEST_RELEASE_NAME) . --set aws.region=us-west-2 --set queryApi.enabled=false --set grafana.enabled=false --debug --dry-run > /dev/null
-	@echo "  → With air-gapped Grafana plugin"
-	helm template $(TEST_RELEASE_NAME) . --set aws.region=us-west-2 --set grafana.cardinalPlugin.url="https://internal.example.com/plugin.zip;cardinalhq-lakerunner-datasource" --debug --dry-run > /dev/null
-	@echo "  → With additional Grafana plugins"
-	helm template $(TEST_RELEASE_NAME) . --set aws.region=us-west-2 --set grafana.additionalPlugins="grafana-clock-panel" --debug --dry-run > /dev/null
-	@echo "  → With custom scaling"
-	helm template $(TEST_RELEASE_NAME) . --set aws.region=us-west-2 --set queryApi.replicas=3 --set ingestLogs.replicas=5 --debug --dry-run > /dev/null
-	@echo "  → With KEDA scaling enabled"
-	helm template $(TEST_RELEASE_NAME) . --set aws.region=us-west-2 --set global.autoscaling.mode=keda --set database.lrdb.host=postgres.example.com --debug --dry-run > /dev/null
-	@echo "  → With scaling disabled globally"
-	helm template $(TEST_RELEASE_NAME) . --set aws.region=us-west-2 --set global.autoscaling.mode=disabled --debug --dry-run > /dev/null
-	@echo "  → With component-level scaling disabled"
-	helm template $(TEST_RELEASE_NAME) . --set aws.region=us-west-2 --set ingestLogs.autoscaling.enabled=false --debug --dry-run > /dev/null
+	@helm template $(TEST_RELEASE_NAME) . --set aws.region=us-west-2 --dry-run > /dev/null 2>&1
+	@helm template $(TEST_RELEASE_NAME) . --set aws.region=us-west-2 --set global.image.tag=v1.2.3 --dry-run > /dev/null 2>&1
+	@helm template $(TEST_RELEASE_NAME) . --set aws.region=us-west-2 --set queryApi.enabled=false --set grafana.enabled=false --dry-run > /dev/null 2>&1
+	@helm template $(TEST_RELEASE_NAME) . --set aws.region=us-west-2 --set grafana.cardinalPlugin.url="https://internal.example.com/plugin.zip;cardinalhq-lakerunner-datasource" --dry-run > /dev/null 2>&1
+	@helm template $(TEST_RELEASE_NAME) . --set aws.region=us-west-2 --set grafana.additionalPlugins="grafana-clock-panel" --dry-run > /dev/null 2>&1
+	@helm template $(TEST_RELEASE_NAME) . --set aws.region=us-west-2 --set queryApi.replicas=3 --set ingestLogs.replicas=5 --dry-run > /dev/null 2>&1
+	@helm template $(TEST_RELEASE_NAME) . --set aws.region=us-west-2 --set global.autoscaling.mode=keda --set database.lrdb.host=postgres.example.com --dry-run > /dev/null 2>&1
+	@helm template $(TEST_RELEASE_NAME) . --set aws.region=us-west-2 --set global.autoscaling.mode=disabled --dry-run > /dev/null 2>&1
+	@helm template $(TEST_RELEASE_NAME) . --set aws.region=us-west-2 --set ingestLogs.autoscaling.enabled=false --dry-run > /dev/null 2>&1
 
 unittest:  ## Run helm unittest tests
 	@echo "Running unit tests..."
@@ -62,7 +54,7 @@ ifndef VALUES_FILE
 endif
 	@echo "Testing with custom values file: $(VALUES_FILE)"
 	helm lint . --values $(VALUES_FILE)
-	helm template $(TEST_RELEASE_NAME) . --values $(VALUES_FILE) --debug --dry-run > /dev/null
+	helm template $(TEST_RELEASE_NAME) . --values $(VALUES_FILE) --dry-run > /dev/null 2>&1
 	@echo "Template rendering successful with $(VALUES_FILE)"
 
 # Chart packaging and publishing
