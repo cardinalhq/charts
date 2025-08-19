@@ -137,11 +137,9 @@ jobs:
           gh release create "${RELEASE_TAG}" \
             --title "LakeRunner ${RELEASE_VERSION}" \
             --notes "Stable release ${RELEASE_VERSION} promoted from RC ${RC_VERSION}.
-            
+
 ## Installation
-\`\`\`bash
-helm install my-release oci://public.ecr.aws/cardinalhq.io/lakerunner --version ${RELEASE_VERSION}
-\`\`\`
+\`helm install my-release oci://public.ecr.aws/cardinalhq.io/lakerunner --version ${RELEASE_VERSION}\`
 
 ## Promoted from
 - RC Version: ${RC_VERSION}
