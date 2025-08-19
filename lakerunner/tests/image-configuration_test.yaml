@@ -1,4 +1,6 @@
 suite: test image configuration
+values:
+  - ./test-values.yaml
 templates:
   - setup-job.yaml
   - query-api-statefulset.yaml
@@ -14,7 +16,7 @@ tests:
     asserts:
       - matchRegex:
           path: spec.template.spec.containers[0].image
-          pattern: "public.ecr.aws/cardinalhq.io/lakerunner.*:v1.1.0-rc1$"
+          pattern: "public.ecr.aws/cardinalhq.io/lakerunner.*:v[0-9]+\.[0-9]+\.[0-9]+.*$"
 
   - it: should override with global tag
     set:
@@ -44,11 +46,11 @@ tests:
     set:
       queryApi.enabled: true
     asserts:
-      - equal:
+      - matchRegex:
           path: spec.template.spec.containers[0].image
-          value: "public.ecr.aws/cardinalhq.io/lakerunner/query-api:latest"
+          pattern: "^public.ecr.aws/cardinalhq.io/lakerunner/query-api:v[0-9]+\.[0-9]+\.[0-9]+.*$"
 
-  - it: should use latest tag for query components
+  - it: should use versioned tags for query components
     templates:
       - query-api-statefulset.yaml
       - query-worker-deployment.yaml
@@ -59,11 +61,11 @@ tests:
       - template: query-api-statefulset.yaml
         matchRegex:
           path: spec.template.spec.containers[0].image
-          pattern: ":latest$"
+          pattern: ":v[0-9]+\.[0-9]+\.[0-9]+.*$"
       - template: query-worker-deployment.yaml
         matchRegex:
           path: spec.template.spec.containers[0].image
-          pattern: ":latest$"
+          pattern: ":v[0-9]+\.[0-9]+\.[0-9]+.*$"
 
   - it: should handle external images correctly
     templates:
