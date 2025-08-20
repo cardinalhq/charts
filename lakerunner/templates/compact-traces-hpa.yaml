@@ -1,0 +1,32 @@
+{{- if and .Values.compactTraces.enabled (eq (include "lakerunner.autoscalingMode" (list .Values.compactTraces.autoscaling .)) "hpa") -}}
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ include "lakerunner.fullname" . }}-compact-traces
+  labels:
+    {{- include "lakerunner.labels" . | nindent 4 }}
+    app.kubernetes.io/component: compact-traces
+  {{ include "lakerunner.annotations" . | nindent 2 }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ include "lakerunner.fullname" . }}-compact-traces
+  minReplicas: {{ .Values.compactTraces.autoscaling.minReplicas }}
+  maxReplicas: {{ .Values.compactTraces.autoscaling.maxReplicas }}
+  metrics:
+  {{- if .Values.compactTraces.autoscaling.hpa.targetCPUUtilizationPercentage }}
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: {{ .Values.compactTraces.autoscaling.hpa.targetCPUUtilizationPercentage }}
+  {{- end }}
+  behavior:
+    scaleDown:
+      policies:
+      - type: Pods
+        value: 4
+        periodSeconds: 60
+{{- end }}

@@ -4,9 +4,15 @@ templates:
   - ingest-logs-deployment.yaml
   - ingest-logs-hpa.yaml
   - ingest-logs-scaledobject.yaml
+  - ingest-traces-deployment.yaml
+  - ingest-traces-hpa.yaml
+  - ingest-traces-scaledobject.yaml
   - compact-logs-deployment.yaml
   - compact-logs-hpa.yaml
   - compact-logs-scaledobject.yaml
+  - compact-traces-deployment.yaml
+  - compact-traces-hpa.yaml
+  - compact-traces-scaledobject.yaml
   - keda-auth.yaml
 values:
   - ../values.yaml

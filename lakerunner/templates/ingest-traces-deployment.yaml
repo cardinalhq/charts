@@ -1,0 +1,80 @@
+{{- if .Values.ingestTraces.enabled -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "lakerunner.fullname" . }}-ingest-traces
+  labels:
+    {{- include "lakerunner.labelsWithComponent" (list . .Values.ingestTraces.labels) | nindent 4 }}
+    app.kubernetes.io/component: ingest-traces
+  {{ include "lakerunner.annotationsWithComponent" (list . .Values.ingestTraces.annotations) | nindent 2 }}
+spec:
+  {{- $scalingMode := include "lakerunner.autoscalingMode" (list .Values.ingestTraces.autoscaling .) }}
+  {{- if eq $scalingMode "disabled" }}
+  replicas: {{ .Values.ingestTraces.replicas }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "lakerunner.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: ingest-traces
+  template:
+    metadata:
+      labels:
+        {{- include "lakerunner.labelsWithComponent" (list . .Values.ingestTraces.labels) | nindent 8 }}
+        app.kubernetes.io/component: ingest-traces
+      {{- include "lakerunner.annotationsWithComponent" (list . .Values.ingestTraces.annotations) | nindent 6 }}
+    spec:
+      serviceAccountName: {{ include "lakerunner.serviceAccountName" . }}
+      terminationGracePeriodSeconds: {{ .Values.ingestTraces.terminationGracePeriodSeconds }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+      {{- include "lakerunner.imagePullSecrets" . | nindent 6 }}
+      containers:
+      - name: ingest-traces
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop: ["ALL"]
+          seccompProfile:
+            type: RuntimeDefault
+        image: {{ include "lakerunner.image" (list .Values.ingestTraces.image .) }}
+        imagePullPolicy: {{ .Values.ingestTraces.image.pullPolicy | default .Values.global.image.pullPolicy }}
+        command: ["/app/bin/lakerunner"]
+        args: ["ingest-traces"]
+        env:
+          - name: OTEL_SERVICE_NAME
+            value: {{ include "lakerunner.fullname" . }}-ingest-traces
+          - name: TMPDIR
+            value: /scratch
+          {{- include "lakerunner.injectEnv" (list . .Values.ingestTraces) | nindent 8 }}
+        {{- if .Values.aws.inject }}
+        envFrom:
+          - secretRef:
+              name: {{ include "lakerunner.awsSecretName" . }}
+        {{- end }}
+        resources:
+          {{- toYaml .Values.ingestTraces.resources | nindent 10 }}
+        volumeMounts:
+        {{- if eq .Values.storageProfiles.source "config" }}
+        - name: storage-profiles
+          mountPath: /app/config/storage_profiles.yaml
+          subPath: storage_profiles.yaml
+          readOnly: true
+        {{- end }}
+        - name: scratch
+          mountPath: /scratch
+      {{- include "lakerunner.sched.nodeSelector" (list .Values.global.nodeSelector .Values.ingestTraces.nodeSelector) | nindent 6 }}
+      {{- include "lakerunner.sched.tolerations"  (list .Values.global.tolerations  .Values.ingestTraces.tolerations)  | nindent 6 }}
+      {{- include "lakerunner.sched.affinity"     (list .Values.global.affinity     .Values.ingestTraces.affinity)     | nindent 6 }}
+      volumes:
+      - name: scratch
+        emptyDir:
+          sizeLimit: {{ .Values.ingestTraces.temporaryStorage.size | quote }}
+      {{- if eq .Values.storageProfiles.source "config" }}
+      - name: storage-profiles
+        configMap:
+          name: {{ include "lakerunner.storageProfilesConfigmapName" . }}
+      {{- end }}
+{{- end }}

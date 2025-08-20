@@ -313,6 +313,42 @@ ingestMetrics:
   tolerations: []
   affinity: {}
 
+# Ingest Traces configuration
+ingestTraces:
+  enabled: true
+  # The number of replicas to run.  This is not used if autoscaling is enabled.
+  replicas: 2
+  image:
+    repository: public.ecr.aws/cardinalhq.io/lakerunner
+    tag: ""
+    pullPolicy: ""
+  resources:
+    requests:
+      cpu: 800m
+      memory: 400Mi
+    limits:
+      cpu: 1100m
+      memory: 400Mi
+  temporaryStorage:
+    size: "10Gi"
+  autoscaling:
+    enabled: true
+    minReplicas: 1
+    maxReplicas: 10
+    hpa:
+      targetCPUUtilizationPercentage: 70
+    keda:
+      pollingInterval: 30          # How often to check the queue (seconds)
+      cooldownPeriod: 300          # Wait time before scaling down (seconds)
+      targetQueueDepth: 120        # Scale up when queue depth exceeds this (traces process moderately)
+      activationQueueDepth: 15     # Start scaling when queue depth reaches this
+  terminationGracePeriodSeconds: 600
+  labels: {}
+  annotations: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
 # Compact Logs configuration
 compactLogs:
   enabled: true
@@ -364,6 +400,42 @@ compactMetrics:
       memory: 1Gi
     limits:
       cpu: 2100m
+      memory: 1Gi
+  temporaryStorage:
+    size: "5Gi"
+  autoscaling:
+    enabled: true
+    minReplicas: 1
+    maxReplicas: 10
+    hpa:
+      targetCPUUtilizationPercentage: 70
+    keda:
+      pollingInterval: 60          # Longer interval for batch work
+      cooldownPeriod: 600          # 10-minute cooldown for compaction
+      targetQueueDepth: 10         # Scale up when pending jobs exceed this
+      activationQueueDepth: 1      # Start scaling when any jobs are pending
+  terminationGracePeriodSeconds: 300
+  labels: {}
+  annotations: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+# Compact Traces configuration
+compactTraces:
+  enabled: true
+  # The number of replicas to run.  This is not used if autoscaling is enabled.
+  replicas: 1
+  image:
+    repository: public.ecr.aws/cardinalhq.io/lakerunner
+    tag: ""
+    pullPolicy: ""
+  resources:
+    requests:
+      cpu: 1800m
+      memory: 1Gi
+    limits:
+      cpu: 1800m
       memory: 1Gi
   temporaryStorage:
     size: "5Gi"
