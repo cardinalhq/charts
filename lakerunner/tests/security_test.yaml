@@ -1,4 +1,8 @@
 suite: test security configuration
+values:
+  - ../values.yaml
+set:
+  aws.region: us-west-2
 templates:
   - setup-job.yaml
   - query-api-statefulset.yaml

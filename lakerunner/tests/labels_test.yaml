@@ -1,4 +1,8 @@
 suite: test labels configuration
+values:
+  - ../values.yaml
+set:
+  aws.region: us-west-2
 templates:
   - ingest-logs-deployment.yaml
   - query-api-statefulset.yaml
