@@ -501,7 +501,7 @@ queryApi:
     type: ClusterIP
   image:
     repository: public.ecr.aws/cardinalhq.io/lakerunner/query-api
-    tag: "v1.1.2-rc1"
+    tag: "v1.2.0-rc1"
     pullPolicy: ""
   resources:
     requests:
@@ -527,7 +527,7 @@ queryWorker:
   initialReplicas: 0
   image:
     repository: public.ecr.aws/cardinalhq.io/lakerunner/query-worker
-    tag: "v1.1.2-rc1"
+    tag: "v1.2.0-rc1"
     pullPolicy: ""
   resources:
     requests:
