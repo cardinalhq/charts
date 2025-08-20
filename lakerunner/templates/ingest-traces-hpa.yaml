@@ -14,7 +14,7 @@ spec:
     name: {{ include "lakerunner.fullname" . }}-ingest-traces
   minReplicas: {{ .Values.ingestTraces.autoscaling.minReplicas }}
   maxReplicas: {{ .Values.ingestTraces.autoscaling.maxReplicas }}
-  traces:
+  metrics:
   {{- if .Values.ingestTraces.autoscaling.hpa.targetCPUUtilizationPercentage }}
   - type: Resource
     resource:

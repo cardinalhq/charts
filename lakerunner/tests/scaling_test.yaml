@@ -203,3 +203,156 @@ tests:
       - equal:
           path: spec.replicas
           value: 5
+
+  # Traces component tests
+  - it: should set correct replicas for ingest traces when autoscaling disabled
+    set:
+      ingestTraces.enabled: true
+      ingestTraces.replicas: 4
+      ingestTraces.autoscaling.enabled: false
+    templates:
+      - ingest-traces-deployment.yaml
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 4
+
+  - it: should not set replicas for traces when autoscaling enabled
+    set:
+      ingestTraces.enabled: true
+      ingestTraces.autoscaling.enabled: true
+    templates:
+      - ingest-traces-deployment.yaml
+    asserts:
+      - notExists:
+          path: spec.replicas
+
+  - it: should create HPA for traces when autoscaling enabled
+    set:
+      ingestTraces.enabled: true
+      ingestTraces.autoscaling.enabled: true
+      ingestTraces.autoscaling.minReplicas: 3
+      ingestTraces.autoscaling.maxReplicas: 15
+      ingestTraces.autoscaling.hpa.targetCPUUtilizationPercentage: 70
+    templates:
+      - ingest-traces-hpa.yaml
+    asserts:
+      - isKind:
+          of: HorizontalPodAutoscaler
+      - equal:
+          path: spec.minReplicas
+          value: 3
+      - equal:
+          path: spec.maxReplicas
+          value: 15
+      - equal:
+          path: spec.metrics[0].resource.target.averageUtilization
+          value: 70
+
+  - it: should not create HPA for traces when autoscaling disabled
+    set:
+      ingestTraces.enabled: true
+      ingestTraces.autoscaling.enabled: false
+    templates:
+      - ingest-traces-hpa.yaml
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should set correct termination grace periods for traces
+    set:
+      ingestTraces.enabled: true
+      ingestTraces.terminationGracePeriodSeconds: 600
+    templates:
+      - ingest-traces-deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.terminationGracePeriodSeconds
+          value: 600
+
+  - it: should create ScaledObject for traces when KEDA mode is enabled
+    set:
+      global.autoscaling.mode: keda
+      ingestTraces.enabled: true
+      database.lrdb.host: postgres.example.com
+      ingestTraces.autoscaling.minReplicas: 2
+      ingestTraces.autoscaling.maxReplicas: 12
+      ingestTraces.autoscaling.keda.targetQueueDepth: 50
+    templates:
+      - ingest-traces-scaledobject.yaml
+    asserts:
+      - isKind:
+          of: ScaledObject
+      - equal:
+          path: spec.minReplicaCount
+          value: 2
+      - equal:
+          path: spec.maxReplicaCount
+          value: 12
+      - equal:
+          path: spec.triggers[0].metadata.targetQueryValue
+          value: "50"
+      - equal:
+          path: spec.triggers[0].metadata.query
+          value: "SELECT COALESCE(COUNT(*), 0) FROM inqueue WHERE telemetry_type='traces' AND claimed_at IS NULL"
+
+  - it: should not create HPA for traces when KEDA mode is enabled
+    set:
+      global.autoscaling.mode: keda
+      ingestTraces.enabled: true
+      database.lrdb.host: postgres.example.com
+    templates:
+      - ingest-traces-hpa.yaml
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should not create ScaledObject for traces when HPA mode is enabled
+    set:
+      global.autoscaling.mode: hpa
+      ingestTraces.enabled: true
+    templates:
+      - ingest-traces-scaledobject.yaml
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should support per-component scaling disable for traces
+    set:
+      global.autoscaling.mode: hpa
+      ingestTraces.enabled: true
+      ingestTraces.autoscaling.enabled: false
+    templates:
+      - ingest-traces-scaledobject.yaml
+      - ingest-traces-hpa.yaml
+    asserts:
+      - template: ingest-traces-scaledobject.yaml
+        hasDocuments:
+          count: 0
+      - template: ingest-traces-hpa.yaml
+        hasDocuments:
+          count: 0
+
+  - it: should not set replicas for traces when KEDA scaling is enabled
+    set:
+      global.autoscaling.mode: keda
+      ingestTraces.enabled: true
+      ingestTraces.replicas: 4
+      database.lrdb.host: postgres.example.com
+    templates:
+      - ingest-traces-deployment.yaml
+    asserts:
+      - notExists:
+          path: spec.replicas
+
+  - it: should set replicas for traces when scaling is disabled
+    set:
+      global.autoscaling.mode: disabled
+      ingestTraces.enabled: true
+      ingestTraces.replicas: 6
+    templates:
+      - ingest-traces-deployment.yaml
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 6

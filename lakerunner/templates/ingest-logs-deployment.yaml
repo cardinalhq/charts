@@ -71,7 +71,7 @@ spec:
       volumes:
       - name: scratch
         emptyDir:
-          sizeLimit: {{ .Values.compactLogs.temporaryStorage.size | quote }}
+          sizeLimit: {{ .Values.ingestLogs.temporaryStorage.size | quote }}
       {{- if eq .Values.storageProfiles.source "config" }}
       - name: storage-profiles
         configMap:
