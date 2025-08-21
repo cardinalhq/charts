@@ -81,6 +81,10 @@ spec:
             value: "kubernetes"
           - name: QUERY_STACK
             value: local
+          - name: QUERY_WORKER_LABEL_SELECTOR
+            value: "app.kubernetes.io/name={{ include "lakerunner.name" . }},app.kubernetes.io/instance={{ .Release.Name }},app.kubernetes.io/component=query-worker"
+          - name: WORKER_POD_LABEL_SELECTOR
+            value: "app.kubernetes.io/name={{ include "lakerunner.name" . }},app.kubernetes.io/instance={{ .Release.Name }},app.kubernetes.io/component=query-worker"
           {{- include "lakerunner.injectEnv" (list . .Values.queryApi) | nindent 8 }}
         envFrom:
           - secretRef:
