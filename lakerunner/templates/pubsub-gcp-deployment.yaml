@@ -1,0 +1,80 @@
+{{- if .Values.pubsub.GCP.enabled -}}
+{{- if not .Values.pubsub.GCP.projectID -}}
+{{- fail "pubsub.GCP.projectID is required when pubsub.GCP.enabled is true" -}}
+{{- end -}}
+{{- if not .Values.pubsub.GCP.subscriptionID -}}
+{{- fail "pubsub.GCP.subscriptionID is required when pubsub.GCP.enabled is true" -}}
+{{- end -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "lakerunner.fullname" . }}-pubsub-gcp
+  labels:
+    {{- include "lakerunner.labels" . | nindent 4 }}
+    app.kubernetes.io/component: pubsub-gcp
+  {{ include "lakerunner.annotations" . | nindent 2 }}
+spec:
+  replicas: {{ .Values.pubsub.GCP.replicas }}
+  selector:
+    matchLabels:
+      {{- include "lakerunner.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: pubsub-gcp
+  template:
+    metadata:
+      labels:
+        {{- include "lakerunner.labels" . | nindent 8 }}
+        app.kubernetes.io/component: pubsub-gcp
+      {{- include "lakerunner.annotations" . | nindent 6 }}
+    spec:
+      serviceAccountName: {{ include "lakerunner.serviceAccountName" . }}
+      terminationGracePeriodSeconds: {{ .Values.pubsub.GCP.terminationGracePeriodSeconds }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+      {{- include "lakerunner.imagePullSecrets" . | nindent 6 }}
+      containers:
+      - name: pubsub
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop: ["ALL"]
+          seccompProfile:
+            type: RuntimeDefault
+        image: {{ include "lakerunner.image" (list .Values.pubsub.GCP.image .) }}
+        imagePullPolicy: {{ .Values.pubsub.GCP.image.pullPolicy | default .Values.global.image.pullPolicy }}
+        command: ["/app/bin/lakerunner"]
+        args: ["pubsub", "gcp"]
+        env:
+          - name: OTEL_SERVICE_NAME
+            value: {{ include "lakerunner.fullname" . }}-pubsub-gcp
+          - name: GCP_PROJECT_ID
+            value: {{ .Values.pubsub.GCP.projectID | quote }}
+          - name: GCP_SUBSCRIPTION_ID
+            value: {{ .Values.pubsub.GCP.subscriptionID | quote }}
+          {{- include "lakerunner.injectEnv" (list . .Values.pubsub.GCP) | nindent 8 }}
+        {{- if .Values.gcp.inject }}
+        envFrom:
+          - secretRef:
+              name: {{ include "lakerunner.gcpSecretName" . }}
+        {{- end }}
+        resources:
+          {{- toYaml .Values.pubsub.GCP.resources | nindent 10 }}
+        {{- if eq .Values.storageProfiles.source "config" }}
+        volumeMounts:
+        - name: storage-profiles
+          mountPath: /app/config/storage_profiles.yaml
+          subPath: storage_profiles.yaml
+          readOnly: true
+        {{- end }}
+      {{- include "lakerunner.sched.nodeSelector" (list .Values.global.nodeSelector .Values.pubsub.GCP.nodeSelector) | nindent 6 }}
+      {{- include "lakerunner.sched.tolerations"  (list .Values.global.tolerations  .Values.pubsub.GCP.tolerations)  | nindent 6 }}
+      {{- include "lakerunner.sched.affinity"     (list .Values.global.affinity     .Values.pubsub.GCP.affinity)     | nindent 6 }}
+      {{- if eq .Values.storageProfiles.source "config" }}
+      volumes:
+      - name: storage-profiles
+        configMap:
+          name: {{ include "lakerunner.storageProfilesConfigmapName" . }}
+      {{- end }}
+{{- end }}

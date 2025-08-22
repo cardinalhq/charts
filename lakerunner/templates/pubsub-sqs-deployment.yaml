@@ -4,7 +4,7 @@
 {{- end -}}
 {{- $sqsRegion := .Values.pubsub.SQS.region | default .Values.aws.region -}}
 {{- if or (not $sqsRegion) (eq $sqsRegion "") (eq $sqsRegion "CHANGEME") (eq $sqsRegion "us-test-1") -}}
-{{- fail (printf "pubsub.SQS.region (or aws.region as fallback) must be set to a valid AWS region when pubsub.SQS.enabled is true (current value: %q)" $sqsRegion) -}}
+{{- fail "pubsub.SQS.region (or aws.region as fallback) must be set to a valid AWS region when pubsub.SQS.enabled is true" -}}
 {{- end -}}
 apiVersion: apps/v1
 kind: Deployment

@@ -1,0 +1,201 @@
+suite: test GCP pubsub configuration
+values:
+  - ../values.yaml
+set:
+  aws.region: us-west-2
+templates:
+  - pubsub-gcp-deployment.yaml
+tests:
+  # GCP Pubsub Deployment Rendering Tests
+  - it: should render GCP pubsub deployment when enabled
+    set:
+      pubsub.GCP.enabled: true
+      pubsub.GCP.projectID: "test-project-123"
+      pubsub.GCP.subscriptionID: "test-subscription"
+    templates:
+      - pubsub-gcp-deployment.yaml
+    asserts:
+      - isKind:
+          of: Deployment
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-lakerunner-pubsub-gcp
+      - equal:
+          path: metadata.labels["app.kubernetes.io/component"]
+          value: pubsub-gcp
+      - equal:
+          path: spec.template.spec.containers[0].command[0]
+          value: "/app/bin/lakerunner"
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: "pubsub"
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: "gcp"
+
+  - it: should not render GCP pubsub deployment when disabled
+    set:
+      pubsub.GCP.enabled: false
+    templates:
+      - pubsub-gcp-deployment.yaml
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  # Required Fields Validation Tests
+  - it: should fail when projectID is missing
+    set:
+      pubsub.GCP.enabled: true
+      pubsub.GCP.subscriptionID: "test-subscription"
+      # projectID intentionally omitted
+    templates:
+      - pubsub-gcp-deployment.yaml
+    asserts:
+      - failedTemplate:
+          errorMessage: "pubsub.GCP.projectID is required when pubsub.GCP.enabled is true"
+
+  - it: should fail when subscriptionID is missing
+    set:
+      pubsub.GCP.enabled: true
+      pubsub.GCP.projectID: "test-project"
+      # subscriptionID intentionally omitted
+    templates:
+      - pubsub-gcp-deployment.yaml
+    asserts:
+      - failedTemplate:
+          errorMessage: "pubsub.GCP.subscriptionID is required when pubsub.GCP.enabled is true"
+
+  # Environment Variables Tests
+  - it: should inject GCP environment variables
+    set:
+      pubsub.GCP.enabled: true
+      pubsub.GCP.projectID: "my-gcp-project"
+      pubsub.GCP.subscriptionID: "my-subscription"
+    templates:
+      - pubsub-gcp-deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GCP_PROJECT_ID
+            value: "my-gcp-project"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GCP_SUBSCRIPTION_ID
+            value: "my-subscription"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: OTEL_SERVICE_NAME
+            value: RELEASE-NAME-lakerunner-pubsub-gcp
+
+  # Component-specific Environment Variables Tests
+  - it: should inject component-specific environment variables
+    set:
+      pubsub.GCP.enabled: true
+      pubsub.GCP.projectID: "test-project"
+      pubsub.GCP.subscriptionID: "test-subscription"
+      pubsub.GCP.env:
+        - name: CUSTOM_GCP_VAR
+          value: "custom-value"
+        - name: GCP_TIMEOUT
+          value: "30s"
+    templates:
+      - pubsub-gcp-deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: CUSTOM_GCP_VAR
+            value: "custom-value"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GCP_TIMEOUT
+            value: "30s"
+
+  # Resource Configuration Tests
+  - it: should apply resource configuration
+    set:
+      pubsub.GCP.enabled: true
+      pubsub.GCP.projectID: "test-project"
+      pubsub.GCP.subscriptionID: "test-subscription"
+      pubsub.GCP.resources:
+        requests:
+          cpu: "200m"
+          memory: "256Mi"
+        limits:
+          cpu: "500m"
+          memory: "512Mi"
+    templates:
+      - pubsub-gcp-deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].resources.requests.cpu
+          value: "200m"
+      - equal:
+          path: spec.template.spec.containers[0].resources.requests.memory
+          value: "256Mi"
+      - equal:
+          path: spec.template.spec.containers[0].resources.limits.cpu
+          value: "500m"
+      - equal:
+          path: spec.template.spec.containers[0].resources.limits.memory
+          value: "512Mi"
+
+  # Replica Configuration Tests
+  - it: should set replica count
+    set:
+      pubsub.GCP.enabled: true
+      pubsub.GCP.projectID: "test-project"
+      pubsub.GCP.subscriptionID: "test-subscription"
+      pubsub.GCP.replicas: 3
+    templates:
+      - pubsub-gcp-deployment.yaml
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 3
+
+  # Image Configuration Tests
+  - it: should use custom image configuration
+    set:
+      pubsub.GCP.enabled: true
+      pubsub.GCP.projectID: "test-project"
+      pubsub.GCP.subscriptionID: "test-subscription"
+      pubsub.GCP.image:
+        repository: "custom.registry.io/lakerunner"
+        tag: "v1.2.3"
+        pullPolicy: "Always"
+    templates:
+      - pubsub-gcp-deployment.yaml
+    asserts:
+      - matchRegex:
+          path: spec.template.spec.containers[0].image
+          pattern: "^custom\\.registry\\.io/lakerunner:v1\\.2\\.3$"
+      - equal:
+          path: spec.template.spec.containers[0].imagePullPolicy
+          value: "Always"
+
+  # Security Context Tests
+  - it: should apply security context
+    set:
+      pubsub.GCP.enabled: true
+      pubsub.GCP.projectID: "test-project"
+      pubsub.GCP.subscriptionID: "test-subscription"
+    templates:
+      - pubsub-gcp-deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.securityContext.runAsNonRoot
+          value: true
+      - equal:
+          path: spec.template.spec.securityContext.runAsUser
+          value: 65532
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.allowPrivilegeEscalation
+          value: false
+      - contains:
+          path: spec.template.spec.containers[0].securityContext.capabilities.drop
+          content: "ALL"

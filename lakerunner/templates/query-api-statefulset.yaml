@@ -1,6 +1,6 @@
 {{- if .Values.queryApi.enabled -}}
 {{- if or (not .Values.aws.region) (eq .Values.aws.region "") (eq .Values.aws.region "CHANGEME") (eq .Values.aws.region "us-test-1") -}}
-{{- fail (printf "aws.region must be set to a valid AWS region when queryApi is enabled (current value: %q)" .Values.aws.region) -}}
+{{- fail "aws.region must be set to a valid AWS region when queryApi is enabled" -}}
 {{- end -}}
 apiVersion: apps/v1
 kind: StatefulSet

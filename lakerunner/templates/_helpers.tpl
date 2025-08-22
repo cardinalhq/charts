@@ -120,6 +120,21 @@ Common environment variables
       key: {{ .Values.database.passwordKey }}
 - name: LRDB_SSLMODE
   value: {{ .Values.database.lrdb.sslMode | quote }}
+- name: CONFIGDB_HOST
+  value: {{ .Values.configdb.lrdb.host | quote }}
+- name: CONFIGDB_PORT
+  value: {{ .Values.configdb.lrdb.port | quote }}
+- name: CONFIGDB_DBNAME
+  value: {{ .Values.configdb.lrdb.name | quote }}
+- name: CONFIGDB_USER
+  value: {{ .Values.configdb.lrdb.username | quote }}
+- name: CONFIGDB_PASSWORD
+  valueFrom:
+    secretKeyRef:
+      name: {{ include "lakerunner.configdbSecretName" . }}
+      key: {{ .Values.configdb.passwordKey }}
+- name: CONFIGDB_SSLMODE
+  value: {{ .Values.configdb.lrdb.sslMode | quote }}
 {{- if eq .Values.storageProfiles.source "config" }}
 - name: STORAGE_PROFILE_FILE
   value: "/app/config/storage_profiles.yaml"
@@ -234,6 +249,17 @@ Return the secret name for the Database credentials.  If we have create true, we
 {{- end }}
 
 {{/*
+Return the secret name for the ConfigDB credentials.  If we have create true, we will prefix it with the release name.
+*/}}
+{{- define "lakerunner.configdbSecretName" -}}
+{{- if .Values.configdb.create }}
+{{- printf "%s-%s" (include "lakerunner.fullname" .) .Values.configdb.secretName | trunc 63 | trimSuffix "-" }}
+{{- else }}
+{{- .Values.configdb.secretName | trunc 63 | trimSuffix "-" }}
+{{- end }}
+{{- end }}
+
+{{/*
 Return the secret name for the AWS credentials.  If we have create true, we will prefix it with the release name.
 */}}
 {{- define "lakerunner.awsSecretName" -}}
@@ -241,6 +267,17 @@ Return the secret name for the AWS credentials.  If we have create true, we will
 {{- printf "%s-%s" (include "lakerunner.fullname" .) .Values.aws.secretName | trunc 63 | trimSuffix "-" }}
 {{- else }}
 {{- .Values.aws.secretName | trunc 63 | trimSuffix "-" }}
+{{- end }}
+{{- end }}
+
+{{/*
+Return the secret name for the GCP credentials.  If we have create true, we will prefix it with the release name.
+*/}}
+{{- define "lakerunner.gcpSecretName" -}}
+{{- if .Values.gcp.create }}
+{{- printf "%s-%s" (include "lakerunner.fullname" .) .Values.gcp.secretName | trunc 63 | trimSuffix "-" }}
+{{- else }}
+{{- .Values.gcp.secretName | trunc 63 | trimSuffix "-" }}
 {{- end }}
 {{- end }}
 

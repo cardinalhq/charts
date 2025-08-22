@@ -112,8 +112,9 @@ serviceAccount:
 # means, as the DuckDB driver requires these to be actual keys.
 aws:
   # AWS region for the LakeRunner deployment.
-  # Required.
-  region: "CHANGEME" # AWS region for the deployment - REQUIRED, set to your actual region
+  # Required only when using AWS-dependent components (queryApi, queryWorker, or SQS pubsub).
+  # Optional if only using GCP pubsub and HTTP pubsub.
+  region: "" # AWS region for the deployment - set to your actual region when using AWS components
 
   # Name of the Kubernetes secret that contains the AWS credentials.
   # This secret should contain the keys `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`.
@@ -140,8 +141,37 @@ aws:
   # Kubernetes secret specified by `aws.secretName`. If `aws.create` is false, these
   # must be set in the Kubernetes secret specified by `aws.secretName`.
   # Required if `aws.create` is true.
-  AWS_SECRET_ACCESS_KEY: ""
-  AWS_ACCESS_KEY_ID: ""
+  secretAccessKey: ""
+  accessKeyId: ""
+
+# Set the GCP credentials for the LakeRunner deployment.
+# By default, the credentials are not created, and expected to be in an existing Kubernetes secret
+# with the key `GOOGLE_APPLICATION_CREDENTIALS` containing the service account JSON.
+gcp:
+  # Name of the Kubernetes secret that contains the GCP credentials.
+  # This secret should contain the key `GOOGLE_APPLICATION_CREDENTIALS`.
+  # If `gcp.create` is set to true, this secret will be created by the Helm chart.
+  # If `gcp.create` is set to false, this secret must already exist in the Kubernetes cluster.
+  # The secret will have the format `<release-name>-gcp-credentials`.
+  # If you want to use a different name, you can set it here.
+  # Required.
+  secretName: "gcp-credentials"
+
+  # Whether to create the GCP credentials secret. If set to true, the secret will be created
+  # with the GOOGLE_APPLICATION_CREDENTIALS from the values below.
+  # If set to false, the secret must already exist in the Kubernetes cluster.
+  create: false
+
+  # Only the GCP pubsub pods need to have the actual credentials injected if
+  # credentials are provided in some other manner, such as using GKE's
+  # Workload Identity. If you are using Workload Identity, set this to false.
+  inject: true
+
+  # GCP service account credentials (JSON format). If `gcp.create` is set to true, 
+  # this will be created in the Kubernetes secret specified by `gcp.secretName`. 
+  # If `gcp.create` is false, this must be set in the Kubernetes secret specified by `gcp.secretName`.
+  # Required if `gcp.create` is true.
+  GOOGLE_APPLICATION_CREDENTIALS: ""
 
 # Storage profile configuration
 # At least one storage profile is required for the LakeRunner to function.
@@ -198,6 +228,35 @@ database:
     # PostgreSQL username.
     # Required.
     username: "lakerunner"
+    # PostgreSQL password.
+    # Optional, but recommended if not using an existing secret.
+    password: ""
+    # SSL mode for PostgreSQL connection.  Default is "require".
+    # Options are "disable", "allow", "prefer", "require", "verify-ca", and "verify-full".
+    # See https://www.postgresql.org/docs/current/libpq-ssl.html#LIBPQ-SSL-SSLMODE-STATEMENTS for more details.
+    # Optional, but recommended.
+    sslMode: "require"
+
+# Configuration database settings
+configdb:
+  secretName: "configdb-credentials" # Name of the Kubernetes secret containing configdb credentials
+  create: true # Whether to create the configdb credentials secret
+  # Secret key names (only needed if using an existing secret with different key names)
+  passwordKey: "CONFIGDB_PASSWORD" # Key name for password in the secret
+  # CONFIGDB (Configuration Database) - PostgreSQL
+  lrdb:
+    # PostgreSQL hostname.
+    # Required.
+    host: ""
+    # PostgreSQL port.  Default is 5432.
+    # Required.
+    port: 5432
+    # PostgreSQL database name.
+    # Required.
+    name: "config"
+    # PostgreSQL username.
+    # Required.
+    username: "config"
     # PostgreSQL password.
     # Optional, but recommended if not using an existing secret.
     password: ""
@@ -562,6 +621,34 @@ pubsub:
     nodeSelector: {}
     tolerations: []
     affinity: {}
+  GCP:
+    enabled: false
+    replicas: 1
+    # REQUIRED when enabled: Your GCP project ID
+    # Example: "my-project-123456"
+    projectID: ""
+    # REQUIRED when enabled: Your GCP Pub/Sub subscription ID
+    # Example: "my-subscription"
+    subscriptionID: ""
+    image:
+      repository: public.ecr.aws/cardinalhq.io/lakerunner
+      tag: ""
+      pullPolicy: ""
+    resources:
+      requests:
+        cpu: 100m
+        memory: 200Mi
+      limits:
+        cpu: 200m
+        memory: 200Mi
+    terminationGracePeriodSeconds: 120
+    nodeSelector: {}
+    tolerations: []
+    affinity: {}
+    # Component-specific environment variables.
+    # This is a list of key-value pairs.
+    # Optional.
+    env: []
 
 # Query API configuration
 queryApi:

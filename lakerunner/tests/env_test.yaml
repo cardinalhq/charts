@@ -15,6 +15,7 @@ templates:
   - setup-job.yaml
   - pubsub-http-deployment.yaml
   - pubsub-sqs-deployment.yaml
+  - pubsub-gcp-deployment.yaml
   - sweeper-deployment.yaml
 tests:
   - it: should render common environment variables for all components
@@ -51,6 +52,50 @@ tests:
               secretKeyRef:
                 name: RELEASE-NAME-lakerunner-pg-credentials
                 key: LRDB_PASSWORD
+
+  - it: should render CONFIGDB environment variables for all components
+    set:
+      configdb.lrdb.host: "configdb.default.svc.cluster.local"
+      configdb.lrdb.port: 5433
+      configdb.lrdb.name: "configuration"
+      configdb.lrdb.username: "configuser"
+      configdb.lrdb.sslMode: "prefer"
+    templates:
+      - ingest-logs-deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: CONFIGDB_HOST
+            value: "configdb.default.svc.cluster.local"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: CONFIGDB_PORT
+            value: "5433"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: CONFIGDB_DBNAME
+            value: "configuration"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: CONFIGDB_USER
+            value: "configuser"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: CONFIGDB_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: RELEASE-NAME-lakerunner-configdb-credentials
+                key: CONFIGDB_PASSWORD
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: CONFIGDB_SSLMODE
+            value: "prefer"
 
   - it: should render global env variables across all components
     set:

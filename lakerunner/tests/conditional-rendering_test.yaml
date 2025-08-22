@@ -16,6 +16,7 @@ templates:
   - sweeper-deployment.yaml
   - pubsub-http-deployment.yaml
   - pubsub-sqs-deployment.yaml
+  - pubsub-gcp-deployment.yaml
 tests:
   - it: should render setup job when enabled
     set:
@@ -105,6 +106,26 @@ tests:
       pubsub.SQS.enabled: false
     templates:
       - pubsub-sqs-deployment.yaml
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should render GCP pubsub when enabled
+    set:
+      pubsub.GCP.enabled: true
+      pubsub.GCP.projectID: "test-project"
+      pubsub.GCP.subscriptionID: "test-subscription"
+    templates:
+      - pubsub-gcp-deployment.yaml
+    asserts:
+      - isKind:
+          of: Deployment
+
+  - it: should not render GCP pubsub when disabled
+    set:
+      pubsub.GCP.enabled: false
+    templates:
+      - pubsub-gcp-deployment.yaml
     asserts:
       - hasDocuments:
           count: 0
