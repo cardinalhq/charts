@@ -38,8 +38,8 @@ spec:
             type: RuntimeDefault
         image: {{ include "lakerunner.image" (list .Values.setup.image .) }}
         imagePullPolicy: {{ .Values.setup.image.pullPolicy | default .Values.global.image.pullPolicy }}
-        command: ["/bin/sh"]
-        args: ["-c", "lakerunner migrate --initialize-if-needed"]
+        command: ["/app/bin/lakerunner"]
+        args: ["migrate", "--initialize-if-needed"]
         env:
           - name: OTEL_SERVICE_NAME
             value: {{ include "lakerunner.fullname" . }}-setup
