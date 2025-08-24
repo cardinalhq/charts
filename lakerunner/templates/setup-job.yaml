@@ -38,13 +38,26 @@ spec:
             type: RuntimeDefault
         image: {{ include "lakerunner.image" (list .Values.setup.image .) }}
         imagePullPolicy: {{ .Values.setup.image.pullPolicy | default .Values.global.image.pullPolicy }}
-        command: ["/app/bin/lakerunner"]
-        args: ["migrate"]
+        command: ["/bin/sh"]
+        args: ["-c", "lakerunner migrate && lakerunner initialize -c /app/config/storage_profiles.yaml"]
         env:
           - name: OTEL_SERVICE_NAME
             value: {{ include "lakerunner.fullname" . }}-setup
           {{- include "lakerunner.injectEnv" (list . .Values.setup) | nindent 8 }}
         resources:
           {{- toYaml .Values.setup.resources | nindent 10 }}
+        {{- if eq .Values.storageProfiles.source "config" }}
+        volumeMounts:
+        - name: storage-profiles
+          mountPath: /app/config/storage_profiles.yaml
+          subPath: storage_profiles.yaml
+          readOnly: true
+        {{- end }}
+      {{- if eq .Values.storageProfiles.source "config" }}
+      volumes:
+      - name: storage-profiles
+        configMap:
+          name: {{ include "lakerunner.storageProfilesConfigmapName" . }}
+      {{- end }}
   backoffLimit: 0
 {{- end }}
