@@ -39,7 +39,7 @@ spec:
         image: {{ include "lakerunner.image" (list .Values.setup.image .) }}
         imagePullPolicy: {{ .Values.setup.image.pullPolicy | default .Values.global.image.pullPolicy }}
         command: ["/app/bin/lakerunner"]
-        args: ["migrate", "--initialize-if-needed", "--config", "/app/config/storage_profiles.yaml"]
+        args: ["migrate"]
         env:
           - name: OTEL_SERVICE_NAME
             value: {{ include "lakerunner.fullname" . }}-setup
