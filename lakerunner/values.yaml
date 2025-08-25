@@ -167,8 +167,8 @@ gcp:
   # Workload Identity. If you are using Workload Identity, set this to false.
   inject: true
 
-  # GCP service account credentials (JSON format). If `gcp.create` is set to true, 
-  # this will be created in the Kubernetes secret specified by `gcp.secretName`. 
+  # GCP service account credentials (JSON format). If `gcp.create` is set to true,
+  # this will be created in the Kubernetes secret specified by `gcp.secretName`.
   # If `gcp.create` is false, this must be set in the Kubernetes secret specified by `gcp.secretName`.
   # Required if `gcp.create` is true.
   GOOGLE_APPLICATION_CREDENTIALS: ""
@@ -660,7 +660,7 @@ queryApi:
     type: ClusterIP
   image:
     repository: public.ecr.aws/cardinalhq.io/lakerunner/query-api
-    tag: "v1.2.0-rc3"
+    tag: ""
     pullPolicy: ""
   resources:
     requests:
@@ -686,7 +686,7 @@ queryWorker:
   initialReplicas: 0
   image:
     repository: public.ecr.aws/cardinalhq.io/lakerunner/query-worker
-    tag: "v1.2.0-rc3"
+    tag: ""
     pullPolicy: ""
   resources:
     requests:
