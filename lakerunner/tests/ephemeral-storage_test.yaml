@@ -1,0 +1,431 @@
+suite: test ephemeral storage configuration
+values:
+  - ../values.yaml
+set:
+  aws.region: us-west-2
+templates:
+  - ingest-logs-deployment.yaml
+  - ingest-metrics-deployment.yaml
+  - ingest-traces-deployment.yaml
+  - compact-logs-deployment.yaml
+  - compact-metrics-deployment.yaml
+  - compact-traces-deployment.yaml
+  - rollup-metrics-deployment.yaml
+  - query-worker-deployment.yaml
+  - grafana-deployment.yaml
+tests:
+  # Test emptyDir storage type (default)
+  - it: should use emptyDir volumes by default
+    set:
+      global.ephemeralStorage.type: "emptyDir"
+      ingestLogs.enabled: true
+    templates:
+      - ingest-logs-deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.volumes[0].name
+          value: "scratch"
+      - equal:
+          path: spec.template.spec.volumes[0].emptyDir.sizeLimit
+          value: "10Gi"
+      - isNull:
+          path: spec.template.spec.volumes[0].ephemeral
+
+  - it: should use correct sizes for different components with emptyDir
+    set:
+      global.ephemeralStorage.type: "emptyDir"
+      ingestLogs.enabled: true
+      ingestMetrics.enabled: true
+      compactLogs.enabled: true
+      rollupMetrics.enabled: true
+      queryWorker.enabled: true
+    templates:
+      - ingest-logs-deployment.yaml
+      - ingest-metrics-deployment.yaml
+      - compact-logs-deployment.yaml
+      - rollup-metrics-deployment.yaml
+      - query-worker-deployment.yaml
+    asserts:
+      # ingest-logs should use 10Gi
+      - template: ingest-logs-deployment.yaml
+        equal:
+          path: spec.template.spec.volumes[0].emptyDir.sizeLimit
+          value: "10Gi"
+      # ingest-metrics should use 10Gi
+      - template: ingest-metrics-deployment.yaml
+        equal:
+          path: spec.template.spec.volumes[0].emptyDir.sizeLimit
+          value: "10Gi"
+      # compact-logs should use 5Gi
+      - template: compact-logs-deployment.yaml
+        equal:
+          path: spec.template.spec.volumes[0].emptyDir.sizeLimit
+          value: "5Gi"
+      # rollup-metrics should use 10Gi
+      - template: rollup-metrics-deployment.yaml
+        equal:
+          path: spec.template.spec.volumes[0].emptyDir.sizeLimit
+          value: "10Gi"
+      # query-worker should use 16Gi (scratch is volume index 2)
+      - template: query-worker-deployment.yaml
+        equal:
+          path: spec.template.spec.volumes[2].emptyDir.sizeLimit
+          value: "16Gi"
+
+  # Test ephemeral storage type
+  - it: should use ephemeral volumes when configured
+    set:
+      global.ephemeralStorage.type: "ephemeral"
+      global.ephemeralStorage.ephemeral.storageClassName: "fast-ssd"
+      ingestLogs.enabled: true
+    templates:
+      - ingest-logs-deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.volumes[0].name
+          value: "scratch"
+      - equal:
+          path: spec.template.spec.volumes[0].ephemeral.volumeClaimTemplate.spec.storageClassName
+          value: "fast-ssd"
+      - equal:
+          path: spec.template.spec.volumes[0].ephemeral.volumeClaimTemplate.spec.accessModes[0]
+          value: "ReadWriteOnce"
+      - equal:
+          path: spec.template.spec.volumes[0].ephemeral.volumeClaimTemplate.spec.resources.requests.storage
+          value: "10Gi"
+      - isNull:
+          path: spec.template.spec.volumes[0].emptyDir
+
+  - it: should use correct sizes for different components with ephemeral storage
+    set:
+      global.ephemeralStorage.type: "ephemeral"
+      global.ephemeralStorage.ephemeral.storageClassName: "test-storage"
+      ingestLogs.enabled: true
+      ingestMetrics.enabled: true
+      ingestTraces.enabled: true
+      compactLogs.enabled: true
+      compactMetrics.enabled: true
+      compactTraces.enabled: true
+      rollupMetrics.enabled: true
+      queryWorker.enabled: true
+    templates:
+      - ingest-logs-deployment.yaml
+      - ingest-metrics-deployment.yaml
+      - ingest-traces-deployment.yaml
+      - compact-logs-deployment.yaml
+      - compact-metrics-deployment.yaml
+      - compact-traces-deployment.yaml
+      - rollup-metrics-deployment.yaml
+      - query-worker-deployment.yaml
+    asserts:
+      # ingest-logs should use 10Gi
+      - template: ingest-logs-deployment.yaml
+        equal:
+          path: spec.template.spec.volumes[0].ephemeral.volumeClaimTemplate.spec.resources.requests.storage
+          value: "10Gi"
+      # ingest-metrics should use 10Gi
+      - template: ingest-metrics-deployment.yaml
+        equal:
+          path: spec.template.spec.volumes[0].ephemeral.volumeClaimTemplate.spec.resources.requests.storage
+          value: "10Gi"
+      # ingest-traces should use 10Gi
+      - template: ingest-traces-deployment.yaml
+        equal:
+          path: spec.template.spec.volumes[0].ephemeral.volumeClaimTemplate.spec.resources.requests.storage
+          value: "10Gi"
+      # compact-logs should use 5Gi
+      - template: compact-logs-deployment.yaml
+        equal:
+          path: spec.template.spec.volumes[0].ephemeral.volumeClaimTemplate.spec.resources.requests.storage
+          value: "5Gi"
+      # compact-metrics should use 5Gi
+      - template: compact-metrics-deployment.yaml
+        equal:
+          path: spec.template.spec.volumes[0].ephemeral.volumeClaimTemplate.spec.resources.requests.storage
+          value: "5Gi"
+      # compact-traces should use 5Gi
+      - template: compact-traces-deployment.yaml
+        equal:
+          path: spec.template.spec.volumes[0].ephemeral.volumeClaimTemplate.spec.resources.requests.storage
+          value: "5Gi"
+      # rollup-metrics should use 10Gi
+      - template: rollup-metrics-deployment.yaml
+        equal:
+          path: spec.template.spec.volumes[0].ephemeral.volumeClaimTemplate.spec.resources.requests.storage
+          value: "10Gi"
+      # query-worker should use 16Gi (note: it's volume index 1 because it has other volumes)
+      - template: query-worker-deployment.yaml
+        equal:
+          path: spec.template.spec.volumes[2].ephemeral.volumeClaimTemplate.spec.resources.requests.storage
+          value: "16Gi"
+
+  - it: should use ephemeral volumes without storage class when not specified
+    set:
+      global.ephemeralStorage.type: "ephemeral"
+      ingestLogs.enabled: true
+    templates:
+      - ingest-logs-deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.volumes[0].ephemeral.volumeClaimTemplate.spec.accessModes[0]
+          value: "ReadWriteOnce"
+      - isNull:
+          path: spec.template.spec.volumes[0].ephemeral.volumeClaimTemplate.spec.storageClassName
+
+  - it: should add custom labels to ephemeral volumes when specified
+    set:
+      global.ephemeralStorage.type: "ephemeral"
+      global.ephemeralStorage.ephemeral.labels:
+        type: "scratch-storage"
+        performance: "high"
+      ingestLogs.enabled: true
+    templates:
+      - ingest-logs-deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.volumes[0].ephemeral.volumeClaimTemplate.metadata.labels.type
+          value: "scratch-storage"
+      - equal:
+          path: spec.template.spec.volumes[0].ephemeral.volumeClaimTemplate.metadata.labels.performance
+          value: "high"
+
+  # Test grafana storage (uses basic ephemeral volume helper)
+  - it: should use emptyDir for grafana storage by default
+    set:
+      global.ephemeralStorage.type: "emptyDir"
+      grafana.enabled: true
+      grafana.cardinal.apiKey: "test-key"
+    templates:
+      - grafana-deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.volumes[0].name
+          value: "grafana-storage"
+      - isNotNull:
+          path: spec.template.spec.volumes[0].emptyDir
+      - isNull:
+          path: spec.template.spec.volumes[0].ephemeral
+
+  - it: should use ephemeral volume for grafana storage when configured
+    set:
+      global.ephemeralStorage.type: "ephemeral"
+      global.ephemeralStorage.ephemeral.storageClassName: "grafana-storage"
+      grafana.enabled: true
+      grafana.cardinal.apiKey: "test-key"
+    templates:
+      - grafana-deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.volumes[0].name
+          value: "grafana-storage"
+      - equal:
+          path: spec.template.spec.volumes[0].ephemeral.volumeClaimTemplate.spec.storageClassName
+          value: "grafana-storage"
+      - equal:
+          path: spec.template.spec.volumes[0].ephemeral.volumeClaimTemplate.spec.resources.requests.storage
+          value: "1Gi"
+      - isNull:
+          path: spec.template.spec.volumes[0].emptyDir
+
+  # Test that both storage types work with custom sizes
+  - it: should respect custom storage sizes with emptyDir
+    set:
+      global.ephemeralStorage.type: "emptyDir"
+      ingestLogs.enabled: true
+      ingestLogs.temporaryStorage.size: "20Gi"
+    templates:
+      - ingest-logs-deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.volumes[0].emptyDir.sizeLimit
+          value: "20Gi"
+
+  - it: should respect custom storage sizes with ephemeral volumes
+    set:
+      global.ephemeralStorage.type: "ephemeral"
+      ingestLogs.enabled: true
+      ingestLogs.temporaryStorage.size: "25Gi"
+    templates:
+      - ingest-logs-deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.volumes[0].ephemeral.volumeClaimTemplate.spec.resources.requests.storage
+          value: "25Gi"
+
+  # Test dynamic service-specific volume changes
+  - it: should change only ingest-logs volume size when its config changes (emptyDir)
+    set:
+      global.ephemeralStorage.type: "emptyDir"
+      ingestLogs.enabled: true
+      ingestMetrics.enabled: true
+      compactLogs.enabled: true
+      # Change only ingest-logs size
+      ingestLogs.temporaryStorage.size: "50Gi"
+    templates:
+      - ingest-logs-deployment.yaml
+      - ingest-metrics-deployment.yaml
+      - compact-logs-deployment.yaml
+    asserts:
+      # ingest-logs should use the new custom size
+      - template: ingest-logs-deployment.yaml
+        equal:
+          path: spec.template.spec.volumes[0].emptyDir.sizeLimit
+          value: "50Gi"
+      # Other services should still use their default sizes
+      - template: ingest-metrics-deployment.yaml
+        equal:
+          path: spec.template.spec.volumes[0].emptyDir.sizeLimit
+          value: "10Gi"
+      - template: compact-logs-deployment.yaml
+        equal:
+          path: spec.template.spec.volumes[0].emptyDir.sizeLimit
+          value: "5Gi"
+
+  - it: should change only compact-metrics volume size when its config changes (ephemeral)
+    set:
+      global.ephemeralStorage.type: "ephemeral"
+      compactLogs.enabled: true
+      compactMetrics.enabled: true
+      compactTraces.enabled: true
+      # Change only compact-metrics size
+      compactMetrics.temporaryStorage.size: "15Gi"
+    templates:
+      - compact-logs-deployment.yaml
+      - compact-metrics-deployment.yaml
+      - compact-traces-deployment.yaml
+    asserts:
+      # compact-metrics should use the new custom size
+      - template: compact-metrics-deployment.yaml
+        equal:
+          path: spec.template.spec.volumes[0].ephemeral.volumeClaimTemplate.spec.resources.requests.storage
+          value: "15Gi"
+      # Other services should still use their default sizes
+      - template: compact-logs-deployment.yaml
+        equal:
+          path: spec.template.spec.volumes[0].ephemeral.volumeClaimTemplate.spec.resources.requests.storage
+          value: "5Gi"
+      - template: compact-traces-deployment.yaml
+        equal:
+          path: spec.template.spec.volumes[0].ephemeral.volumeClaimTemplate.spec.resources.requests.storage
+          value: "5Gi"
+
+  - it: should change query-worker volume size independently of other services
+    set:
+      global.ephemeralStorage.type: "emptyDir"
+      ingestLogs.enabled: true
+      queryWorker.enabled: true
+      # Change only query-worker size
+      queryWorker.temporaryStorage.size: "32Gi"
+    templates:
+      - ingest-logs-deployment.yaml
+      - query-worker-deployment.yaml
+    asserts:
+      # query-worker should use the new custom size (volume index 2)
+      - template: query-worker-deployment.yaml
+        equal:
+          path: spec.template.spec.volumes[2].emptyDir.sizeLimit
+          value: "32Gi"
+      # ingest-logs should still use its default size
+      - template: ingest-logs-deployment.yaml
+        equal:
+          path: spec.template.spec.volumes[0].emptyDir.sizeLimit
+          value: "10Gi"
+
+  - it: should handle multiple services with different custom sizes simultaneously
+    set:
+      global.ephemeralStorage.type: "ephemeral"
+      global.ephemeralStorage.ephemeral.storageClassName: "multi-test"
+      ingestLogs.enabled: true
+      ingestMetrics.enabled: true
+      compactLogs.enabled: true
+      rollupMetrics.enabled: true
+      # Set different custom sizes for multiple services
+      ingestLogs.temporaryStorage.size: "15Gi"
+      ingestMetrics.temporaryStorage.size: "20Gi"
+      compactLogs.temporaryStorage.size: "8Gi"
+      rollupMetrics.temporaryStorage.size: "25Gi"
+    templates:
+      - ingest-logs-deployment.yaml
+      - ingest-metrics-deployment.yaml
+      - compact-logs-deployment.yaml
+      - rollup-metrics-deployment.yaml
+    asserts:
+      # Each service should use its specific custom size
+      - template: ingest-logs-deployment.yaml
+        equal:
+          path: spec.template.spec.volumes[0].ephemeral.volumeClaimTemplate.spec.resources.requests.storage
+          value: "15Gi"
+      - template: ingest-metrics-deployment.yaml
+        equal:
+          path: spec.template.spec.volumes[0].ephemeral.volumeClaimTemplate.spec.resources.requests.storage
+          value: "20Gi"
+      - template: compact-logs-deployment.yaml
+        equal:
+          path: spec.template.spec.volumes[0].ephemeral.volumeClaimTemplate.spec.resources.requests.storage
+          value: "8Gi"
+      - template: rollup-metrics-deployment.yaml
+        equal:
+          path: spec.template.spec.volumes[0].ephemeral.volumeClaimTemplate.spec.resources.requests.storage
+          value: "25Gi"
+      # All should use the same storage class
+      - template: ingest-logs-deployment.yaml
+        equal:
+          path: spec.template.spec.volumes[0].ephemeral.volumeClaimTemplate.spec.storageClassName
+          value: "multi-test"
+      - template: rollup-metrics-deployment.yaml
+        equal:
+          path: spec.template.spec.volumes[0].ephemeral.volumeClaimTemplate.spec.storageClassName
+          value: "multi-test"
+
+  - it: should change storage type for all services when global config changes
+    set:
+      # Start with emptyDir, change to ephemeral
+      global.ephemeralStorage.type: "ephemeral"
+      global.ephemeralStorage.ephemeral.storageClassName: "switched-storage"
+      ingestLogs.enabled: true
+      compactLogs.enabled: true
+      # Keep default sizes
+    templates:
+      - ingest-logs-deployment.yaml
+      - compact-logs-deployment.yaml
+    asserts:
+      # Both services should now use ephemeral volumes
+      - template: ingest-logs-deployment.yaml
+        isNotNull:
+          path: spec.template.spec.volumes[0].ephemeral
+      - template: ingest-logs-deployment.yaml
+        isNull:
+          path: spec.template.spec.volumes[0].emptyDir
+      - template: compact-logs-deployment.yaml
+        isNotNull:
+          path: spec.template.spec.volumes[0].ephemeral
+      - template: compact-logs-deployment.yaml
+        isNull:
+          path: spec.template.spec.volumes[0].emptyDir
+      # Should use the correct storage class
+      - template: ingest-logs-deployment.yaml
+        equal:
+          path: spec.template.spec.volumes[0].ephemeral.volumeClaimTemplate.spec.storageClassName
+          value: "switched-storage"
+
+  - it: should preserve individual service sizes when switching storage types
+    set:
+      global.ephemeralStorage.type: "ephemeral"
+      ingestLogs.enabled: true
+      compactLogs.enabled: true
+      # Set custom sizes
+      ingestLogs.temporaryStorage.size: "12Gi"
+      compactLogs.temporaryStorage.size: "7Gi"
+    templates:
+      - ingest-logs-deployment.yaml
+      - compact-logs-deployment.yaml
+    asserts:
+      # Custom sizes should be preserved with ephemeral storage
+      - template: ingest-logs-deployment.yaml
+        equal:
+          path: spec.template.spec.volumes[0].ephemeral.volumeClaimTemplate.spec.resources.requests.storage
+          value: "12Gi"
+      - template: compact-logs-deployment.yaml
+        equal:
+          path: spec.template.spec.volumes[0].ephemeral.volumeClaimTemplate.spec.resources.requests.storage
+          value: "7Gi"

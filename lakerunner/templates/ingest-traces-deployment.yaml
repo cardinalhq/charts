@@ -69,9 +69,7 @@ spec:
       {{- include "lakerunner.sched.tolerations"  (list .Values.global.tolerations  .Values.ingestTraces.tolerations)  | nindent 6 }}
       {{- include "lakerunner.sched.affinity"     (list .Values.global.affinity     .Values.ingestTraces.affinity)     | nindent 6 }}
       volumes:
-      - name: scratch
-        emptyDir:
-          sizeLimit: {{ .Values.ingestTraces.temporaryStorage.size | quote }}
+      {{- include "lakerunner.ephemeralVolume" (list "scratch" .Values.ingestTraces.temporaryStorage.size .) | nindent 6 }}
       {{- if eq .Values.storageProfiles.source "config" }}
       - name: storage-profiles
         configMap:

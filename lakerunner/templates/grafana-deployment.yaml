@@ -83,8 +83,7 @@ spec:
           mountPath: /etc/grafana/provisioning/datasources
           readOnly: true
       volumes:
-      - name: grafana-storage
-        emptyDir: {}
+      {{- include "lakerunner.ephemeralVolumeBasic" (list "grafana-storage" .) | nindent 6 }}
       - name: grafana-datasources
         configMap:
           name: {{ include "lakerunner.fullname" . }}-grafana-datasources

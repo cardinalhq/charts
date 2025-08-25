@@ -124,7 +124,5 @@ spec:
         secret:
           secretName: {{ include "lakerunner.apiKeysSecretName" . }}
       {{- end }}
-      - name: scratch
-        emptyDir:
-          sizeLimit: {{ .Values.queryWorker.temporaryStorage.size | quote }}
+      {{- include "lakerunner.ephemeralVolume" (list "scratch" .Values.queryWorker.temporaryStorage.size .) | nindent 6 }}
 {{- end }}

@@ -388,3 +388,67 @@ disabled
 {{- $root.Values.global.autoscaling.mode -}}
 {{- end -}}
 {{- end -}}
+
+{{/*
+Generate ephemeral volume configuration based on global settings.
+Takes three arguments: volume name, storage size, and root context
+Usage: {{ include "lakerunner.ephemeralVolume" (list "scratch" .Values.componentName.temporaryStorage.size .) }}
+*/}}
+{{- define "lakerunner.ephemeralVolume" -}}
+{{- $volumeName := index . 0 -}}
+{{- $storageSize := index . 1 -}}
+{{- $root := index . 2 -}}
+{{- if eq $root.Values.global.ephemeralStorage.type "ephemeral" -}}
+- name: {{ $volumeName }}
+  ephemeral:
+    volumeClaimTemplate:
+      metadata:
+        {{- if $root.Values.global.ephemeralStorage.ephemeral.labels }}
+        labels:
+          {{- toYaml $root.Values.global.ephemeralStorage.ephemeral.labels | nindent 10 }}
+        {{- end }}
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        {{- if $root.Values.global.ephemeralStorage.ephemeral.storageClassName }}
+        storageClassName: {{ $root.Values.global.ephemeralStorage.ephemeral.storageClassName | quote }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ $storageSize | quote }}
+{{- else -}}
+- name: {{ $volumeName }}
+  emptyDir:
+    sizeLimit: {{ $storageSize | quote }}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Generate ephemeral volume configuration without size limit based on global settings.
+Takes two arguments: volume name and root context
+Usage: {{ include "lakerunner.ephemeralVolumeBasic" (list "storage" .) }}
+*/}}
+{{- define "lakerunner.ephemeralVolumeBasic" -}}
+{{- $volumeName := index . 0 -}}
+{{- $root := index . 1 -}}
+{{- if eq $root.Values.global.ephemeralStorage.type "ephemeral" -}}
+- name: {{ $volumeName }}
+  ephemeral:
+    volumeClaimTemplate:
+      metadata:
+        {{- if $root.Values.global.ephemeralStorage.ephemeral.labels }}
+        labels:
+          {{- toYaml $root.Values.global.ephemeralStorage.ephemeral.labels | nindent 10 }}
+        {{- end }}
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        {{- if $root.Values.global.ephemeralStorage.ephemeral.storageClassName }}
+        storageClassName: {{ $root.Values.global.ephemeralStorage.ephemeral.storageClassName | quote }}
+        {{- end }}
+        resources:
+          requests:
+            storage: "1Gi"
+{{- else -}}
+- name: {{ $volumeName }}
+  emptyDir: {}
+{{- end -}}
+{{- end -}}

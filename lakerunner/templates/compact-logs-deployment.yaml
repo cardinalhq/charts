@@ -69,9 +69,7 @@ spec:
         - name: scratch
           mountPath: /scratch
       volumes:
-      - name: scratch
-        emptyDir:
-          sizeLimit: {{ .Values.compactLogs.temporaryStorage.size | quote }}
+      {{- include "lakerunner.ephemeralVolume" (list "scratch" .Values.compactLogs.temporaryStorage.size .) | nindent 6 }}
       {{- if eq .Values.storageProfiles.source "config" }}
       - name: storage-profiles
         configMap:
