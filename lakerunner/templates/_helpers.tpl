@@ -398,19 +398,19 @@ Usage: {{ include "lakerunner.ephemeralVolume" (list "scratch" .Values.component
 {{- $volumeName := index . 0 -}}
 {{- $storageSize := index . 1 -}}
 {{- $root := index . 2 -}}
-{{- if eq $root.Values.global.ephemeralStorage.type "ephemeral" -}}
+{{- if eq $root.Values.global.temporaryStorage.type "ephemeral" -}}
 - name: {{ $volumeName }}
   ephemeral:
     volumeClaimTemplate:
       metadata:
-        {{- if $root.Values.global.ephemeralStorage.ephemeral.labels }}
+        {{- if $root.Values.global.temporaryStorage.ephemeral.labels }}
         labels:
-          {{- toYaml $root.Values.global.ephemeralStorage.ephemeral.labels | nindent 10 }}
+          {{- toYaml $root.Values.global.temporaryStorage.ephemeral.labels | nindent 10 }}
         {{- end }}
       spec:
         accessModes: [ "ReadWriteOnce" ]
-        {{- if $root.Values.global.ephemeralStorage.ephemeral.storageClassName }}
-        storageClassName: {{ $root.Values.global.ephemeralStorage.ephemeral.storageClassName | quote }}
+        {{- if $root.Values.global.temporaryStorage.ephemeral.storageClassName }}
+        storageClassName: {{ $root.Values.global.temporaryStorage.ephemeral.storageClassName | quote }}
         {{- end }}
         resources:
           requests:
@@ -430,19 +430,19 @@ Usage: {{ include "lakerunner.ephemeralVolumeBasic" (list "storage" .) }}
 {{- define "lakerunner.ephemeralVolumeBasic" -}}
 {{- $volumeName := index . 0 -}}
 {{- $root := index . 1 -}}
-{{- if eq $root.Values.global.ephemeralStorage.type "ephemeral" -}}
+{{- if eq $root.Values.global.temporaryStorage.type "ephemeral" -}}
 - name: {{ $volumeName }}
   ephemeral:
     volumeClaimTemplate:
       metadata:
-        {{- if $root.Values.global.ephemeralStorage.ephemeral.labels }}
+        {{- if $root.Values.global.temporaryStorage.ephemeral.labels }}
         labels:
-          {{- toYaml $root.Values.global.ephemeralStorage.ephemeral.labels | nindent 10 }}
+          {{- toYaml $root.Values.global.temporaryStorage.ephemeral.labels | nindent 10 }}
         {{- end }}
       spec:
         accessModes: [ "ReadWriteOnce" ]
-        {{- if $root.Values.global.ephemeralStorage.ephemeral.storageClassName }}
-        storageClassName: {{ $root.Values.global.ephemeralStorage.ephemeral.storageClassName | quote }}
+        {{- if $root.Values.global.temporaryStorage.ephemeral.storageClassName }}
+        storageClassName: {{ $root.Values.global.temporaryStorage.ephemeral.storageClassName | quote }}
         {{- end }}
         resources:
           requests:

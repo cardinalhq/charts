@@ -1,4 +1,4 @@
-suite: test ephemeral storage configuration
+suite: test temporary storage configuration
 values:
   - ../values.yaml
 set:
@@ -17,7 +17,7 @@ tests:
   # Test emptyDir storage type (default)
   - it: should use emptyDir volumes by default
     set:
-      global.ephemeralStorage.type: "emptyDir"
+      global.temporaryStorage.type: "emptyDir"
       ingestLogs.enabled: true
     templates:
       - ingest-logs-deployment.yaml
@@ -33,7 +33,7 @@ tests:
 
   - it: should use correct sizes for different components with emptyDir
     set:
-      global.ephemeralStorage.type: "emptyDir"
+      global.temporaryStorage.type: "emptyDir"
       ingestLogs.enabled: true
       ingestMetrics.enabled: true
       compactLogs.enabled: true
@@ -75,8 +75,8 @@ tests:
   # Test ephemeral storage type
   - it: should use ephemeral volumes when configured
     set:
-      global.ephemeralStorage.type: "ephemeral"
-      global.ephemeralStorage.ephemeral.storageClassName: "fast-ssd"
+      global.temporaryStorage.type: "ephemeral"
+      global.temporaryStorage.ephemeral.storageClassName: "fast-ssd"
       ingestLogs.enabled: true
     templates:
       - ingest-logs-deployment.yaml
@@ -98,8 +98,8 @@ tests:
 
   - it: should use correct sizes for different components with ephemeral storage
     set:
-      global.ephemeralStorage.type: "ephemeral"
-      global.ephemeralStorage.ephemeral.storageClassName: "test-storage"
+      global.temporaryStorage.type: "ephemeral"
+      global.temporaryStorage.ephemeral.storageClassName: "test-storage"
       ingestLogs.enabled: true
       ingestMetrics.enabled: true
       ingestTraces.enabled: true
@@ -161,7 +161,7 @@ tests:
 
   - it: should use ephemeral volumes without storage class when not specified
     set:
-      global.ephemeralStorage.type: "ephemeral"
+      global.temporaryStorage.type: "ephemeral"
       ingestLogs.enabled: true
     templates:
       - ingest-logs-deployment.yaml
@@ -174,8 +174,8 @@ tests:
 
   - it: should add custom labels to ephemeral volumes when specified
     set:
-      global.ephemeralStorage.type: "ephemeral"
-      global.ephemeralStorage.ephemeral.labels:
+      global.temporaryStorage.type: "ephemeral"
+      global.temporaryStorage.ephemeral.labels:
         type: "scratch-storage"
         performance: "high"
       ingestLogs.enabled: true
@@ -192,7 +192,7 @@ tests:
   # Test grafana storage (uses basic ephemeral volume helper)
   - it: should use emptyDir for grafana storage by default
     set:
-      global.ephemeralStorage.type: "emptyDir"
+      global.temporaryStorage.type: "emptyDir"
       grafana.enabled: true
       grafana.cardinal.apiKey: "test-key"
     templates:
@@ -208,8 +208,8 @@ tests:
 
   - it: should use ephemeral volume for grafana storage when configured
     set:
-      global.ephemeralStorage.type: "ephemeral"
-      global.ephemeralStorage.ephemeral.storageClassName: "grafana-storage"
+      global.temporaryStorage.type: "ephemeral"
+      global.temporaryStorage.ephemeral.storageClassName: "grafana-storage"
       grafana.enabled: true
       grafana.cardinal.apiKey: "test-key"
     templates:
@@ -230,7 +230,7 @@ tests:
   # Test that both storage types work with custom sizes
   - it: should respect custom storage sizes with emptyDir
     set:
-      global.ephemeralStorage.type: "emptyDir"
+      global.temporaryStorage.type: "emptyDir"
       ingestLogs.enabled: true
       ingestLogs.temporaryStorage.size: "20Gi"
     templates:
@@ -242,7 +242,7 @@ tests:
 
   - it: should respect custom storage sizes with ephemeral volumes
     set:
-      global.ephemeralStorage.type: "ephemeral"
+      global.temporaryStorage.type: "ephemeral"
       ingestLogs.enabled: true
       ingestLogs.temporaryStorage.size: "25Gi"
     templates:
@@ -255,7 +255,7 @@ tests:
   # Test dynamic service-specific volume changes
   - it: should change only ingest-logs volume size when its config changes (emptyDir)
     set:
-      global.ephemeralStorage.type: "emptyDir"
+      global.temporaryStorage.type: "emptyDir"
       ingestLogs.enabled: true
       ingestMetrics.enabled: true
       compactLogs.enabled: true
@@ -283,7 +283,7 @@ tests:
 
   - it: should change only compact-metrics volume size when its config changes (ephemeral)
     set:
-      global.ephemeralStorage.type: "ephemeral"
+      global.temporaryStorage.type: "ephemeral"
       compactLogs.enabled: true
       compactMetrics.enabled: true
       compactTraces.enabled: true
@@ -311,7 +311,7 @@ tests:
 
   - it: should change query-worker volume size independently of other services
     set:
-      global.ephemeralStorage.type: "emptyDir"
+      global.temporaryStorage.type: "emptyDir"
       ingestLogs.enabled: true
       queryWorker.enabled: true
       # Change only query-worker size
@@ -333,8 +333,8 @@ tests:
 
   - it: should handle multiple services with different custom sizes simultaneously
     set:
-      global.ephemeralStorage.type: "ephemeral"
-      global.ephemeralStorage.ephemeral.storageClassName: "multi-test"
+      global.temporaryStorage.type: "ephemeral"
+      global.temporaryStorage.ephemeral.storageClassName: "multi-test"
       ingestLogs.enabled: true
       ingestMetrics.enabled: true
       compactLogs.enabled: true
@@ -380,8 +380,8 @@ tests:
   - it: should change storage type for all services when global config changes
     set:
       # Start with emptyDir, change to ephemeral
-      global.ephemeralStorage.type: "ephemeral"
-      global.ephemeralStorage.ephemeral.storageClassName: "switched-storage"
+      global.temporaryStorage.type: "ephemeral"
+      global.temporaryStorage.ephemeral.storageClassName: "switched-storage"
       ingestLogs.enabled: true
       compactLogs.enabled: true
       # Keep default sizes
@@ -410,7 +410,7 @@ tests:
 
   - it: should preserve individual service sizes when switching storage types
     set:
-      global.ephemeralStorage.type: "ephemeral"
+      global.temporaryStorage.type: "ephemeral"
       ingestLogs.enabled: true
       compactLogs.enabled: true
       # Set custom sizes

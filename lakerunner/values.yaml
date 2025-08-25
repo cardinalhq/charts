@@ -13,11 +13,11 @@ global:
     tag: ""
     # Default pull policy for all images
     pullPolicy: "IfNotPresent"
-  # Global ephemeral storage configuration
+  # Global temporary storage configuration
   # This allows switching between emptyDir and ephemeral volume claim templates
   # Storage sizes are configured per-service in their respective temporaryStorage.size settings
-  ephemeralStorage:
-    # Type of ephemeral storage: "emptyDir" or "ephemeral"
+  temporaryStorage:
+    # Type of temporary storage: "emptyDir" or "ephemeral"
     # - emptyDir: Traditional emptyDir volumes (default)
     # - ephemeral: Uses ephemeral volume claim templates for CSI-based storage
     type: "emptyDir"
