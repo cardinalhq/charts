@@ -93,6 +93,7 @@ spec:
           - name: EXECUTION_ENVIRONMENT
             value: "kubernetes"
           {{- include "lakerunner.injectEnv" (list . .Values.queryWorker) | nindent 8 }}
+          {{- include "lakerunner.cardinalTelemetryEnv" . | nindent 10 }}
         envFrom:
           - secretRef:
               name: {{ include "lakerunner.awsSecretName" . }}

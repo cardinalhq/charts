@@ -3,6 +3,12 @@
 
 # Global settings
 global:
+  # CardinalHQ telemetry configuration
+  cardinal:
+    # API key for CardinalHQ telemetry endpoint
+    # If provided, telemetry will be sent to CardinalHQ's controlled endpoint
+    # If not provided, no telemetry endpoint will be configured
+    apiKey: ""
   # The names of image pull secrets to use for all images.
   # Optional.
   imagePullSecrets: []
@@ -53,12 +59,6 @@ global:
   # This is a key: value map.
   # Optional.
   env:
-    # CardinalHQ telemetry configuration
-    cardinal:
-      # API key for CardinalHQ telemetry endpoint
-      # If provided, telemetry will be sent to CardinalHQ's controlled endpoint
-      # If not provided, no telemetry endpoint will be configured
-      apiKey: ""
     # - name: ENVAR1
     #   value: "value1"
     # - name: ENVAR2

@@ -52,6 +52,7 @@ spec:
           - name: TMPDIR
             value: /scratch
           {{- include "lakerunner.injectEnv" (list . .Values.rollupMetrics) | nindent 8 }}
+          {{- include "lakerunner.cardinalTelemetryEnv" . | nindent 10 }}
         {{- if .Values.aws.inject }}
         envFrom:
           - secretRef:
