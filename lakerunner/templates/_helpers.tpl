@@ -226,6 +226,37 @@ Return the secret name for the APIKeys.  If we have create true, we will prefix 
 {{- end }}
 {{- end }}
 
+
+{{/*
+Return the secret name for the Cardinal API key.  If we have create true, we will prefix it with the release name.
+*/}}
+{{- define "lakerunner.cardinalApiKeySecretName" -}}
+{{- if .Values.global.cardinal.apiKey }}
+{{- printf "%s-%s" (include "lakerunner.fullname" .) "cardinal-api-key" | trunc 63 | trimSuffix "-" }}
+{{- end }}
+{{- end }}
+
+{{/*
+Cardinal telemetry environment variables.
+Only injects these if a cardinal API key is provided.
+*/}}
+{{- define "lakerunner.cardinalTelemetryEnv" -}}
+{{- if .Values.global.cardinal.apiKey }}
+- name: CARDINAL_API_KEY
+  valueFrom:
+    secretKeyRef:
+      name: {{ include "lakerunner.cardinalApiKeySecretName" . }}
+      key: CARDINAL_API_KEY
+- name: OTEL_EXPORTER_OTLP_ENDPOINT
+  value: "https://otelhttp.intake.us-east-2.aws.cardinalhq.io"
+- name: ENABLE_OTLP_TELEMETRY
+  value: "true"
+- name: OTEL_EXPORTER_OTLP_HEADERS
+  value: "x-cardinalhq-api-key=${CARDINAL_API_KEY}"
+{{- end }}
+{{- end }}
+
+
 {{/*
 Return the configmap name for the Storage Profiles.  If we have create true, we will prefix it with the release name.
 */}}
