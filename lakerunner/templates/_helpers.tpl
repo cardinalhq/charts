@@ -236,11 +236,11 @@ Return the secret name for the Cardinal API key.
 
 {{- define "lakerunner.cardinalTelemetryEnv" -}}
 {{- if .Values.global.cardinal.apiKey }}
-- name: CARDINAL_API_KEY
+- name: cardinalhq-api-key
   valueFrom:
     secretKeyRef:
       name: {{ include "lakerunner.cardinalApiKeySecretName" . }}
-      key: CARDINAL_API_KEY
+      key: cardinalhq-api-key
 - name: OTEL_EXPORTER_OTLP_ENDPOINT
   value: {{ if eq .Values.global.cardinal.env "test" }}"https://customer-intake-otelhttp.us-east-2.aws.test.cardinalhq.net"{{ else }}"https://otelhttp.intake.us-east-2.aws.cardinalhq.io"{{ end }}
 - name: ENABLE_OTLP_TELEMETRY
