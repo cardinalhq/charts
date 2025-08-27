@@ -772,3 +772,34 @@ grafana:
     #     - name: Prometheus
     #       type: prometheus
     #       url: http://prometheus:9090
+
+# Collector configuration
+# This section controls the CardinalHQ Collector resource creation
+collector:
+  # Whether to create the Collector resource
+  # Default: true (creates collector when Cardinal API key and storage profiles are configured)
+  enabled: true
+
+  # Additional environment variables to inject into the Collector
+  # These will be merged with the default environment variables
+  # Optional.
+  env:
+    # - name: CUSTOM_ENV_VAR
+    #   value: "custom-value"
+    # - name: ANOTHER_VAR
+    #   value: "another-value"
+    # - name: SECRET_VAR
+    #   valueFrom:
+    #     secretKeyRef:
+    #       name: my-secret
+    #       key: my-key
+
+  # Additional labels to apply to the Collector resource
+  # These will be merged with the default labels
+  # Optional.
+  labels: {}
+  
+  # Additional annotations to apply to the Collector resource
+  # These will be merged with the default annotations
+  # Optional.
+  annotations: {}

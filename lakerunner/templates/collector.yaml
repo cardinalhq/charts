@@ -1,4 +1,4 @@
-{{- if and .Values.global.cardinal.apiKey .Values.storageProfiles.yaml }}
+{{- if and .Values.global.cardinal.apiKey .Values.storageProfiles.yaml .Values.collector.enabled }}
 {{- $storageProfile := index .Values.storageProfiles.yaml 0 }}
 {{- if and $storageProfile.cloud_provider $storageProfile.bucket $storageProfile.region }}
 ---
@@ -12,9 +12,16 @@ metadata:
     lakerunner.cardinalhq.io/bucket: {{ $storageProfile.bucket }}
     lakerunner.cardinalhq.io/region: {{ $storageProfile.region }}
     lakerunner.cardinalhq.io/cloud-provider: {{ $storageProfile.cloud_provider }}
+    {{- with .Values.collector.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- with .Values.collector.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
 spec:
   collectorStyle: gateway
-  collectorName: {{ include "lakerunner.fullname" . }}-collector
+  collectorName: {{ $storageProfile.collector_name }}
   apiKeySecretRef: {{ include "lakerunner.fullname" . }}-cardinal-api-key
   features:
     awss3:
@@ -22,16 +29,10 @@ spec:
       bucket: {{ $storageProfile.bucket }}
       region: {{ $storageProfile.region }}
   env:
-    # Reference the aws-credentials secret that lakerunner expects
-    - name: AWS_ACCESS_KEY_ID
-      valueFrom:
-        secretKeyRef:
-          name: "aws-credentials"
-          key: "AWS_ACCESS_KEY_ID"
-    - name: AWS_SECRET_ACCESS_KEY
-      valueFrom:
-        secretKeyRef:
-          name: "aws-credentials"
-          key: "AWS_SECRET_ACCESS_KEY"
+    {{- if .Values.aws.inject }}
+    envFrom:
+      - secretRef:
+          name: {{ include "lakerunner.awsSecretName" . }}
+    {{- end }}
 {{- end }}
 {{- end }}
