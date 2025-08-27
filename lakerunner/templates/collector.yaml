@@ -1,6 +1,6 @@
 {{- if and .Values.global.cardinal.apiKey .Values.storageProfiles.yaml }}
 {{- $storageProfile := index .Values.storageProfiles.yaml 0 }}
-{{- if and $storageProfile.cloud_provider $storageProfile.bucket $storageProfile.region $storageProfile.collector_name $storageProfile.organization_id }}
+{{- if and $storageProfile.cloud_provider $storageProfile.bucket $storageProfile.region }}
 ---
 apiVersion: collector.cardinalhq.io/v1alpha1
 kind: Collector
@@ -21,8 +21,6 @@ spec:
       provider: {{ $storageProfile.cloud_provider }}
       bucket: {{ $storageProfile.bucket }}
       region: {{ $storageProfile.region }}
-      collector_name: {{ $storageProfile.collector_name }}
-      organization_id: {{ $storageProfile.organization_id }}
   env:
     # Reference the aws-credentials secret that lakerunner expects
     - name: AWS_ACCESS_KEY_ID
