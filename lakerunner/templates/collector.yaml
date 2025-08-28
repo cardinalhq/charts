@@ -30,12 +30,16 @@ spec:
       region: {{ $storageProfile.region }}
   env:
     {{- if .Values.aws.inject }}
-    envFrom:
-      - secretRef:
+    - name: AWS_ACCESS_KEY_ID
+      valueFrom:
+        secretKeyRef:
           name: {{ include "lakerunner.awsSecretName" . }}
-    {{- end }}
-    {{- if .Values.collector.env }}
-    {{- toYaml .Values.collector.env | nindent 6 }}
+          key: AWS_ACCESS_KEY_ID
+    - name: AWS_SECRET_ACCESS_KEY
+      valueFrom:
+        secretKeyRef:
+          name: {{ include "lakerunner.awsSecretName" . }}
+          key: AWS_SECRET_ACCESS_KEY
     {{- end }}
 {{- end }}
 {{- end }}
