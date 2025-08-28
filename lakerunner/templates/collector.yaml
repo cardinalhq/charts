@@ -20,7 +20,7 @@ metadata:
     {{- toYaml .Values.collector.annotations | nindent 4 }}
   {{- end }}
 spec:
-  environmentConfig: {{ .Values.global.cardinal.env }}
+  environment: {{ .Values.global.cardinal.env }}
   collectorStyle: gateway
   collectorName: {{ $storageProfile.collector_name }}
   apiKeySecretRef: {{ include "lakerunner.fullname" . }}-cardinal-api-key
