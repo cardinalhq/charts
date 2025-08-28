@@ -1,6 +1,6 @@
 {{- if and .Values.global.cardinal.apiKey .Values.storageProfiles.yaml .Values.collector.enabled }}
 {{- $storageProfile := index .Values.storageProfiles.yaml 0 }}
-{{- if and $storageProfile.cloud_provider $storageProfile.bucket $storageProfile.region $storageProfile.collector_name $storageProfile.organization_id }}
+{{- if and $storageProfile.cloud_provider $storageProfile.bucket $storageProfile.region $storageProfile.collector_name $storageProfile.organization_id $storageProfile.collector_name }}
 ---
 apiVersion: collector.cardinalhq.io/v1alpha1
 kind: Collector
@@ -30,6 +30,7 @@ spec:
       bucket: {{ $storageProfile.bucket }}
       region: {{ $storageProfile.region }}
       organizationId: {{ $storageProfile.organizationId }}
+      collectorName: {{ $storageProfile.collector_name }}
   env:
     {{- if .Values.aws.inject }}
     - name: AWS_ACCESS_KEY_ID
