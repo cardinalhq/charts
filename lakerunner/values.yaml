@@ -186,6 +186,8 @@ gcp:
 # Storage profile configuration
 # At least one storage profile is required for the LakeRunner to function.
 # Required.
+# If you want to auto create the Cardinal Collector, make sure that your storage profile has the following fields:
+# organization_id, collector_name, cloud_provider, region, bucket
 storageProfiles:
   source: config # only value for general use.
   configmapName: "storage-profiles" # Name of the ConfigMap containing storage profiles
