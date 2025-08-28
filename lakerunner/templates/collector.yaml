@@ -29,7 +29,7 @@ spec:
       provider: {{ $storageProfile.cloud_provider }}
       bucket: {{ $storageProfile.bucket }}
       region: {{ $storageProfile.region }}
-      organizationId: {{ $storageProfile.organizationId }}
+      organizationId: {{ $storageProfile.organization_id }}
       collectorName: {{ $storageProfile.collector_name }}
   env:
     {{- if .Values.aws.inject }}
