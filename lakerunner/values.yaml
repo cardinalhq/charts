@@ -3,6 +3,12 @@
 
 # Global settings
 global:
+  # CardinalHQ telemetry configuration
+  cardinal:
+    # API key for CardinalHQ telemetry endpoint
+    # If provided, telemetry will be sent to CardinalHQ's controlled endpoint
+    # If not provided, no telemetry endpoint will be configured
+    apiKey: ""
   # The names of image pull secrets to use for all images.
   # Optional.
   imagePullSecrets: []
@@ -53,17 +59,6 @@ global:
   # This is a key: value map.
   # Optional.
   env:
-    # Enable OpenTelemetry logs, metrics, and traces for all components.
-    # Set to "true" to enable, "false" to disable.
-    - name: ENABLE_OTLP_TELEMETRY
-      value: "false"
-    # If you want to set up the endpoint where it should send, do that here as well:
-    # - name: OTEL_EXPORTER_OTLP_ENDPOINT
-    #   value: "http://${HOST_IP}:4317"
-    # - name: HOST_IP
-    #   valueFrom:
-    #     fieldRef:
-    #       fieldPath: status.hostIP
     # - name: ENVAR1
     #   value: "value1"
     # - name: ENVAR2
@@ -777,3 +772,34 @@ grafana:
     #     - name: Prometheus
     #       type: prometheus
     #       url: http://prometheus:9090
+
+# Collector configuration
+# This section controls the CardinalHQ Collector resource creation
+collector:
+  # Whether to create the Collector resource
+  # Default: true (creates collector when Cardinal API key and storage profiles are configured)
+  enabled: true
+
+  # Additional environment variables to inject into the Collector
+  # These will be merged with the default environment variables
+  # Optional.
+  env:
+    # - name: CUSTOM_ENV_VAR
+    #   value: "custom-value"
+    # - name: ANOTHER_VAR
+    #   value: "another-value"
+    # - name: SECRET_VAR
+    #   valueFrom:
+    #     secretKeyRef:
+    #       name: my-secret
+    #       key: my-key
+
+  # Additional labels to apply to the Collector resource
+  # These will be merged with the default labels
+  # Optional.
+  labels: {}
+  
+  # Additional annotations to apply to the Collector resource
+  # These will be merged with the default annotations
+  # Optional.
+  annotations: {}

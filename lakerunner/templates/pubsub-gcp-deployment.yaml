@@ -54,6 +54,7 @@ spec:
           - name: GCP_SUBSCRIPTION_ID
             value: {{ .Values.pubsub.GCP.subscriptionID | quote }}
           {{- include "lakerunner.injectEnv" (list . .Values.pubsub.GCP) | nindent 8 }}
+          {{- include "lakerunner.cardinalTelemetryEnv" . | nindent 10 }}
         {{- if .Values.gcp.inject }}
         envFrom:
           - secretRef:

@@ -86,6 +86,7 @@ spec:
           - name: WORKER_POD_LABEL_SELECTOR
             value: "app.kubernetes.io/name={{ include "lakerunner.name" . }},app.kubernetes.io/instance={{ .Release.Name }},app.kubernetes.io/component=query-worker"
           {{- include "lakerunner.injectEnv" (list . .Values.queryApi) | nindent 8 }}
+          {{- include "lakerunner.cardinalTelemetryEnv" . | nindent 10 }}
         envFrom:
           - secretRef:
               name: {{ include "lakerunner.awsSecretName" . }}

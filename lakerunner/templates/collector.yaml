@@ -1,0 +1,41 @@
+{{- if and .Values.global.cardinal.apiKey .Values.storageProfiles.yaml .Values.collector.enabled }}
+{{- $storageProfile := index .Values.storageProfiles.yaml 0 }}
+{{- if and $storageProfile.cloud_provider $storageProfile.bucket $storageProfile.region $storageProfile.collector_name }}
+---
+apiVersion: collector.cardinalhq.io/v1alpha1
+kind: Collector
+metadata:
+  name: {{ include "lakerunner.fullname" . }}-collector
+  labels:
+    {{- include "lakerunner.labels" . | nindent 4 }}
+    app.kubernetes.io/component: collector
+    lakerunner.cardinalhq.io/bucket: {{ $storageProfile.bucket }}
+    lakerunner.cardinalhq.io/region: {{ $storageProfile.region }}
+    lakerunner.cardinalhq.io/cloud-provider: {{ $storageProfile.cloud_provider }}
+    {{- if .Values.collector.labels }}
+    {{- toYaml .Values.collector.labels | nindent 4 }}
+    {{- end }}
+  {{- if .Values.collector.annotations }}
+  annotations:
+    {{- toYaml .Values.collector.annotations | nindent 4 }}
+  {{- end }}
+spec:
+  collectorStyle: gateway
+  collectorName: {{ $storageProfile.collector_name }}
+  apiKeySecretRef: {{ include "lakerunner.fullname" . }}-cardinal-api-key
+  features:
+    awss3:
+      provider: {{ $storageProfile.cloud_provider }}
+      bucket: {{ $storageProfile.bucket }}
+      region: {{ $storageProfile.region }}
+  env:
+    {{- if .Values.aws.inject }}
+    envFrom:
+      - secretRef:
+          name: {{ include "lakerunner.awsSecretName" . }}
+    {{- end }}
+    {{- if .Values.collector.env }}
+    {{- toYaml .Values.collector.env | nindent 6 }}
+    {{- end }}
+{{- end }}
+{{- end }}
