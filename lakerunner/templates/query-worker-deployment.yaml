@@ -92,6 +92,8 @@ spec:
             value: "statefulset"
           - name: EXECUTION_ENVIRONMENT
             value: "kubernetes"
+          - name: BLOB_STORE_PROVIDER
+            value: {{ (index .Values.storageProfiles.yaml 0).cloud_provider | default "s3" | quote }}
           {{- include "lakerunner.injectEnv" (list . .Values.queryWorker) | nindent 8 }}
           {{- include "lakerunner.cardinalTelemetryEnv" . | nindent 10 }}
         envFrom:
