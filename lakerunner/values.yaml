@@ -666,8 +666,8 @@ pubsub:
 queryApi:
   enabled: true
   replicas: 1
-  minWorkers: 2
-  maxWorkers: 4
+  minWorkers: 8
+  maxWorkers: 8
   service:
     type: ClusterIP
   image:
