@@ -50,11 +50,9 @@ spec:
             value: /scratch
           {{- include "lakerunner.injectEnv" (list . .Values.queryWorkerV2) | nindent 8 }}
           {{- include "lakerunner.cardinalTelemetryEnv" . | nindent 10 }}
-        {{- if .Values.aws.inject }}
         envFrom:
           - secretRef:
               name: {{ include "lakerunner.awsSecretName" . }}
-        {{- end }}
         resources:
           {{- toYaml .Values.queryWorkerV2.resources | nindent 10 }}
         volumeMounts:
