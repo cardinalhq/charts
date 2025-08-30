@@ -1,0 +1,21 @@
+{{- if .Values.queryWorkerV2.enabled -}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "lakerunner.fullname" . }}-query-worker-v2
+  labels:
+    {{- include "lakerunner.labels" . | nindent 4 }}
+    app.kubernetes.io/component: query-worker-v2
+    lakerunner.cardinalhq.io/component: query-worker-v2
+  {{ include "lakerunner.annotations" . | nindent 2 }}
+spec:
+  type: {{ .Values.queryWorkerV2.service.type }}
+  ports:
+    - port: 8081
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "lakerunner.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: query-worker-v2
+{{- end }}
