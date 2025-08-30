@@ -93,7 +93,7 @@ spec:
           - name: EXECUTION_ENVIRONMENT
             value: "kubernetes"
           - name: BLOB_STORE_PROVIDER
-            value: {{ if eq (index .Values.storageProfiles.yaml 0).cloud_provider "gcp" }}"gs"{{ else }}"s3"{{ end }}
+            value: {{ if and .Values.storageProfiles.yaml (gt (len .Values.storageProfiles.yaml) 0) (eq (index .Values.storageProfiles.yaml 0).cloud_provider "gcp") }}"gs"{{ else }}"s3"{{ end }}
           {{- include "lakerunner.injectEnv" (list . .Values.queryWorker) | nindent 8 }}
           {{- include "lakerunner.cardinalTelemetryEnv" . | nindent 10 }}
         envFrom:
