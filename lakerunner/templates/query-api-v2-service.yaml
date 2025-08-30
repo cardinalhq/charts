@@ -1,0 +1,21 @@
+{{- if .Values.queryApiV2.enabled -}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "lakerunner.fullname" . }}-query-api-v2
+  labels:
+    {{- include "lakerunner.labels" . | nindent 4 }}
+    app.kubernetes.io/component: query-api-v2
+    lakerunner.cardinalhq.io/component: query-api-v2
+  {{ include "lakerunner.annotations" . | nindent 2 }}
+spec:
+  type: {{ .Values.queryApiV2.service.type }}
+  ports:
+    - port: 8080
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "lakerunner.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: query-api-v2
+{{- end }}

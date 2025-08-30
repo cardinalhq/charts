@@ -32,7 +32,8 @@ global:
       # Storage class to use for ephemeral volumes (leave empty for default storage class)
       storageClassName: ""
       # Additional labels to apply to ephemeral volume claim templates
-      labels: {}
+      labels:
+        {}
         # type: my-frontend-volume
   # Global autoscaling configuration
   autoscaling:
@@ -72,7 +73,8 @@ global:
   # A set of tolerations to apply to all pods.
   # This is standard Kubernetes toleration syntax.
   # Optional.
-  tolerations: []
+  tolerations:
+    []
     # - key: "spot"
     #   operator: "Equal"
     #   value: "true"
@@ -336,10 +338,10 @@ ingestLogs:
     minReplicas: 1
     maxReplicas: 10
     keda:
-      pollingInterval: 30          # How often to check the queue (seconds)
-      cooldownPeriod: 300          # Wait time before scaling down (seconds)
-      targetQueueDepth: 100        # Scale up when queue depth exceeds this (logs process quickly)
-      activationQueueDepth: 10     # Start scaling when queue depth reaches this
+      pollingInterval: 30 # How often to check the queue (seconds)
+      cooldownPeriod: 300 # Wait time before scaling down (seconds)
+      targetQueueDepth: 100 # Scale up when queue depth exceeds this (logs process quickly)
+      activationQueueDepth: 10 # Start scaling when queue depth reaches this
   terminationGracePeriodSeconds: 600
   labels: {}
   annotations: {}
@@ -370,10 +372,10 @@ ingestMetrics:
     minReplicas: 1
     maxReplicas: 10
     keda:
-      pollingInterval: 30          # How often to check the queue (seconds)
-      cooldownPeriod: 300          # Wait time before scaling down (seconds)
-      targetQueueDepth: 150        # Higher threshold for metrics (more resource intensive)
-      activationQueueDepth: 20     # Start scaling when queue depth reaches this
+      pollingInterval: 30 # How often to check the queue (seconds)
+      cooldownPeriod: 300 # Wait time before scaling down (seconds)
+      targetQueueDepth: 150 # Higher threshold for metrics (more resource intensive)
+      activationQueueDepth: 20 # Start scaling when queue depth reaches this
   terminationGracePeriodSeconds: 600
   labels: {}
   annotations: {}
@@ -404,10 +406,10 @@ ingestTraces:
     minReplicas: 1
     maxReplicas: 10
     keda:
-      pollingInterval: 30          # How often to check the queue (seconds)
-      cooldownPeriod: 300          # Wait time before scaling down (seconds)
-      targetQueueDepth: 120        # Scale up when queue depth exceeds this (traces process moderately)
-      activationQueueDepth: 15     # Start scaling when queue depth reaches this
+      pollingInterval: 30 # How often to check the queue (seconds)
+      cooldownPeriod: 300 # Wait time before scaling down (seconds)
+      targetQueueDepth: 120 # Scale up when queue depth exceeds this (traces process moderately)
+      activationQueueDepth: 15 # Start scaling when queue depth reaches this
   terminationGracePeriodSeconds: 600
   labels: {}
   annotations: {}
@@ -438,10 +440,10 @@ compactLogs:
     minReplicas: 1
     maxReplicas: 10
     keda:
-      pollingInterval: 60          # Longer interval for batch work
-      cooldownPeriod: 600          # 10-minute cooldown for compaction
-      targetQueueDepth: 10         # Scale up when pending jobs exceed this
-      activationQueueDepth: 1      # Start scaling when any jobs are pending
+      pollingInterval: 60 # Longer interval for batch work
+      cooldownPeriod: 600 # 10-minute cooldown for compaction
+      targetQueueDepth: 10 # Scale up when pending jobs exceed this
+      activationQueueDepth: 1 # Start scaling when any jobs are pending
   terminationGracePeriodSeconds: 300
   labels: {}
   annotations: {}
@@ -472,10 +474,10 @@ compactMetrics:
     minReplicas: 1
     maxReplicas: 10
     keda:
-      pollingInterval: 60          # Longer interval for batch work
-      cooldownPeriod: 600          # 10-minute cooldown for compaction
-      targetQueueDepth: 10         # Scale up when pending jobs exceed this
-      activationQueueDepth: 1      # Start scaling when any jobs are pending
+      pollingInterval: 60 # Longer interval for batch work
+      cooldownPeriod: 600 # 10-minute cooldown for compaction
+      targetQueueDepth: 10 # Scale up when pending jobs exceed this
+      activationQueueDepth: 1 # Start scaling when any jobs are pending
   terminationGracePeriodSeconds: 300
   labels: {}
   annotations: {}
@@ -506,10 +508,10 @@ compactTraces:
     minReplicas: 1
     maxReplicas: 10
     keda:
-      pollingInterval: 60          # Longer interval for batch work
-      cooldownPeriod: 600          # 10-minute cooldown for compaction
-      targetQueueDepth: 10         # Scale up when pending jobs exceed this
-      activationQueueDepth: 1      # Start scaling when any jobs are pending
+      pollingInterval: 60 # Longer interval for batch work
+      cooldownPeriod: 600 # 10-minute cooldown for compaction
+      targetQueueDepth: 10 # Scale up when pending jobs exceed this
+      activationQueueDepth: 1 # Start scaling when any jobs are pending
   terminationGracePeriodSeconds: 300
   labels: {}
   annotations: {}
@@ -540,10 +542,10 @@ rollupMetrics:
     minReplicas: 1
     maxReplicas: 10
     keda:
-      pollingInterval: 60          # Longer interval for batch work
-      cooldownPeriod: 600          # 10-minute cooldown for rollup processing
-      targetQueueDepth: 15         # Scale up when pending jobs exceed this
-      activationQueueDepth: 2      # Start scaling when jobs are pending
+      pollingInterval: 60 # Longer interval for batch work
+      cooldownPeriod: 600 # 10-minute cooldown for rollup processing
+      targetQueueDepth: 15 # Scale up when pending jobs exceed this
+      activationQueueDepth: 2 # Start scaling when jobs are pending
   terminationGracePeriodSeconds: 300
   labels: {}
   annotations: {}
@@ -759,10 +761,62 @@ queryWorker:
   tolerations: []
   affinity: {}
 
+queryApiV2:
+  enabled: false
+  # The number of replicas to run.  This is not used if autoscaling is enabled.
+  replicas: 2
+  image:
+    repository: public.ecr.aws/cardinalhq.io/lakerunner
+    tag: "v0.0.0-newquery-rc2"
+    pullPolicy: ""
+  resources:
+    requests:
+      cpu: 2000m
+      memory: 8Gi
+    limits:
+      cpu: 2000m
+      memory: 8Gi
+  service:
+    type: ClusterIP
+  temporaryStorage:
+    size: "16Gi"
+  terminationGracePeriodSeconds: 120
+  labels: {}
+  annotations: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+queryWorkerV2:
+  enabled: false
+  # The number of replicas to run.  This is not used if autoscaling is enabled.
+  replicas: 2
+  image:
+    repository: public.ecr.aws/cardinalhq.io/lakerunner
+    tag: "v0.0.0-newquery-rc2"
+    pullPolicy: ""
+  resources:
+    requests:
+      cpu: 3500m
+      memory: 12Gi
+    limits:
+      cpu: 3500m
+      memory: 12Gi
+  service:
+    type: ClusterIP
+  temporaryStorage:
+    size: "16Gi"
+  terminationGracePeriodSeconds: 120
+  labels: {}
+  annotations: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
 # Grafana configuration
 grafana:
   enabled: true
-  replicas: 1  # For replicas > 1, configure external database via grafana.env (see Grafana docs)
+  replicas: 1 # For replicas > 1, configure external database via grafana.env (see Grafana docs)
   # CardinalHQ LakeRunner datasource configuration
   # This provides a simplified way to configure the Cardinal datasource
   # Required.
