@@ -4,20 +4,53 @@ values:
 set:
   aws.region: us-west-2
 templates:
+  # Core lakerunner image components
   - setup-job.yaml
-  - query-api-statefulset.yaml
   - ingest-logs-deployment.yaml
+  - ingest-metrics-deployment.yaml
+  - ingest-traces-deployment.yaml
+  - compact-logs-deployment.yaml
+  - compact-metrics-deployment.yaml
+  - compact-traces-deployment.yaml
+  - rollup-metrics-deployment.yaml
+  - sweeper-deployment.yaml
+  - monitoring-deployment.yaml
+  # PubSub components
+  - pubsub-http-deployment.yaml
+  - pubsub-sqs-deployment.yaml
+  - pubsub-gcp-deployment.yaml
+  # Query components (different images)
+  - query-api-statefulset.yaml
+  - query-worker-deployment.yaml
+  # Other components
+  - grafana-deployment.yaml
+  # RBAC components
   - serviceaccount.yaml
   - role.yaml
 tests:
-  - it: should set non-root security context for all pods
+  # Test all lakerunner image components
+  - it: should set non-root security context for all lakerunner pods
     templates:
       - setup-job.yaml
-      - query-api-statefulset.yaml
       - ingest-logs-deployment.yaml
+      - ingest-metrics-deployment.yaml
+      - ingest-traces-deployment.yaml
+      - compact-logs-deployment.yaml
+      - compact-metrics-deployment.yaml
+      - compact-traces-deployment.yaml
+      - rollup-metrics-deployment.yaml
+      - sweeper-deployment.yaml
+      - monitoring-deployment.yaml
     set:
-      queryApi.enabled: true
       ingestLogs.enabled: true
+      ingestMetrics.enabled: true
+      ingestTraces.enabled: true
+      compactLogs.enabled: true
+      compactMetrics.enabled: true
+      compactTraces.enabled: true
+      rollupMetrics.enabled: true
+      sweeper.enabled: true
+      monitoring.enabled: true
     asserts:
       - equal:
           path: spec.template.spec.securityContext.runAsNonRoot
@@ -29,13 +62,110 @@ tests:
           path: spec.template.spec.securityContext.runAsGroup
           value: 65532
 
-  - it: should set container security context
+  - it: should set container security context for all lakerunner components
     templates:
       - setup-job.yaml
       - ingest-logs-deployment.yaml
+      - ingest-metrics-deployment.yaml
+      - ingest-traces-deployment.yaml
+      - compact-logs-deployment.yaml
+      - compact-metrics-deployment.yaml
+      - compact-traces-deployment.yaml
+      - rollup-metrics-deployment.yaml
+      - sweeper-deployment.yaml
+      - monitoring-deployment.yaml
     set:
       ingestLogs.enabled: true
+      ingestMetrics.enabled: true
+      ingestTraces.enabled: true
+      compactLogs.enabled: true
+      compactMetrics.enabled: true
+      compactTraces.enabled: true
+      rollupMetrics.enabled: true
+      sweeper.enabled: true
+      monitoring.enabled: true
     asserts:
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.allowPrivilegeEscalation
+          value: false
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.capabilities.drop[0]
+          value: "ALL"
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.seccompProfile.type
+          value: "RuntimeDefault"
+
+  # Test PubSub components
+  - it: should set security context for PubSub components
+    templates:
+      - pubsub-http-deployment.yaml
+      - pubsub-sqs-deployment.yaml
+      - pubsub-gcp-deployment.yaml
+    set:
+      pubsub.HTTP.enabled: true
+      pubsub.SQS.enabled: true
+      pubsub.SQS.queueURL: "https://sqs.us-east-2.amazonaws.com/123456789012/test-queue"
+      pubsub.GCP.enabled: true
+      pubsub.GCP.projectID: "test-project"
+      pubsub.GCP.subscriptionID: "test-subscription"
+    asserts:
+      - equal:
+          path: spec.template.spec.securityContext.runAsNonRoot
+          value: true
+      - equal:
+          path: spec.template.spec.securityContext.runAsUser
+          value: 65532
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.allowPrivilegeEscalation
+          value: false
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.capabilities.drop[0]
+          value: "ALL"
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.seccompProfile.type
+          value: "RuntimeDefault"
+
+  # Test query components (different images)
+  - it: should set security context for query components
+    templates:
+      - query-api-statefulset.yaml
+      - query-worker-deployment.yaml
+    set:
+      queryApi.enabled: true
+      queryWorker.enabled: true
+    asserts:
+      - equal:
+          path: spec.template.spec.securityContext.runAsNonRoot
+          value: true
+      - equal:
+          path: spec.template.spec.securityContext.runAsUser
+          value: 65532
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.allowPrivilegeEscalation
+          value: false
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.capabilities.drop[0]
+          value: "ALL"
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.seccompProfile.type
+          value: "RuntimeDefault"
+
+  # Test Grafana component (uses different user ID)
+  - it: should set security context for Grafana
+    templates:
+      - grafana-deployment.yaml
+    set:
+      grafana.enabled: true
+    asserts:
+      - equal:
+          path: spec.template.spec.securityContext.runAsNonRoot
+          value: true
+      - equal:
+          path: spec.template.spec.securityContext.runAsUser
+          value: 472  # Grafana standard user
+      - equal:
+          path: spec.template.spec.securityContext.runAsGroup
+          value: 472
       - equal:
           path: spec.template.spec.containers[0].securityContext.allowPrivilegeEscalation
           value: false

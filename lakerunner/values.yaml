@@ -37,16 +37,15 @@ global:
   # Global autoscaling configuration
   autoscaling:
     # Global scaling mode for all components (can be overridden per component)
-    # Options: "hpa" (CPU-based), "keda" (work queue-based), "disabled"
+    # Options: "keda" (work queue-based), "disabled"
     #
     # PRODUCTION: Use "keda" for production environments.
-    # CPU-based scaling (HPA) is insufficient for micro-batch workloads and may
-    # cause poor performance. Work queue-based scaling (KEDA) provides intelligent
-    # scaling based on actual workload backlog.
+    # Work queue-based scaling (KEDA) provides intelligent scaling based on actual
+    # workload backlog, which is essential for micro-batch workloads.
     #
     # You must have KEDA installed in your cluster to use "keda" mode.
     # See https://keda.sh for installation instructions.
-    mode: "hpa"
+    mode: "disabled"
   # Additional annotations to add to all resources.
   # This is a key: value map.
   # Optional.
@@ -334,8 +333,6 @@ ingestLogs:
     enabled: true
     minReplicas: 1
     maxReplicas: 10
-    hpa:
-      targetCPUUtilizationPercentage: 70
     keda:
       pollingInterval: 30          # How often to check the queue (seconds)
       cooldownPeriod: 300          # Wait time before scaling down (seconds)
@@ -370,8 +367,6 @@ ingestMetrics:
     enabled: true
     minReplicas: 1
     maxReplicas: 10
-    hpa:
-      targetCPUUtilizationPercentage: 70
     keda:
       pollingInterval: 30          # How often to check the queue (seconds)
       cooldownPeriod: 300          # Wait time before scaling down (seconds)
@@ -406,8 +401,6 @@ ingestTraces:
     enabled: true
     minReplicas: 1
     maxReplicas: 10
-    hpa:
-      targetCPUUtilizationPercentage: 70
     keda:
       pollingInterval: 30          # How often to check the queue (seconds)
       cooldownPeriod: 300          # Wait time before scaling down (seconds)
@@ -442,8 +435,6 @@ compactLogs:
     enabled: true
     minReplicas: 1
     maxReplicas: 10
-    hpa:
-      targetCPUUtilizationPercentage: 70
     keda:
       pollingInterval: 60          # Longer interval for batch work
       cooldownPeriod: 600          # 10-minute cooldown for compaction
@@ -478,8 +469,6 @@ compactMetrics:
     enabled: true
     minReplicas: 1
     maxReplicas: 10
-    hpa:
-      targetCPUUtilizationPercentage: 70
     keda:
       pollingInterval: 60          # Longer interval for batch work
       cooldownPeriod: 600          # 10-minute cooldown for compaction
@@ -514,8 +503,6 @@ compactTraces:
     enabled: true
     minReplicas: 1
     maxReplicas: 10
-    hpa:
-      targetCPUUtilizationPercentage: 70
     keda:
       pollingInterval: 60          # Longer interval for batch work
       cooldownPeriod: 600          # 10-minute cooldown for compaction
@@ -550,8 +537,6 @@ rollupMetrics:
     enabled: true
     minReplicas: 1
     maxReplicas: 10
-    hpa:
-      targetCPUUtilizationPercentage: 70
     keda:
       pollingInterval: 60          # Longer interval for batch work
       cooldownPeriod: 600          # 10-minute cooldown for rollup processing
@@ -826,7 +811,7 @@ collector:
   # These will be merged with the default labels
   # Optional.
   labels: {}
-  
+
   # Additional annotations to apply to the Collector resource
   # These will be merged with the default annotations
   # Optional.

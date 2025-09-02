@@ -2,16 +2,12 @@ suite: test scaling configuration
 templates:
   - query-api-statefulset.yaml
   - ingest-logs-deployment.yaml
-  - ingest-logs-hpa.yaml
   - ingest-logs-scaledobject.yaml
   - ingest-traces-deployment.yaml
-  - ingest-traces-hpa.yaml
   - ingest-traces-scaledobject.yaml
   - compact-logs-deployment.yaml
-  - compact-logs-hpa.yaml
   - compact-logs-scaledobject.yaml
   - compact-traces-deployment.yaml
-  - compact-traces-hpa.yaml
   - compact-traces-scaledobject.yaml
   - keda-auth.yaml
 values:
@@ -44,8 +40,10 @@ tests:
           path: spec.replicas
           value: 5
 
-  - it: should not set replicas when autoscaling enabled
+  - it: should not set replicas when KEDA autoscaling is active
     set:
+      global.autoscaling.mode: keda
+      database.lrdb.host: postgres.example.com
       ingestLogs.enabled: true
       ingestLogs.autoscaling.enabled: true
     templates:
@@ -54,37 +52,21 @@ tests:
       - notExists:
           path: spec.replicas
 
-  - it: should create HPA when autoscaling enabled
+  - it: should fail deployment when HPA mode is used
     set:
+      global.autoscaling.mode: hpa
       ingestLogs.enabled: true
-      ingestLogs.autoscaling.enabled: true
-      ingestLogs.autoscaling.minReplicas: 2
-      ingestLogs.autoscaling.maxReplicas: 10
-      ingestLogs.autoscaling.hpa.targetCPUUtilizationPercentage: 80
+      ingestMetrics.enabled: false
+      ingestTraces.enabled: false
+      compactLogs.enabled: false
+      compactMetrics.enabled: false
+      compactTraces.enabled: false
+      rollupMetrics.enabled: false
     templates:
-      - ingest-logs-hpa.yaml
+      - ingest-logs-deployment.yaml
     asserts:
-      - isKind:
-          of: HorizontalPodAutoscaler
-      - equal:
-          path: spec.minReplicas
-          value: 2
-      - equal:
-          path: spec.maxReplicas
-          value: 10
-      - equal:
-          path: spec.metrics[0].resource.target.averageUtilization
-          value: 80
-
-  - it: should not create HPA when autoscaling disabled
-    set:
-      ingestLogs.enabled: true
-      ingestLogs.autoscaling.enabled: false
-    templates:
-      - ingest-logs-hpa.yaml
-    asserts:
-      - hasDocuments:
-          count: 0
+      - failedTemplate:
+          errorPattern: "HPA scaling mode is no longer supported"
 
   - it: should set correct termination grace periods
     set:
@@ -121,20 +103,9 @@ tests:
           path: spec.triggers[0].metadata.targetQueryValue
           value: "100"
 
-  - it: should not create HPA when KEDA mode is enabled
+  - it: should not create ScaledObject when disabled mode is set
     set:
-      global.autoscaling.mode: keda
-      ingestLogs.enabled: true
-      database.lrdb.host: postgres.example.com
-    templates:
-      - ingest-logs-hpa.yaml
-    asserts:
-      - hasDocuments:
-          count: 0
-
-  - it: should not create ScaledObject when HPA mode is enabled
-    set:
-      global.autoscaling.mode: hpa
+      global.autoscaling.mode: disabled
       ingestLogs.enabled: true
     templates:
       - ingest-logs-scaledobject.yaml
@@ -157,7 +128,7 @@ tests:
 
   - it: should not create TriggerAuthentication when KEDA is disabled
     set:
-      global.autoscaling.mode: hpa
+      global.autoscaling.mode: disabled
     templates:
       - keda-auth.yaml
     asserts:
@@ -166,18 +137,14 @@ tests:
 
   - it: should support per-component scaling disable
     set:
-      global.autoscaling.mode: hpa
+      global.autoscaling.mode: keda
+      database.lrdb.host: postgres.example.com
       ingestLogs.enabled: true
       ingestLogs.autoscaling.enabled: false
     templates:
       - ingest-logs-scaledobject.yaml
-      - ingest-logs-hpa.yaml
     asserts:
-      - template: ingest-logs-scaledobject.yaml
-        hasDocuments:
-          count: 0
-      - template: ingest-logs-hpa.yaml
-        hasDocuments:
+      - hasDocuments:
           count: 0
 
   - it: should not set replicas when KEDA scaling is enabled
@@ -217,8 +184,10 @@ tests:
           path: spec.replicas
           value: 4
 
-  - it: should not set replicas for traces when autoscaling enabled
+  - it: should not set replicas for traces when KEDA autoscaling is active
     set:
+      global.autoscaling.mode: keda
+      database.lrdb.host: postgres.example.com
       ingestTraces.enabled: true
       ingestTraces.autoscaling.enabled: true
     templates:
@@ -227,37 +196,21 @@ tests:
       - notExists:
           path: spec.replicas
 
-  - it: should create HPA for traces when autoscaling enabled
+  - it: should fail deployment for traces when HPA mode is used
     set:
+      global.autoscaling.mode: hpa
+      ingestLogs.enabled: false
+      ingestMetrics.enabled: false
       ingestTraces.enabled: true
-      ingestTraces.autoscaling.enabled: true
-      ingestTraces.autoscaling.minReplicas: 3
-      ingestTraces.autoscaling.maxReplicas: 15
-      ingestTraces.autoscaling.hpa.targetCPUUtilizationPercentage: 70
+      compactLogs.enabled: false
+      compactMetrics.enabled: false
+      compactTraces.enabled: false
+      rollupMetrics.enabled: false
     templates:
-      - ingest-traces-hpa.yaml
+      - ingest-traces-deployment.yaml
     asserts:
-      - isKind:
-          of: HorizontalPodAutoscaler
-      - equal:
-          path: spec.minReplicas
-          value: 3
-      - equal:
-          path: spec.maxReplicas
-          value: 15
-      - equal:
-          path: spec.metrics[0].resource.target.averageUtilization
-          value: 70
-
-  - it: should not create HPA for traces when autoscaling disabled
-    set:
-      ingestTraces.enabled: true
-      ingestTraces.autoscaling.enabled: false
-    templates:
-      - ingest-traces-hpa.yaml
-    asserts:
-      - hasDocuments:
-          count: 0
+      - failedTemplate:
+          errorPattern: "HPA scaling mode is no longer supported"
 
   - it: should set correct termination grace periods for traces
     set:
@@ -296,20 +249,9 @@ tests:
           path: spec.triggers[0].metadata.query
           value: "SELECT COALESCE(COUNT(*), 0) FROM inqueue WHERE telemetry_type='traces' AND claimed_at IS NULL"
 
-  - it: should not create HPA for traces when KEDA mode is enabled
+  - it: should not create ScaledObject for traces when disabled mode is set
     set:
-      global.autoscaling.mode: keda
-      ingestTraces.enabled: true
-      database.lrdb.host: postgres.example.com
-    templates:
-      - ingest-traces-hpa.yaml
-    asserts:
-      - hasDocuments:
-          count: 0
-
-  - it: should not create ScaledObject for traces when HPA mode is enabled
-    set:
-      global.autoscaling.mode: hpa
+      global.autoscaling.mode: disabled
       ingestTraces.enabled: true
     templates:
       - ingest-traces-scaledobject.yaml
@@ -319,18 +261,14 @@ tests:
 
   - it: should support per-component scaling disable for traces
     set:
-      global.autoscaling.mode: hpa
+      global.autoscaling.mode: keda
+      database.lrdb.host: postgres.example.com
       ingestTraces.enabled: true
       ingestTraces.autoscaling.enabled: false
     templates:
       - ingest-traces-scaledobject.yaml
-      - ingest-traces-hpa.yaml
     asserts:
-      - template: ingest-traces-scaledobject.yaml
-        hasDocuments:
-          count: 0
-      - template: ingest-traces-hpa.yaml
-        hasDocuments:
+      - hasDocuments:
           count: 0
 
   - it: should not set replicas for traces when KEDA scaling is enabled
@@ -356,3 +294,36 @@ tests:
       - equal:
           path: spec.replicas
           value: 6
+
+  # Compact component tests
+  - it: should fail deployment for compact-logs when HPA mode is used
+    set:
+      global.autoscaling.mode: hpa
+      ingestLogs.enabled: false
+      ingestMetrics.enabled: false
+      ingestTraces.enabled: false
+      compactLogs.enabled: true
+      compactMetrics.enabled: false
+      compactTraces.enabled: false
+      rollupMetrics.enabled: false
+    templates:
+      - compact-logs-deployment.yaml
+    asserts:
+      - failedTemplate:
+          errorPattern: "HPA scaling mode is no longer supported"
+
+  - it: should fail deployment for compact-traces when HPA mode is used
+    set:
+      global.autoscaling.mode: hpa
+      ingestLogs.enabled: false
+      ingestMetrics.enabled: false
+      ingestTraces.enabled: false
+      compactLogs.enabled: false
+      compactMetrics.enabled: false
+      compactTraces.enabled: true
+      rollupMetrics.enabled: false
+    templates:
+      - compact-traces-deployment.yaml
+    asserts:
+      - failedTemplate:
+          errorPattern: "HPA scaling mode is no longer supported"

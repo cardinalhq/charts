@@ -1,4 +1,13 @@
 {{/*
+Validate that HPA mode is not used - fail deployment if it is
+*/}}
+{{- define "lakerunner.validateScalingMode" -}}
+{{- if eq .Values.global.autoscaling.mode "hpa" -}}
+{{- fail "HPA scaling mode is no longer supported. Please use 'keda' or 'disabled' for autoscaling.mode" -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
 Expand the name of the chart.
 */}}
 {{- define "lakerunner.name" -}}
