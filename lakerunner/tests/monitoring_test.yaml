@@ -1,0 +1,443 @@
+suite: test monitoring configuration
+values:
+  - ../values.yaml
+set:
+  aws.region: us-west-2
+templates:
+  - monitoring-deployment.yaml
+  - monitoring-service.yaml
+tests:
+  # Conditional Rendering Tests
+  - it: should render monitoring deployment when enabled
+    set:
+      monitoring.enabled: true
+    templates:
+      - monitoring-deployment.yaml
+    asserts:
+      - isKind:
+          of: Deployment
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-lakerunner-monitoring
+
+  - it: should render monitoring service when enabled
+    set:
+      monitoring.enabled: true
+    templates:
+      - monitoring-service.yaml
+    asserts:
+      - isKind:
+          of: Service
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-lakerunner-monitoring
+
+  - it: should not render monitoring resources when disabled
+    set:
+      monitoring.enabled: false
+    templates:
+      - monitoring-deployment.yaml
+      - monitoring-service.yaml
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  # Resource Configuration Tests
+  - it: should set default resources
+    set:
+      monitoring.enabled: true
+    templates:
+      - monitoring-deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].resources.requests.cpu
+          value: "100m"
+      - equal:
+          path: spec.template.spec.containers[0].resources.requests.memory
+          value: "80Mi"
+      - equal:
+          path: spec.template.spec.containers[0].resources.limits.cpu
+          value: "250m"
+      - equal:
+          path: spec.template.spec.containers[0].resources.limits.memory
+          value: "80Mi"
+
+  - it: should allow custom resource configuration
+    set:
+      monitoring.enabled: true
+      monitoring.resources:
+        requests:
+          cpu: "200m"
+          memory: "256Mi"
+        limits:
+          cpu: "500m"
+          memory: "512Mi"
+    templates:
+      - monitoring-deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].resources.requests.cpu
+          value: "200m"
+      - equal:
+          path: spec.template.spec.containers[0].resources.requests.memory
+          value: "256Mi"
+      - equal:
+          path: spec.template.spec.containers[0].resources.limits.cpu
+          value: "500m"
+      - equal:
+          path: spec.template.spec.containers[0].resources.limits.memory
+          value: "512Mi"
+
+  # Port Configuration Tests
+  - it: should configure default ports
+    set:
+      monitoring.enabled: true
+    templates:
+      - monitoring-deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].ports
+          content:
+            name: grpc
+            containerPort: 9090
+            protocol: TCP
+      - contains:
+          path: spec.template.spec.containers[0].ports
+          content:
+            name: http
+            containerPort: 8090
+            protocol: TCP
+
+  - it: should allow custom port configuration
+    set:
+      monitoring.enabled: true
+      monitoring.grpcPort: 9999
+      monitoring.httpPort: 8888
+    templates:
+      - monitoring-deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].ports
+          content:
+            name: grpc
+            containerPort: 9999
+            protocol: TCP
+      - contains:
+          path: spec.template.spec.containers[0].ports
+          content:
+            name: http
+            containerPort: 8888
+            protocol: TCP
+
+  - it: should pass ports as command arguments
+    set:
+      monitoring.enabled: true
+      monitoring.grpcPort: 9999
+      monitoring.httpPort: 8888
+    templates:
+      - monitoring-deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: "--grpc-port=9999"
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: "--port=8888"
+
+  - it: should expose only GRPC port in service
+    set:
+      monitoring.enabled: true
+    templates:
+      - monitoring-service.yaml
+    asserts:
+      - equal:
+          path: spec.ports[0].name
+          value: "keda"
+      - equal:
+          path: spec.ports[0].port
+          value: 9090
+      - equal:
+          path: spec.ports[0].targetPort
+          value: "grpc"
+      - lengthEqual:
+          path: spec.ports
+          count: 1
+
+  # Database Secret Configuration Tests
+  - it: should configure database environment variables
+    set:
+      monitoring.enabled: true
+      database.lrdb.host: "test-db-host"
+      database.lrdb.port: "5432"
+      database.lrdb.name: "test-db"
+      database.lrdb.username: "test-user"
+      database.lrdb.sslMode: "require"
+    templates:
+      - monitoring-deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: LRDB_HOST
+            value: "test-db-host"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: LRDB_PORT
+            value: "5432"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: LRDB_DBNAME
+            value: "test-db"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: LRDB_USER
+            value: "test-user"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: LRDB_SSLMODE
+            value: "require"
+
+  - it: should reference database password from secret
+    set:
+      monitoring.enabled: true
+      database.create: true
+      database.secretName: "postgresql-secret"
+      database.passwordKey: "password"
+    templates:
+      - monitoring-deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: LRDB_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: RELEASE-NAME-lakerunner-postgresql-secret
+                key: password
+
+  - it: should use existing secret name when database.create is false
+    set:
+      monitoring.enabled: true
+      database.create: false
+      database.secretName: "existing-db-secret"
+      database.passwordKey: "db-password"
+    templates:
+      - monitoring-deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: LRDB_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: existing-db-secret
+                key: db-password
+
+  # Health Check Configuration Tests
+  - it: should configure health checks
+    set:
+      monitoring.enabled: true
+    templates:
+      - monitoring-deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.httpGet.path
+          value: "/healthz"
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.httpGet.port
+          value: "http"
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.initialDelaySeconds
+          value: 10
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.httpGet.path
+          value: "/healthz"
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.httpGet.port
+          value: "http"
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.initialDelaySeconds
+          value: 5
+
+  # Security Context Tests
+  - it: should apply security context
+    set:
+      monitoring.enabled: true
+    templates:
+      - monitoring-deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.securityContext.runAsNonRoot
+          value: true
+      - equal:
+          path: spec.template.spec.securityContext.runAsUser
+          value: 65532
+      - equal:
+          path: spec.template.spec.securityContext.runAsGroup
+          value: 65532
+      - equal:
+          path: spec.template.spec.securityContext.fsGroup
+          value: 65532
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.allowPrivilegeEscalation
+          value: false
+      - contains:
+          path: spec.template.spec.containers[0].securityContext.capabilities.drop
+          content: "ALL"
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.seccompProfile.type
+          value: "RuntimeDefault"
+
+  # Image Configuration Tests
+  - it: should use default image
+    set:
+      monitoring.enabled: true
+    templates:
+      - monitoring-deployment.yaml
+    asserts:
+      - matchRegex:
+          path: spec.template.spec.containers[0].image
+          pattern: "^public\\.ecr\\.aws/cardinalhq\\.io/lakerunner:"
+
+  - it: should allow custom image configuration
+    set:
+      monitoring.enabled: true
+      monitoring.image:
+        repository: "custom.registry.io/monitoring"
+        tag: "v2.0.0"
+        pullPolicy: "Always"
+    templates:
+      - monitoring-deployment.yaml
+    asserts:
+      - matchRegex:
+          path: spec.template.spec.containers[0].image
+          pattern: "^custom\\.registry\\.io/monitoring:v2\\.0\\.0$"
+      - equal:
+          path: spec.template.spec.containers[0].imagePullPolicy
+          value: "Always"
+
+  # Command and Args Tests
+  - it: should configure correct command and args
+    set:
+      monitoring.enabled: true
+    templates:
+      - monitoring-deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].command[0]
+          value: "/app/bin/lakerunner"
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: "monitoring"
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: "serve"
+
+  # Replica Configuration Tests
+  - it: should set default replica count
+    set:
+      monitoring.enabled: true
+    templates:
+      - monitoring-deployment.yaml
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 1
+
+  - it: should allow custom replica count
+    set:
+      monitoring.enabled: true
+      monitoring.replicas: 3
+    templates:
+      - monitoring-deployment.yaml
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 3
+
+  # Service Configuration Tests
+  - it: should configure service type
+    set:
+      monitoring.enabled: true
+      monitoring.service.type: LoadBalancer
+    templates:
+      - monitoring-service.yaml
+    asserts:
+      - equal:
+          path: spec.type
+          value: LoadBalancer
+
+  # Labels and Selectors Tests
+  - it: should set correct labels and selectors
+    set:
+      monitoring.enabled: true
+    templates:
+      - monitoring-deployment.yaml
+    asserts:
+      - equal:
+          path: spec.selector.matchLabels["app.kubernetes.io/component"]
+          value: "monitoring"
+      - equal:
+          path: spec.template.metadata.labels["app.kubernetes.io/component"]
+          value: "monitoring"
+
+  - it: should match service selector with deployment labels
+    set:
+      monitoring.enabled: true
+    templates:
+      - monitoring-service.yaml
+    asserts:
+      - equal:
+          path: spec.selector["app.kubernetes.io/component"]
+          value: "monitoring"
+
+  # Environment Variables Tests
+  - it: should set OTEL_SERVICE_NAME
+    set:
+      monitoring.enabled: true
+    templates:
+      - monitoring-deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: OTEL_SERVICE_NAME
+            value: RELEASE-NAME-lakerunner-monitoring
+
+  - it: should set TMPDIR
+    set:
+      monitoring.enabled: true
+    templates:
+      - monitoring-deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: TMPDIR
+            value: /scratch
+
+  # Termination Grace Period Tests
+  - it: should set default terminationGracePeriodSeconds
+    set:
+      monitoring.enabled: true
+    templates:
+      - monitoring-deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.terminationGracePeriodSeconds
+          value: 30
+
+  - it: should allow custom terminationGracePeriodSeconds
+    set:
+      monitoring.enabled: true
+      monitoring.terminationGracePeriodSeconds: 60
+    templates:
+      - monitoring-deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.terminationGracePeriodSeconds
+          value: 60

@@ -586,6 +586,32 @@ sweeper:
   tolerations: []
   affinity: {}
 
+# Monitoring service configuration
+monitoring:
+  enabled: true
+  replicas: 1
+  grpcPort: 9090
+  httpPort: 8090
+  service:
+    type: ClusterIP
+  image:
+    repository: public.ecr.aws/cardinalhq.io/lakerunner
+    tag: ""
+    pullPolicy: ""
+  resources:
+    requests:
+      cpu: 100m
+      memory: 80Mi
+    limits:
+      cpu: 250m
+      memory: 80Mi
+  terminationGracePeriodSeconds: 30
+  labels: {}
+  annotations: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
 # PubSub configuration
 pubsub:
   HTTP:

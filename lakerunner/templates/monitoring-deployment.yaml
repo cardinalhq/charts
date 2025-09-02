@@ -1,0 +1,94 @@
+{{- if .Values.monitoring.enabled -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "lakerunner.fullname" . }}-monitoring
+  labels:
+    {{- include "lakerunner.labels" . | nindent 4 }}
+    app.kubernetes.io/component: monitoring
+  {{ include "lakerunner.annotations" . | nindent 2}}
+spec:
+  replicas: {{ .Values.monitoring.replicas }}
+  selector:
+    matchLabels:
+      {{- include "lakerunner.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: monitoring
+  template:
+    metadata:
+      labels:
+        {{- include "lakerunner.labels" . | nindent 8 }}
+        app.kubernetes.io/component: monitoring
+      {{- include "lakerunner.annotations" . | nindent 6 }}
+    spec:
+      serviceAccountName: {{ include "lakerunner.serviceAccountName" . }}
+      terminationGracePeriodSeconds: {{ .Values.monitoring.terminationGracePeriodSeconds }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+      {{- include "lakerunner.imagePullSecrets" . | nindent 6 }}
+      {{- include "lakerunner.sched.nodeSelector" (list .Values.global.nodeSelector .Values.monitoring.nodeSelector) | nindent 6 }}
+      {{- include "lakerunner.sched.tolerations"  (list .Values.global.tolerations  .Values.monitoring.tolerations)  | nindent 6 }}
+      {{- include "lakerunner.sched.affinity"     (list .Values.global.affinity     .Values.monitoring.affinity)     | nindent 6 }}
+      containers:
+      - name: monitoring
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop: ["ALL"]
+          seccompProfile:
+            type: RuntimeDefault
+        image: {{ include "lakerunner.image" (list .Values.monitoring.image .) }}
+        imagePullPolicy: {{ .Values.monitoring.image.pullPolicy | default .Values.global.image.pullPolicy }}
+        command: ["/app/bin/lakerunner"]
+        args: 
+          - "monitoring"
+          - "serve"
+          - "--grpc-port={{ .Values.monitoring.grpcPort }}"
+          - "--port={{ .Values.monitoring.httpPort }}"
+        ports:
+          - name: grpc
+            containerPort: {{ .Values.monitoring.grpcPort }}
+            protocol: TCP
+          - name: http
+            containerPort: {{ .Values.monitoring.httpPort }}
+            protocol: TCP
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: http
+          initialDelaySeconds: 10
+          periodSeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: http
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        env:
+          - name: OTEL_SERVICE_NAME
+            value: {{ include "lakerunner.fullname" . }}-monitoring
+          - name: TMPDIR
+            value: /scratch
+          # Database configuration
+          - name: LRDB_HOST
+            value: {{ .Values.database.lrdb.host | quote }}
+          - name: LRDB_PORT
+            value: {{ .Values.database.lrdb.port | quote }}
+          - name: LRDB_DBNAME
+            value: {{ .Values.database.lrdb.name | quote }}
+          - name: LRDB_USER
+            value: {{ .Values.database.lrdb.username | quote }}
+          - name: LRDB_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: {{ include "lakerunner.databaseSecretName" . }}
+                key: {{ .Values.database.passwordKey }}
+          - name: LRDB_SSLMODE
+            value: {{ .Values.database.lrdb.sslMode | quote }}
+          {{- include "lakerunner.injectEnv" (list . .Values.monitoring) | nindent 8 }}
+          {{- include "lakerunner.cardinalTelemetryEnv" . | nindent 10 }}
+        resources:
+          {{- toYaml .Values.monitoring.resources | nindent 10 }}
+{{- end }}
