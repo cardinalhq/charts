@@ -2,7 +2,7 @@
 {{- if not .Values.pubsub.SQS.queueURL -}}
 {{- fail "pubsub.SQS.queueURL is required when pubsub.SQS.enabled is true" -}}
 {{- end -}}
-{{- $sqsRegion := .Values.pubsub.SQS.region | default .Values.aws.region -}}
+{{- $sqsRegion := .Values.pubsub.SQS.region | default (include "lakerunner.awsRegion" .) -}}
 {{- if or (not $sqsRegion) (eq $sqsRegion "") (eq $sqsRegion "CHANGEME") (eq $sqsRegion "us-test-1") -}}
 {{- fail "pubsub.SQS.region (or aws.region as fallback) must be set to a valid AWS region when pubsub.SQS.enabled is true" -}}
 {{- end -}}
@@ -53,15 +53,15 @@ spec:
           - name: SQS_QUEUE_URL
             value: {{ .Values.pubsub.SQS.queueURL | quote }}
           - name: SQS_REGION
-            value: {{ .Values.pubsub.SQS.region | default .Values.aws.region | quote }}
+            value: {{ .Values.pubsub.SQS.region | default (include "lakerunner.awsRegion" .) | quote }}
           - name: SQS_ROLE_ARN
             value: {{ .Values.pubsub.SQS.roleARN | quote }}
           {{- include "lakerunner.injectEnv" (list . .Values.pubsub.SQS) | nindent 8 }}
           {{- include "lakerunner.cardinalTelemetryEnv" . | nindent 10 }}
-        {{- if .Values.aws.inject }}
+        {{- if eq (include "lakerunner.injectCloudProviderCredentials" .) "true" }}
         envFrom:
           - secretRef:
-              name: {{ include "lakerunner.awsSecretName" . }}
+              name: {{ include "lakerunner.cloudProviderSecretName" . }}
         {{- end }}
         resources:
           {{- toYaml .Values.pubsub.SQS.resources | nindent 10 }}

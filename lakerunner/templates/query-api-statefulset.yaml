@@ -1,6 +1,7 @@
 {{- if .Values.queryApi.enabled -}}
-{{- if or (not .Values.aws.region) (eq .Values.aws.region "") (eq .Values.aws.region "CHANGEME") (eq .Values.aws.region "us-test-1") -}}
-{{- fail "aws.region must be set to a valid AWS region when queryApi is enabled" -}}
+{{- $awsRegion := include "lakerunner.awsRegion" . -}}
+{{- if and (or (eq .Values.cloudProvider.provider "aws") (not .Values.cloudProvider.provider)) (or (not $awsRegion) (eq $awsRegion "") (eq $awsRegion "CHANGEME") (eq $awsRegion "us-test-1")) -}}
+{{- fail "AWS region must be set to a valid AWS region when queryApi is enabled and using AWS provider" -}}
 {{- end -}}
 apiVersion: apps/v1
 kind: StatefulSet
@@ -65,9 +66,9 @@ spec:
           - name: NUM_MAX_QUERY_WORKERS
             value: "{{ .Values.queryApi.maxWorkers }}"
           - name: SPRING_PROFILES_ACTIVE
-            value: aws
+            value: {{ include "lakerunner.springProfile" . }}
           - name: AWS_REGION
-            value: {{ .Values.aws.region | quote }}
+            value: {{ include "lakerunner.awsRegion" . | quote }}
           {{- if eq .Values.apiKeys.source "config" }}
           - name: API_KEYS_FILE
             value: /app/config/apikeys.yaml
@@ -87,9 +88,11 @@ spec:
             value: "app.kubernetes.io/name={{ include "lakerunner.name" . }},app.kubernetes.io/instance={{ .Release.Name }},app.kubernetes.io/component=query-worker"
           {{- include "lakerunner.injectEnv" (list . .Values.queryApi) | nindent 8 }}
           {{- include "lakerunner.cardinalTelemetryEnv" . | nindent 10 }}
+        {{- if eq (include "lakerunner.injectCloudProviderCredentials" .) "true" }}
         envFrom:
           - secretRef:
-              name: {{ include "lakerunner.awsSecretName" . }}
+              name: {{ include "lakerunner.cloudProviderSecretName" . }}
+        {{- end }}
         resources:
           {{- toYaml .Values.queryApi.resources | nindent 10 }}
         {{- if or (eq .Values.storageProfiles.source "config") (eq .Values.apiKeys.source "config") }}

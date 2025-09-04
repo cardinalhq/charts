@@ -307,6 +307,70 @@ Return the secret name for the AWS credentials.  If we have create true, we will
 {{- end }}
 
 {{/*
+Return the secret name for cloud provider credentials based on the configured provider.
+*/}}
+{{- define "lakerunner.cloudProviderSecretName" -}}
+{{- if eq .Values.cloudProvider.provider "aws" }}
+{{- if .Values.cloudProvider.aws.create }}
+{{- printf "%s-%s" (include "lakerunner.fullname" .) .Values.cloudProvider.aws.secretName | trunc 63 | trimSuffix "-" }}
+{{- else }}
+{{- .Values.cloudProvider.aws.secretName | trunc 63 | trimSuffix "-" }}
+{{- end }}
+{{- else if eq .Values.cloudProvider.provider "azure" }}
+{{- if .Values.cloudProvider.azure.create }}
+{{- printf "%s-%s" (include "lakerunner.fullname" .) .Values.cloudProvider.azure.secretName | trunc 63 | trimSuffix "-" }}
+{{- else }}
+{{- .Values.cloudProvider.azure.secretName | trunc 63 | trimSuffix "-" }}
+{{- end }}
+{{- else if eq .Values.cloudProvider.provider "gcp" }}
+{{- if .Values.cloudProvider.gcp.create }}
+{{- printf "%s-%s" (include "lakerunner.fullname" .) .Values.cloudProvider.gcp.secretName | trunc 63 | trimSuffix "-" }}
+{{- else }}
+{{- .Values.cloudProvider.gcp.secretName | trunc 63 | trimSuffix "-" }}
+{{- end }}
+{{- end }}
+{{- end }}
+
+{{/*
+Return whether cloud provider credentials should be injected into pods.
+*/}}
+{{- define "lakerunner.injectCloudProviderCredentials" -}}
+{{- $inject := false -}}
+{{- if eq .Values.cloudProvider.provider "aws" -}}
+{{- $inject = .Values.cloudProvider.aws.inject -}}
+{{- else if eq .Values.cloudProvider.provider "azure" -}}
+{{- $inject = .Values.cloudProvider.azure.inject -}}
+{{- else if eq .Values.cloudProvider.provider "gcp" -}}
+{{- $inject = .Values.cloudProvider.gcp.inject -}}
+{{- end -}}
+{{- $inject -}}
+{{- end }}
+
+{{/*
+Return Spring profile based on cloud provider.
+*/}}
+{{- define "lakerunner.springProfile" -}}
+{{- if eq .Values.cloudProvider.provider "azure" -}}
+azure
+{{- else -}}
+aws
+{{- end -}}
+{{- end }}
+
+{{/*
+Return AWS region for backwards compatibility and new cloudProvider structure.
+*/}}
+{{- define "lakerunner.awsRegion" -}}
+{{- if and (eq .Values.cloudProvider.provider "aws") .Values.cloudProvider.aws.region }}
+{{- .Values.cloudProvider.aws.region }}
+{{- else if and .Values.aws .Values.aws.region }}
+{{- .Values.aws.region }}
+{{- else }}
+{{- "" }}
+{{- end }}
+{{- end }}
+
+{{/*
 Return the secret name for the GCP credentials.  If we have create true, we will prefix it with the release name.
 */}}
 {{- define "lakerunner.gcpSecretName" -}}

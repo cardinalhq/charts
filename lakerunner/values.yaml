@@ -113,6 +113,71 @@ serviceAccount:
   # Optional.
   annotations: {}
 
+# Cloud provider configuration for storage operations
+# This section configures authentication for the cloud storage backend used by LakeRunner.
+# Choose the primary cloud provider and configure credentials accordingly.
+cloudProvider:
+  # Primary cloud provider for storage operations
+  # Options: "aws", "gcp", "azure"
+  # This determines which credentials are injected into all LakeRunner pods.
+  # Required.
+  provider: "aws"  # Change to "azure" or "gcp" based on your storage profiles
+
+  # AWS configuration (used when provider: "aws")
+  aws:
+    # AWS region for the deployment
+    # Required when using AWS provider
+    region: ""
+    
+    # Name of the Kubernetes secret that contains AWS credentials
+    # Secret should contain: AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY
+    secretName: "aws-credentials"
+    
+    # Whether to create the AWS credentials secret
+    create: false
+    
+    # Whether to inject AWS credentials into pods
+    # Set to false if using IAM roles (IRSA) or EC2 instance profiles
+    inject: true
+    
+    # AWS credentials (only used if create: true)
+    accessKeyId: ""
+    secretAccessKey: ""
+
+  # Azure configuration (used when provider: "azure")  
+  azure:
+    # Name of the Kubernetes secret that contains Azure credentials
+    # Secret should contain: AZURE_CLIENT_ID, AZURE_CLIENT_SECRET, AZURE_TENANT_ID
+    secretName: "azure-credentials"
+    
+    # Whether to create the Azure credentials secret
+    create: false
+    
+    # Whether to inject Azure credentials into pods
+    # Set to false if using Managed Identity or other Azure auth methods
+    inject: true
+    
+    # Azure service principal credentials (only used if create: true)
+    clientId: ""
+    clientSecret: ""
+    tenantId: ""
+
+  # GCP configuration (used when provider: "gcp")
+  gcp:
+    # Name of the Kubernetes secret that contains GCP credentials  
+    # Secret should contain: GOOGLE_APPLICATION_CREDENTIALS (service account JSON)
+    secretName: "gcp-credentials"
+    
+    # Whether to create the GCP credentials secret
+    create: false
+    
+    # Whether to inject GCP credentials into pods
+    # Set to false if using Workload Identity or other GCP auth methods
+    inject: true
+    
+    # GCP service account JSON (only used if create: true)
+    serviceAccountJson: ""
+
 # Set the AWS region and credentials for the LakeRunner deployment.
 # By default, the credentials are not created, and expected to be in an existing Kubernetes secret
 # with the keys `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`.
@@ -653,6 +718,34 @@ pubsub:
     # REQUIRED when enabled: Your GCP Pub/Sub subscription ID
     # Example: "my-subscription"
     subscriptionID: ""
+    image:
+      repository: public.ecr.aws/cardinalhq.io/lakerunner
+      tag: ""
+      pullPolicy: ""
+    resources:
+      requests:
+        cpu: 100m
+        memory: 200Mi
+      limits:
+        cpu: 200m
+        memory: 200Mi
+    terminationGracePeriodSeconds: 120
+    nodeSelector: {}
+    tolerations: []
+    affinity: {}
+    # Component-specific environment variables.
+    # This is a list of key-value pairs.
+    # Optional.
+    env: []
+  Azure:
+    enabled: false
+    replicas: 1
+    # REQUIRED when enabled: Your Azure Storage Account name
+    # Example: "mystorageaccount"
+    storageAccount: ""
+    # REQUIRED when enabled: Your Azure Storage Queue name
+    # Example: "sqs"
+    queueName: ""
     image:
       repository: public.ecr.aws/cardinalhq.io/lakerunner
       tag: ""

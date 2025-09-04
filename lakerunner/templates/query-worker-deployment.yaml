@@ -1,6 +1,7 @@
 {{- if .Values.queryWorker.enabled -}}
-{{- if or (not .Values.aws.region) (eq .Values.aws.region "") (eq .Values.aws.region "CHANGEME") (eq .Values.aws.region "us-test-1") -}}
-{{- fail "aws.region must be set to a valid AWS region when queryWorker is enabled" -}}
+{{- $awsRegion := include "lakerunner.awsRegion" . -}}
+{{- if and (or (eq .Values.cloudProvider.provider "aws") (not .Values.cloudProvider.provider)) (or (not $awsRegion) (eq $awsRegion "") (eq $awsRegion "CHANGEME") (eq $awsRegion "us-test-1")) -}}
+{{- fail "AWS region must be set to a valid AWS region when queryWorker is enabled and using AWS provider" -}}
 {{- end -}}
 apiVersion: apps/v1
 kind: Deployment
@@ -72,9 +73,9 @@ spec:
           - name: CARDINALHQ_ENVIRONMENT
             value: test
           - name: SPRING_PROFILES_ACTIVE
-            value: aws
+            value: {{ include "lakerunner.springProfile" . }}
           - name: AWS_REGION
-            value: {{ .Values.aws.region | quote }}
+            value: {{ include "lakerunner.awsRegion" . | quote }}
           {{- if eq .Values.apiKeys.source "config" }}
           - name: API_KEYS_FILE
             value: /app/config/apikeys.yaml
@@ -93,12 +94,14 @@ spec:
           - name: EXECUTION_ENVIRONMENT
             value: "kubernetes"
           - name: BLOB_STORE_PROVIDER
-            value: {{ if and .Values.storageProfiles.yaml (gt (len .Values.storageProfiles.yaml) 0) (eq (index .Values.storageProfiles.yaml 0).cloud_provider "gcp") }}"gs"{{ else }}"s3"{{ end }}
+            value: {{ if and .Values.storageProfiles.yaml (gt (len .Values.storageProfiles.yaml) 0) }}{{ if eq (index .Values.storageProfiles.yaml 0).cloud_provider "gcp" }}"gs"{{ else if eq (index .Values.storageProfiles.yaml 0).cloud_provider "azure" }}"azure"{{ else }}"s3"{{ end }}{{ else }}"s3"{{ end }}
           {{- include "lakerunner.injectEnv" (list . .Values.queryWorker) | nindent 8 }}
           {{- include "lakerunner.cardinalTelemetryEnv" . | nindent 10 }}
+        {{- if eq (include "lakerunner.injectCloudProviderCredentials" .) "true" }}
         envFrom:
           - secretRef:
-              name: {{ include "lakerunner.awsSecretName" . }}
+              name: {{ include "lakerunner.cloudProviderSecretName" . }}
+        {{- end }}
         resources:
           {{- toYaml .Values.queryWorker.resources | nindent 10 }}
         volumeMounts:
