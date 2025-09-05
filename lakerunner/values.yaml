@@ -165,7 +165,6 @@ cloudProvider:
   # GCP configuration (used when provider: "gcp")
   gcp:
     # Name of the Kubernetes secret that contains GCP credentials  
-    # Secret should contain: GOOGLE_APPLICATION_CREDENTIALS (service account JSON)
     secretName: "gcp-credentials"
     
     # Whether to create the GCP credentials secret
@@ -175,77 +174,15 @@ cloudProvider:
     # Set to false if using Workload Identity or other GCP auth methods
     inject: true
     
-    # GCP service account JSON (only used if create: true)
+    # GCP credentials (only used if create: true)
+    # Both credential types can be provided simultaneously:
+    
+    # Service account JSON for native GCP API access (e.g., Pub/Sub)
     serviceAccountJson: ""
-
-# Set the AWS region and credentials for the LakeRunner deployment.
-# By default, the credentials are not created, and expected to be in an existing Kubernetes secret
-# with the keys `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`.
-#
-# This is a limitation in the QueryAPI that we cannot currently pull this in through any other
-# means, as the DuckDB driver requires these to be actual keys.
-aws:
-  # AWS region for the LakeRunner deployment.
-  # Required only when using AWS-dependent components (queryApi, queryWorker, or SQS pubsub).
-  # Optional if only using GCP pubsub and HTTP pubsub.
-  region: "" # AWS region for the deployment - set to your actual region when using AWS components
-
-  # Name of the Kubernetes secret that contains the AWS credentials.
-  # This secret should contain the keys `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`.
-  # If `aws.create` is set to true, this secret will be created by the Helm chart.
-  # If `aws.create` is set to false, this secret must already exist in the Kubernetes cluster.
-  # The secret will have the format `<release-name>-aws-credentials`.
-  # If you want to use a different name, you can set it here.
-  # Required.
-  secretName: "aws-credentials"
-
-  # Whether to create the AWS credentials secret. If set to true, the secret will be created
-  # with the AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY from the values below.
-  # If set to false, the secret must already exist in the Kubernetes cluster.
-  create: false
-
-  # Only the data query pods need to have the actual credentials injected if
-  # credentials are provivided in some other manner, such as using EKS's
-  # IAM roles for service accounts (IRSA).  If you are using IRSA, set this to false.
-  # Note that regardless of this setting, the credentials will be injected into the
-  # data-query pods, and so the secret key and key ID must be set.
-  inject: true
-
-  # AWS credentials. If `aws.create` is set to true, these will be created in the
-  # Kubernetes secret specified by `aws.secretName`. If `aws.create` is false, these
-  # must be set in the Kubernetes secret specified by `aws.secretName`.
-  # Required if `aws.create` is true.
-  secretAccessKey: ""
-  accessKeyId: ""
-
-# Set the GCP credentials for the LakeRunner deployment.
-# By default, the credentials are not created, and expected to be in an existing Kubernetes secret
-# with the key `GOOGLE_APPLICATION_CREDENTIALS` containing the service account JSON.
-gcp:
-  # Name of the Kubernetes secret that contains the GCP credentials.
-  # This secret should contain the key `GOOGLE_APPLICATION_CREDENTIALS`.
-  # If `gcp.create` is set to true, this secret will be created by the Helm chart.
-  # If `gcp.create` is set to false, this secret must already exist in the Kubernetes cluster.
-  # The secret will have the format `<release-name>-gcp-credentials`.
-  # If you want to use a different name, you can set it here.
-  # Required.
-  secretName: "gcp-credentials"
-
-  # Whether to create the GCP credentials secret. If set to true, the secret will be created
-  # with the GOOGLE_APPLICATION_CREDENTIALS from the values below.
-  # If set to false, the secret must already exist in the Kubernetes cluster.
-  create: false
-
-  # Only the GCP pubsub pods need to have the actual credentials injected if
-  # credentials are provided in some other manner, such as using GKE's
-  # Workload Identity. If you are using Workload Identity, set this to false.
-  inject: true
-
-  # GCP service account credentials (JSON format). If `gcp.create` is set to true,
-  # this will be created in the Kubernetes secret specified by `gcp.secretName`.
-  # If `gcp.create` is false, this must be set in the Kubernetes secret specified by `gcp.secretName`.
-  # Required if `gcp.create` is true.
-  GOOGLE_APPLICATION_CREDENTIALS: ""
+    
+    # HMAC keys for S3-compatible GCS access (e.g., storage operations)
+    accessKeyId: ""
+    secretAccessKey: ""
 
 # Storage profile configuration
 # At least one storage profile is required for the LakeRunner to function.

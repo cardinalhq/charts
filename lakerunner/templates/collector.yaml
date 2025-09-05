@@ -33,6 +33,7 @@ spec:
       collectorName: {{ $storageProfile.collector_name }}
   env:
     {{- if eq (include "lakerunner.injectCloudProviderCredentials" .) "true" }}
+    {{- if eq .Values.cloudProvider.provider "aws" }}
     - name: AWS_ACCESS_KEY_ID
       valueFrom:
         secretKeyRef:
@@ -43,6 +44,43 @@ spec:
         secretKeyRef:
           name: {{ include "lakerunner.cloudProviderSecretName" . }}
           key: AWS_SECRET_ACCESS_KEY
+    {{- else if eq .Values.cloudProvider.provider "azure" }}
+    - name: AZURE_CLIENT_ID
+      valueFrom:
+        secretKeyRef:
+          name: {{ include "lakerunner.cloudProviderSecretName" . }}
+          key: AZURE_CLIENT_ID
+    - name: AZURE_CLIENT_SECRET
+      valueFrom:
+        secretKeyRef:
+          name: {{ include "lakerunner.cloudProviderSecretName" . }}
+          key: AZURE_CLIENT_SECRET
+    - name: AZURE_TENANT_ID
+      valueFrom:
+        secretKeyRef:
+          name: {{ include "lakerunner.cloudProviderSecretName" . }}
+          key: AZURE_TENANT_ID
+    {{- else if eq .Values.cloudProvider.provider "gcp" }}
+    {{- if .Values.cloudProvider.gcp.serviceAccountJson }}
+    - name: GOOGLE_APPLICATION_CREDENTIALS
+      valueFrom:
+        secretKeyRef:
+          name: {{ include "lakerunner.cloudProviderSecretName" . }}
+          key: GOOGLE_APPLICATION_CREDENTIALS
+    {{- end }}
+    {{- if and .Values.cloudProvider.gcp.accessKeyId .Values.cloudProvider.gcp.secretAccessKey }}
+    - name: AWS_ACCESS_KEY_ID
+      valueFrom:
+        secretKeyRef:
+          name: {{ include "lakerunner.cloudProviderSecretName" . }}
+          key: AWS_ACCESS_KEY_ID
+    - name: AWS_SECRET_ACCESS_KEY
+      valueFrom:
+        secretKeyRef:
+          name: {{ include "lakerunner.cloudProviderSecretName" . }}
+          key: AWS_SECRET_ACCESS_KEY
+    {{- end }}
+    {{- end }}
     {{- end }}
 {{- end }}
 {{- end }}

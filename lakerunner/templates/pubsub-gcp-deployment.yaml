@@ -55,10 +55,10 @@ spec:
             value: {{ .Values.pubsub.GCP.subscriptionID | quote }}
           {{- include "lakerunner.injectEnv" (list . .Values.pubsub.GCP) | nindent 8 }}
           {{- include "lakerunner.cardinalTelemetryEnv" . | nindent 10 }}
-        {{- if .Values.gcp.inject }}
+        {{- if eq (include "lakerunner.injectCloudProviderCredentials" .) "true" }}
         envFrom:
           - secretRef:
-              name: {{ include "lakerunner.gcpSecretName" . }}
+              name: {{ include "lakerunner.cloudProviderSecretName" . }}
         {{- end }}
         resources:
           {{- toYaml .Values.pubsub.GCP.resources | nindent 10 }}

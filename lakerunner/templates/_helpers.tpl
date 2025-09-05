@@ -295,16 +295,6 @@ Return the secret name for the ConfigDB credentials.  If we have create true, we
 {{- end }}
 {{- end }}
 
-{{/*
-Return the secret name for the AWS credentials.  If we have create true, we will prefix it with the release name.
-*/}}
-{{- define "lakerunner.awsSecretName" -}}
-{{- if .Values.aws.create }}
-{{- printf "%s-%s" (include "lakerunner.fullname" .) .Values.aws.secretName | trunc 63 | trimSuffix "-" }}
-{{- else }}
-{{- .Values.aws.secretName | trunc 63 | trimSuffix "-" }}
-{{- end }}
-{{- end }}
 
 {{/*
 Return the secret name for cloud provider credentials based on the configured provider.
@@ -358,28 +348,16 @@ aws
 {{- end }}
 
 {{/*
-Return AWS region for backwards compatibility and new cloudProvider structure.
+Return AWS region from cloudProvider configuration.
 */}}
 {{- define "lakerunner.awsRegion" -}}
 {{- if and (eq .Values.cloudProvider.provider "aws") .Values.cloudProvider.aws.region }}
 {{- .Values.cloudProvider.aws.region }}
-{{- else if and .Values.aws .Values.aws.region }}
-{{- .Values.aws.region }}
 {{- else }}
 {{- "" }}
 {{- end }}
 {{- end }}
 
-{{/*
-Return the secret name for the GCP credentials.  If we have create true, we will prefix it with the release name.
-*/}}
-{{- define "lakerunner.gcpSecretName" -}}
-{{- if .Values.gcp.create }}
-{{- printf "%s-%s" (include "lakerunner.fullname" .) .Values.gcp.secretName | trunc 63 | trimSuffix "-" }}
-{{- else }}
-{{- .Values.gcp.secretName | trunc 63 | trimSuffix "-" }}
-{{- end }}
-{{- end }}
 
 {{/*
 Merge two maps; keys in second take precedence.
