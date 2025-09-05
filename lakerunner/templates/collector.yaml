@@ -34,6 +34,7 @@ spec:
   env:
     {{- if eq (include "lakerunner.injectCloudProviderCredentials" .) "true" }}
     {{- if eq .Values.cloudProvider.provider "aws" }}
+    {{- if and .Values.cloudProvider.aws.accessKeyId .Values.cloudProvider.aws.secretAccessKey }}
     - name: AWS_ACCESS_KEY_ID
       valueFrom:
         secretKeyRef:
@@ -44,7 +45,9 @@ spec:
         secretKeyRef:
           name: {{ include "lakerunner.cloudProviderSecretName" . }}
           key: AWS_SECRET_ACCESS_KEY
+    {{- end }}
     {{- else if eq .Values.cloudProvider.provider "azure" }}
+    {{- if and .Values.cloudProvider.azure.clientId .Values.cloudProvider.azure.clientSecret .Values.cloudProvider.azure.tenantId }}
     - name: AZURE_CLIENT_ID
       valueFrom:
         secretKeyRef:
@@ -60,6 +63,7 @@ spec:
         secretKeyRef:
           name: {{ include "lakerunner.cloudProviderSecretName" . }}
           key: AZURE_TENANT_ID
+    {{- end }}
     {{- else if eq .Values.cloudProvider.provider "gcp" }}
     {{- if .Values.cloudProvider.gcp.serviceAccountJson }}
     - name: GOOGLE_APPLICATION_CREDENTIALS
