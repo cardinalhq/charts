@@ -123,42 +123,42 @@ cloudProvider:
   # Options: "aws", "gcp", "azure"
   # This determines which credentials are injected into all LakeRunner pods.
   # Required.
-  provider: "aws"  # Change to "azure" or "gcp" based on your storage profiles
+  provider: "aws" # Change to "azure" or "gcp" based on your storage profiles
 
   # AWS configuration (used when provider: "aws")
   aws:
     # AWS region for the deployment
     # Required when using AWS provider
     region: ""
-    
+
     # Name of the Kubernetes secret that contains AWS credentials
     # Secret should contain: AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY
     secretName: "aws-credentials"
-    
+
     # Whether to create the AWS credentials secret
     create: false
-    
+
     # Whether to inject AWS credentials into pods
     # Set to false if using IAM roles (IRSA) or EC2 instance profiles
     inject: true
-    
+
     # AWS credentials (only used if create: true)
     accessKeyId: ""
     secretAccessKey: ""
 
-  # Azure configuration (used when provider: "azure")  
+  # Azure configuration (used when provider: "azure")
   azure:
     # Name of the Kubernetes secret that contains Azure credentials
     # Secret should contain: AZURE_CLIENT_ID, AZURE_CLIENT_SECRET, AZURE_TENANT_ID
     secretName: "azure-credentials"
-    
+
     # Whether to create the Azure credentials secret
     create: false
-    
+
     # Whether to inject Azure credentials into pods
     # Set to false if using Managed Identity or other Azure auth methods
     inject: true
-    
+
     # Azure service principal credentials (only used if create: true)
     clientId: ""
     clientSecret: ""
@@ -166,22 +166,22 @@ cloudProvider:
 
   # GCP configuration (used when provider: "gcp")
   gcp:
-    # Name of the Kubernetes secret that contains GCP credentials  
+    # Name of the Kubernetes secret that contains GCP credentials
     secretName: "gcp-credentials"
-    
+
     # Whether to create the GCP credentials secret
     create: false
-    
+
     # Whether to inject GCP credentials into pods
     # Set to false if using Workload Identity or other GCP auth methods
     inject: true
-    
+
     # GCP credentials (only used if create: true)
     # Both credential types can be provided simultaneously:
-    
+
     # Service account JSON for native GCP API access (e.g., Pub/Sub)
     serviceAccountJson: ""
-    
+
     # HMAC keys for S3-compatible GCS access (e.g., storage operations)
     accessKeyId: ""
     secretAccessKey: ""
@@ -761,13 +761,15 @@ queryWorker:
   tolerations: []
   affinity: {}
 
+# Query API v2 configuration
 queryApiV2:
   enabled: false
-  # The number of replicas to run.  This is not used if autoscaling is enabled.
   replicas: 2
+  service:
+    type: ClusterIP
   image:
     repository: public.ecr.aws/cardinalhq.io/lakerunner
-    tag: "v0.0.0-newquery-rc2"
+    tag: "v1.3.0-rc6"
     pullPolicy: ""
   resources:
     requests:
@@ -776,24 +778,18 @@ queryApiV2:
     limits:
       cpu: 2000m
       memory: 8Gi
-  service:
-    type: ClusterIP
-  temporaryStorage:
-    size: "16Gi"
   terminationGracePeriodSeconds: 120
-  labels: {}
-  annotations: {}
   nodeSelector: {}
   tolerations: []
   affinity: {}
 
+# Query Worker v2 configuration
 queryWorkerV2:
   enabled: false
-  # The number of replicas to run.  This is not used if autoscaling is enabled.
-  replicas: 2
+  replicas: 3
   image:
     repository: public.ecr.aws/cardinalhq.io/lakerunner
-    tag: "v0.0.0-newquery-rc2"
+    tag: "v1.3.0-rc6"
     pullPolicy: ""
   resources:
     requests:
@@ -853,7 +849,7 @@ grafana:
   cardinalPlugin:
     # URL to the CardinalHQ LakeRunner datasource plugin
     # air-gapped deployments should download the plugin and provide a local path
-    url: "https://github.com/cardinalhq/cardinalhq-lakerunner-datasource/raw/refs/heads/main/cardinalhq-lakerunner-datasource.zip;cardinalhq-lakerunner-datasource"
+    url: "https://github.com/cardinalhq/cardinalhq-lakerunner-datasource/releases/latest/download/cardinalhq-lakerunner-datasource.zip;cardinalhq-lakerunner-datasource"
   # Additional optional Grafana plugins (semicolon-separated list)
   # These will be installed in addition to the required CardinalHQ plugin
   additionalPlugins: ""
