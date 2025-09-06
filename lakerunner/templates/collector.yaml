@@ -58,6 +58,11 @@ spec:
           key: AWS_SECRET_ACCESS_KEY
     {{- end }}
     {{- else if eq .Values.cloudProvider.provider "azure" }}
+    {{- $authType := .Values.cloudProvider.azure.authType | default "service_principal" }}
+    - name: AZURE_AUTH_TYPE
+      value: {{ $authType | quote }}
+    
+    {{- if eq $authType "service_principal" }}
     {{- if and .Values.cloudProvider.azure.clientId .Values.cloudProvider.azure.clientSecret .Values.cloudProvider.azure.tenantId }}
     - name: AZURE_CLIENT_ID
       valueFrom:
@@ -74,6 +79,48 @@ spec:
         secretKeyRef:
           name: {{ include "lakerunner.cloudProviderSecretName" . }}
           key: AZURE_TENANT_ID
+    {{- end }}
+    
+    {{- else if eq $authType "user_managed_identity" }}
+    {{- if .Values.cloudProvider.azure.clientId }}
+    - name: AZURE_CLIENT_ID
+      valueFrom:
+        secretKeyRef:
+          name: {{ include "lakerunner.cloudProviderSecretName" . }}
+          key: AZURE_CLIENT_ID
+    {{- end }}
+    
+    {{- else if eq $authType "workload_identity" }}
+    {{- if and .Values.cloudProvider.azure.clientId .Values.cloudProvider.azure.tenantId }}
+    - name: AZURE_CLIENT_ID
+      valueFrom:
+        secretKeyRef:
+          name: {{ include "lakerunner.cloudProviderSecretName" . }}
+          key: AZURE_CLIENT_ID
+    - name: AZURE_TENANT_ID
+      valueFrom:
+        secretKeyRef:
+          name: {{ include "lakerunner.cloudProviderSecretName" . }}
+          key: AZURE_TENANT_ID
+    - name: AZURE_FEDERATED_TOKEN_FILE
+      valueFrom:
+        secretKeyRef:
+          name: {{ include "lakerunner.cloudProviderSecretName" . }}
+          key: AZURE_FEDERATED_TOKEN_FILE
+    {{- end }}
+    
+    {{- else if eq $authType "connection_string" }}
+    {{- if .Values.cloudProvider.azure.connectionString }}
+    - name: AZURE_STORAGE_CONNECTION_STRING
+      valueFrom:
+        secretKeyRef:
+          name: {{ include "lakerunner.cloudProviderSecretName" . }}
+          key: AZURE_STORAGE_CONNECTION_STRING
+    {{- end }}
+    
+    {{- else if eq $authType "system_managed_identity" }}
+    # No environment variables needed for system managed identity
+    {{- end }}
     {{- end }}
     {{- else if eq .Values.cloudProvider.provider "gcp" }}
     {{- if .Values.cloudProvider.gcp.serviceAccountJson }}
@@ -96,6 +143,9 @@ spec:
           key: AWS_SECRET_ACCESS_KEY
     {{- end }}
     {{- end }}
+    {{- end }}
+    {{- if .Values.collector.env }}
+    {{- toYaml .Values.collector.env | nindent 4 }}
     {{- end }}
 {{- end }}
 {{- end }}

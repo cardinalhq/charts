@@ -48,7 +48,7 @@ tests:
     asserts:
       - matchRegex:
           path: spec.template.spec.containers[0].image
-          pattern: "^public.ecr.aws/cardinalhq.io/lakerunner/query-api:v[0-9]+\.[0-9]+\.[0-9]+.*$"
+          pattern: "^public.ecr.aws/cardinalhq.io/lakerunner/query-api-v2:v[0-9]+\.[0-9]+\.[0-9]+.*$"
 
   - it: should use versioned tags for query components
     templates:

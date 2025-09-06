@@ -29,7 +29,7 @@ data:
         {{- if .Values.grafana.cardinal.endpoint }}
         customPath: {{ .Values.grafana.cardinal.endpoint | quote }}
         {{- else }}
-        customPath: http://{{ include "lakerunner.fullname" . }}-query-api:7101
+        customPath: http://{{ include "lakerunner.fullname" . }}-query-api-v2:8080
         {{- end }}
       secureJsonData:
         apiKey: {{ .Values.grafana.cardinal.apiKey | quote }}
@@ -40,7 +40,7 @@ data:
     {{- if $updatedValue.datasources }}
       {{- range $dsIndex, $datasource := $updatedValue.datasources }}
         {{- if and $datasource.jsonData (not $datasource.jsonData.customPath) }}
-          {{- $_ := set $datasource.jsonData "customPath" (printf "http://%s-query-api:7101" (include "lakerunner.fullname" $)) }}
+          {{- $_ := set $datasource.jsonData "customPath" (printf "http://%s-query-api-v2:8080" (include "lakerunner.fullname" $)) }}
         {{- end }}
       {{- end }}
     {{- end }}

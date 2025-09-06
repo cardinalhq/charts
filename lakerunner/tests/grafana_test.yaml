@@ -87,19 +87,19 @@ tests:
           pattern: 'apiKey: "test-api-key-123"'
       - matchRegex:
           path: data["lakerunner.yaml"]
-          pattern: 'name: Cardinal'
+          pattern: "name: Cardinal"
       - matchRegex:
           path: data["lakerunner.yaml"]
-          pattern: 'type: cardinalhq-lakerunner-datasource'
+          pattern: "type: cardinalhq-lakerunner-datasource"
       - matchRegex:
           path: data["lakerunner.yaml"]
-          pattern: 'customPath: http://RELEASE-NAME-lakerunner-query-api:7101'
+          pattern: "customPath: http://RELEASE-NAME-lakerunner-query-api-v2:8080"
       - matchRegex:
           path: data["lakerunner.yaml"]
-          pattern: 'isDefault: true'
+          pattern: "isDefault: true"
       - matchRegex:
           path: data["lakerunner.yaml"]
-          pattern: 'editable: true'
+          pattern: "editable: true"
 
   - it: should allow custom cardinal endpoint configuration
     templates:
@@ -130,13 +130,13 @@ tests:
     asserts:
       - matchRegex:
           path: data["lakerunner.yaml"]
-          pattern: 'name: My Cardinal Instance'
+          pattern: "name: My Cardinal Instance"
       - matchRegex:
           path: data["lakerunner.yaml"]
-          pattern: 'isDefault: false'
+          pattern: "isDefault: false"
       - matchRegex:
           path: data["lakerunner.yaml"]
-          pattern: 'editable: false'
+          pattern: "editable: false"
       - matchRegex:
           path: data["lakerunner.yaml"]
           pattern: 'apiKey: "test-key-789"'
@@ -161,10 +161,10 @@ tests:
           pattern: 'apiKey: "cardinal-key"'
       - matchRegex:
           path: data["prometheus.yaml"]
-          pattern: 'name: Prometheus'
+          pattern: "name: Prometheus"
       - matchRegex:
           path: data["prometheus.yaml"]
-          pattern: 'type: prometheus'
+          pattern: "type: prometheus"
 
   - it: should fail when multiple replicas without external database
     templates:

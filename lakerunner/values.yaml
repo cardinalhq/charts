@@ -149,20 +149,32 @@ cloudProvider:
   # Azure configuration (used when provider: "azure")
   azure:
     # Name of the Kubernetes secret that contains Azure credentials
-    # Secret should contain: AZURE_CLIENT_ID, AZURE_CLIENT_SECRET, AZURE_TENANT_ID
+    # Secret contents vary based on authType
     secretName: "azure-credentials"
 
     # Whether to create the Azure credentials secret
     create: false
 
     # Whether to inject Azure credentials into pods
-    # Set to false if using Managed Identity or other Azure auth methods
+    # Set to false if using system managed identity without explicit configuration
     inject: true
-
-    # Azure service principal credentials (only used if create: true)
+    
+    # Azure authentication type
+    # Options: "service_principal", "user_managed_identity", "system_managed_identity", 
+    #          "workload_identity", "connection_string"
+    authType: "service_principal"
+    
+    # Azure service principal credentials (only used if authType: "service_principal")
     clientId: ""
     clientSecret: ""
     tenantId: ""
+    
+    # Connection string (only used if authType: "connection_string")
+    connectionString: ""
+    
+    # Federated token file path (only used if authType: "workload_identity")
+    # Default path for Azure Workload Identity webhook
+    federatedTokenFile: "/var/run/secrets/azure/tokens/azure-identity-token"
 
   # GCP configuration (used when provider: "gcp")
   gcp:
