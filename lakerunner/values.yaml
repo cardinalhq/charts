@@ -707,7 +707,7 @@ pubsub:
 
 # Query API configuration
 queryApi:
-  enabled: true
+  enabled: false
   replicas: 1
   minWorkers: 8
   maxWorkers: 8
@@ -734,7 +734,7 @@ queryApi:
 # We do not specify a number of replicas here, as the QueryAPI will scale the number of workers
 # based on the number of queries being processed.
 queryWorker:
-  enabled: true
+  enabled: false
   # Initial number of replicas for local development only.
   # This is only used when running locally and should be set to 0 for production.
   # The QueryAPI will still manage scaling based on minWorkers and maxWorkers.
@@ -763,21 +763,21 @@ queryWorker:
 
 # Query API v2 configuration
 queryApiV2:
-  enabled: false
+  enabled: true
   replicas: 2
   service:
     type: ClusterIP
   image:
     repository: public.ecr.aws/cardinalhq.io/lakerunner
-    tag: "v1.3.0-rc6"
+    tag: ""
     pullPolicy: ""
   resources:
     requests:
       cpu: 2000m
-      memory: 8Gi
+      memory: 2Gi
     limits:
       cpu: 2000m
-      memory: 8Gi
+      memory: 2Gi
   terminationGracePeriodSeconds: 120
   nodeSelector: {}
   tolerations: []
@@ -785,19 +785,19 @@ queryApiV2:
 
 # Query Worker v2 configuration
 queryWorkerV2:
-  enabled: false
-  replicas: 3
+  enabled: true
+  replicas: 5
   image:
     repository: public.ecr.aws/cardinalhq.io/lakerunner
-    tag: "v1.3.0-rc6"
+    tag: ""
     pullPolicy: ""
   resources:
     requests:
-      cpu: 3500m
-      memory: 12Gi
+      cpu: 2000m
+      memory: 6Gi
     limits:
-      cpu: 3500m
-      memory: 12Gi
+      cpu: 2000m
+      memory: 6Gi
   service:
     type: ClusterIP
   temporaryStorage:
