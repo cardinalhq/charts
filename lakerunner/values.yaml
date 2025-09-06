@@ -32,7 +32,8 @@ global:
       # Storage class to use for ephemeral volumes (leave empty for default storage class)
       storageClassName: ""
       # Additional labels to apply to ephemeral volume claim templates
-      labels: {}
+      labels:
+        {}
         # type: my-frontend-volume
   # Global autoscaling configuration
   autoscaling:
@@ -72,7 +73,8 @@ global:
   # A set of tolerations to apply to all pods.
   # This is standard Kubernetes toleration syntax.
   # Optional.
-  tolerations: []
+  tolerations:
+    []
     # - key: "spot"
     #   operator: "Equal"
     #   value: "true"
@@ -121,42 +123,42 @@ cloudProvider:
   # Options: "aws", "gcp", "azure"
   # This determines which credentials are injected into all LakeRunner pods.
   # Required.
-  provider: "aws"  # Change to "azure" or "gcp" based on your storage profiles
+  provider: "aws" # Change to "azure" or "gcp" based on your storage profiles
 
   # AWS configuration (used when provider: "aws")
   aws:
     # AWS region for the deployment
     # Required when using AWS provider
     region: ""
-    
+
     # Name of the Kubernetes secret that contains AWS credentials
     # Secret should contain: AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY
     secretName: "aws-credentials"
-    
+
     # Whether to create the AWS credentials secret
     create: false
-    
+
     # Whether to inject AWS credentials into pods
     # Set to false if using IAM roles (IRSA) or EC2 instance profiles
     inject: true
-    
+
     # AWS credentials (only used if create: true)
     accessKeyId: ""
     secretAccessKey: ""
 
-  # Azure configuration (used when provider: "azure")  
+  # Azure configuration (used when provider: "azure")
   azure:
     # Name of the Kubernetes secret that contains Azure credentials
     # Secret should contain: AZURE_CLIENT_ID, AZURE_CLIENT_SECRET, AZURE_TENANT_ID
     secretName: "azure-credentials"
-    
+
     # Whether to create the Azure credentials secret
     create: false
-    
+
     # Whether to inject Azure credentials into pods
     # Set to false if using Managed Identity or other Azure auth methods
     inject: true
-    
+
     # Azure service principal credentials (only used if create: true)
     clientId: ""
     clientSecret: ""
@@ -164,22 +166,22 @@ cloudProvider:
 
   # GCP configuration (used when provider: "gcp")
   gcp:
-    # Name of the Kubernetes secret that contains GCP credentials  
+    # Name of the Kubernetes secret that contains GCP credentials
     secretName: "gcp-credentials"
-    
+
     # Whether to create the GCP credentials secret
     create: false
-    
+
     # Whether to inject GCP credentials into pods
     # Set to false if using Workload Identity or other GCP auth methods
     inject: true
-    
+
     # GCP credentials (only used if create: true)
     # Both credential types can be provided simultaneously:
-    
+
     # Service account JSON for native GCP API access (e.g., Pub/Sub)
     serviceAccountJson: ""
-    
+
     # HMAC keys for S3-compatible GCS access (e.g., storage operations)
     accessKeyId: ""
     secretAccessKey: ""
@@ -336,10 +338,10 @@ ingestLogs:
     minReplicas: 1
     maxReplicas: 10
     keda:
-      pollingInterval: 30          # How often to check the queue (seconds)
-      cooldownPeriod: 300          # Wait time before scaling down (seconds)
-      targetQueueDepth: 100        # Scale up when queue depth exceeds this (logs process quickly)
-      activationQueueDepth: 10     # Start scaling when queue depth reaches this
+      pollingInterval: 30 # How often to check the queue (seconds)
+      cooldownPeriod: 300 # Wait time before scaling down (seconds)
+      targetQueueDepth: 100 # Scale up when queue depth exceeds this (logs process quickly)
+      activationQueueDepth: 10 # Start scaling when queue depth reaches this
   terminationGracePeriodSeconds: 600
   labels: {}
   annotations: {}
@@ -370,10 +372,10 @@ ingestMetrics:
     minReplicas: 1
     maxReplicas: 10
     keda:
-      pollingInterval: 30          # How often to check the queue (seconds)
-      cooldownPeriod: 300          # Wait time before scaling down (seconds)
-      targetQueueDepth: 150        # Higher threshold for metrics (more resource intensive)
-      activationQueueDepth: 20     # Start scaling when queue depth reaches this
+      pollingInterval: 30 # How often to check the queue (seconds)
+      cooldownPeriod: 300 # Wait time before scaling down (seconds)
+      targetQueueDepth: 150 # Higher threshold for metrics (more resource intensive)
+      activationQueueDepth: 20 # Start scaling when queue depth reaches this
   terminationGracePeriodSeconds: 600
   labels: {}
   annotations: {}
@@ -404,10 +406,10 @@ ingestTraces:
     minReplicas: 1
     maxReplicas: 10
     keda:
-      pollingInterval: 30          # How often to check the queue (seconds)
-      cooldownPeriod: 300          # Wait time before scaling down (seconds)
-      targetQueueDepth: 120        # Scale up when queue depth exceeds this (traces process moderately)
-      activationQueueDepth: 15     # Start scaling when queue depth reaches this
+      pollingInterval: 30 # How often to check the queue (seconds)
+      cooldownPeriod: 300 # Wait time before scaling down (seconds)
+      targetQueueDepth: 120 # Scale up when queue depth exceeds this (traces process moderately)
+      activationQueueDepth: 15 # Start scaling when queue depth reaches this
   terminationGracePeriodSeconds: 600
   labels: {}
   annotations: {}
@@ -438,10 +440,10 @@ compactLogs:
     minReplicas: 1
     maxReplicas: 10
     keda:
-      pollingInterval: 60          # Longer interval for batch work
-      cooldownPeriod: 600          # 10-minute cooldown for compaction
-      targetQueueDepth: 10         # Scale up when pending jobs exceed this
-      activationQueueDepth: 1      # Start scaling when any jobs are pending
+      pollingInterval: 60 # Longer interval for batch work
+      cooldownPeriod: 600 # 10-minute cooldown for compaction
+      targetQueueDepth: 10 # Scale up when pending jobs exceed this
+      activationQueueDepth: 1 # Start scaling when any jobs are pending
   terminationGracePeriodSeconds: 300
   labels: {}
   annotations: {}
@@ -472,10 +474,10 @@ compactMetrics:
     minReplicas: 1
     maxReplicas: 10
     keda:
-      pollingInterval: 60          # Longer interval for batch work
-      cooldownPeriod: 600          # 10-minute cooldown for compaction
-      targetQueueDepth: 10         # Scale up when pending jobs exceed this
-      activationQueueDepth: 1      # Start scaling when any jobs are pending
+      pollingInterval: 60 # Longer interval for batch work
+      cooldownPeriod: 600 # 10-minute cooldown for compaction
+      targetQueueDepth: 10 # Scale up when pending jobs exceed this
+      activationQueueDepth: 1 # Start scaling when any jobs are pending
   terminationGracePeriodSeconds: 300
   labels: {}
   annotations: {}
@@ -506,10 +508,10 @@ compactTraces:
     minReplicas: 1
     maxReplicas: 10
     keda:
-      pollingInterval: 60          # Longer interval for batch work
-      cooldownPeriod: 600          # 10-minute cooldown for compaction
-      targetQueueDepth: 10         # Scale up when pending jobs exceed this
-      activationQueueDepth: 1      # Start scaling when any jobs are pending
+      pollingInterval: 60 # Longer interval for batch work
+      cooldownPeriod: 600 # 10-minute cooldown for compaction
+      targetQueueDepth: 10 # Scale up when pending jobs exceed this
+      activationQueueDepth: 1 # Start scaling when any jobs are pending
   terminationGracePeriodSeconds: 300
   labels: {}
   annotations: {}
@@ -540,10 +542,10 @@ rollupMetrics:
     minReplicas: 1
     maxReplicas: 10
     keda:
-      pollingInterval: 60          # Longer interval for batch work
-      cooldownPeriod: 600          # 10-minute cooldown for rollup processing
-      targetQueueDepth: 15         # Scale up when pending jobs exceed this
-      activationQueueDepth: 2      # Start scaling when jobs are pending
+      pollingInterval: 60 # Longer interval for batch work
+      cooldownPeriod: 600 # 10-minute cooldown for rollup processing
+      targetQueueDepth: 15 # Scale up when pending jobs exceed this
+      activationQueueDepth: 2 # Start scaling when jobs are pending
   terminationGracePeriodSeconds: 300
   labels: {}
   annotations: {}
@@ -703,9 +705,57 @@ pubsub:
     # Optional.
     env: []
 
-# Query API configuration
-queryApi:
+# Query API v2 configuration
+queryApiV2:
   enabled: true
+  replicas: 2
+  service:
+    type: ClusterIP
+  image:
+    repository: public.ecr.aws/cardinalhq.io/lakerunner
+    tag: ""
+    pullPolicy: ""
+  resources:
+    requests:
+      cpu: 2000m
+      memory: 2Gi
+    limits:
+      cpu: 2000m
+      memory: 2Gi
+  terminationGracePeriodSeconds: 120
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+# Query Worker v2 configuration
+queryWorkerV2:
+  enabled: true
+  replicas: 5
+  image:
+    repository: public.ecr.aws/cardinalhq.io/lakerunner
+    tag: ""
+    pullPolicy: ""
+  resources:
+    requests:
+      cpu: 2000m
+      memory: 6Gi
+    limits:
+      cpu: 2000m
+      memory: 6Gi
+  service:
+    type: ClusterIP
+  temporaryStorage:
+    size: "16Gi"
+  terminationGracePeriodSeconds: 120
+  labels: {}
+  annotations: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+# Query API v1 (legacy) configuration - DEPRECATED
+queryApi:
+  enabled: false
   replicas: 1
   minWorkers: 8
   maxWorkers: 8
@@ -727,12 +777,12 @@ queryApi:
   tolerations: []
   affinity: {}
 
-# Query Worker configuration
+# Query Worker v1 (legacy) configuration - DEPRECATED
 #
 # We do not specify a number of replicas here, as the QueryAPI will scale the number of workers
 # based on the number of queries being processed.
 queryWorker:
-  enabled: true
+  enabled: false
   # Initial number of replicas for local development only.
   # This is only used when running locally and should be set to 0 for production.
   # The QueryAPI will still manage scaling based on minWorkers and maxWorkers.
@@ -762,7 +812,7 @@ queryWorker:
 # Grafana configuration
 grafana:
   enabled: true
-  replicas: 1  # For replicas > 1, configure external database via grafana.env (see Grafana docs)
+  replicas: 1 # For replicas > 1, configure external database via grafana.env (see Grafana docs)
   # CardinalHQ LakeRunner datasource configuration
   # This provides a simplified way to configure the Cardinal datasource
   # Required.
@@ -799,7 +849,7 @@ grafana:
   cardinalPlugin:
     # URL to the CardinalHQ LakeRunner datasource plugin
     # air-gapped deployments should download the plugin and provide a local path
-    url: "https://github.com/cardinalhq/cardinalhq-lakerunner-datasource/raw/refs/heads/main/cardinalhq-lakerunner-datasource.zip;cardinalhq-lakerunner-datasource"
+    url: "https://github.com/cardinalhq/cardinalhq-lakerunner-datasource/releases/latest/download/cardinalhq-lakerunner-datasource.zip;cardinalhq-lakerunner-datasource"
   # Additional optional Grafana plugins (semicolon-separated list)
   # These will be installed in addition to the required CardinalHQ plugin
   additionalPlugins: ""
