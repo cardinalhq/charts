@@ -148,4 +148,3 @@ spec:
     {{- toYaml .Values.collector.env | nindent 4 }}
     {{- end }}
 {{- end }}
-{{- end }}
