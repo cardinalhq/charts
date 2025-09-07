@@ -60,10 +60,10 @@ spec:
             value: "app.kubernetes.io/name={{ include "lakerunner.name" . }},app.kubernetes.io/component=query-worker-v2"
           {{- include "lakerunner.injectEnv" (list . .Values.queryApiV2) | nindent 8 }}
           {{- include "lakerunner.cardinalTelemetryEnv" . | nindent 10 }}
-        {{- if .Values.aws.inject }}
+        {{- if eq (include "lakerunner.injectCloudProviderCredentials" .) "true" }}
         envFrom:
           - secretRef:
-              name: {{ include "lakerunner.awsSecretName" . }}
+              name: {{ include "lakerunner.cloudProviderSecretName" . }}
         {{- end }}
         resources:
           {{- toYaml .Values.queryApiV2.resources | nindent 10 }}
