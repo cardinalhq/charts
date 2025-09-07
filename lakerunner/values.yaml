@@ -734,6 +734,8 @@ queryApiV2:
     limits:
       cpu: 2000m
       memory: 2Gi
+  temporaryStorage:
+    size: "16Gi"
   terminationGracePeriodSeconds: 120
   nodeSelector: {}
   tolerations: []
