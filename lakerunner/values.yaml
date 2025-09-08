@@ -158,20 +158,20 @@ cloudProvider:
     # Whether to inject Azure credentials into pods
     # Set to false if using system managed identity without explicit configuration
     inject: true
-    
+
     # Azure authentication type
-    # Options: "service_principal", "user_managed_identity", "system_managed_identity", 
+    # Options: "service_principal", "user_managed_identity", "system_managed_identity",
     #          "workload_identity", "connection_string"
     authType: "service_principal"
-    
+
     # Azure service principal credentials (only used if authType: "service_principal")
     clientId: ""
     clientSecret: ""
     tenantId: ""
-    
+
     # Connection string (only used if authType: "connection_string")
     connectionString: ""
-    
+
     # Federated token file path (only used if authType: "workload_identity")
     # Default path for Azure Workload Identity webhook
     federatedTokenFile: "/var/run/secrets/azure/tokens/azure-identity-token"
@@ -878,7 +878,7 @@ grafana:
   cardinalPlugin:
     # URL to the CardinalHQ LakeRunner datasource plugin
     # air-gapped deployments should download the plugin and provide a local path
-    url: "https://github.com/cardinalhq/cardinalhq-lakerunner-datasource/releases/latest/download/cardinalhq-lakerunner-datasource.zip;cardinalhq-lakerunner-datasource"
+    url: "https://github.com/cardinalhq/cardinalhq-lakerunner-datasource/releases/download/v1.2.0-rc.3/cardinalhq-lakerunner-datasource.zip;cardinalhq-lakerunner-datasource"
   # Additional optional Grafana plugins (semicolon-separated list)
   # These will be installed in addition to the required CardinalHQ plugin
   additionalPlugins: ""
