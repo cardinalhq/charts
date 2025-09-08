@@ -69,6 +69,8 @@ spec:
             value: "admin"
           - name: GF_SERVER_HTTP_PORT
             value: "3000"
+          - name: GF_SECURITY_ALLOW_EMBEDDING
+            value: "true"
           - name: GF_INSTALL_PLUGINS
             value: {{ if .Values.grafana.additionalPlugins }}{{ printf "%s,%s" .Values.grafana.cardinalPlugin.url .Values.grafana.additionalPlugins | quote }}{{ else }}{{ .Values.grafana.cardinalPlugin.url | quote }}{{ end }}
           - name: GF_SERVER_ROOT_URL
