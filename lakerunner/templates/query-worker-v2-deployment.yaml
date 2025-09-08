@@ -50,10 +50,14 @@ spec:
             value: /scratch
           {{- include "lakerunner.injectEnv" (list . .Values.queryWorkerV2) | nindent 8 }}
           {{- include "lakerunner.cardinalTelemetryEnv" . | nindent 10 }}
-        {{- if eq (include "lakerunner.injectCloudProviderCredentials" .) "true" }}
         envFrom:
+        {{- if eq (include "lakerunner.injectCloudProviderCredentials" .) "true" }}
           - secretRef:
               name: {{ include "lakerunner.cloudProviderSecretName" . }}
+        {{- end }}
+        {{- if .Values.cloudProvider.duckdb }}
+          - secretRef:
+              name: {{ include "lakerunner.duckdbSecretName" . }}
         {{- end }}
         resources:
           {{- toYaml .Values.queryWorkerV2.resources | nindent 10 }}

@@ -198,6 +198,21 @@ cloudProvider:
     accessKeyId: ""
     secretAccessKey: ""
 
+  # DuckDB configuration (used by query-worker-v2 for S3 access)
+  # DuckDB always requires explicit S3 credentials
+  duckdb:
+    # Name of the Kubernetes secret that contains DuckDB S3 credentials
+    # Secret should contain: S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY
+    secretName: "duckdb-credentials"
+
+    # Whether to create the DuckDB credentials secret
+    create: false
+
+    # S3 credentials for DuckDB (only used if create: true)
+    # These can be the same as your cloud provider credentials or separate read-only keys
+    accessKeyId: ""
+    secretAccessKey: ""
+
 # Storage profile configuration
 # At least one storage profile is required for the LakeRunner to function.
 # Required.
