@@ -25,23 +25,22 @@ spec:
   collectorName: {{ $storageProfile.collector_name }}
   apiKeySecretRef: {{ include "lakerunner.fullname" . }}-cardinal-api-key
   features:
-    {{- if eq $storageProfile.cloud_provider "azure" }}
+{{- if eq $storageProfile.cloud_provider "azure" }}
     azureblobexporter:
       container: {{ $storageProfile.bucket }}
-      {{- if $storageProfile.endpoint }}
+{{- if $storageProfile.endpoint }}
       endpoint: {{ $storageProfile.endpoint }}
-      {{- end }}
+{{- end }}
       organizationId: {{ $storageProfile.organization_id }}
       collectorName: {{ $storageProfile.collector_name }}
-    {{- else }}
-    {{- /* AWS and GCP both use awss3 exporter */ -}}
+{{- else }}
     awss3:
       provider: {{ $storageProfile.cloud_provider }}
       bucket: {{ $storageProfile.bucket }}
       region: {{ $storageProfile.region }}
       organizationId: {{ $storageProfile.organization_id }}
       collectorName: {{ $storageProfile.collector_name }}
-    {{- end }}
+{{- end }}
   env:
     {{- if eq (include "lakerunner.injectCloudProviderCredentials" .) "true" }}
     {{- if eq .Values.cloudProvider.provider "aws" }}
