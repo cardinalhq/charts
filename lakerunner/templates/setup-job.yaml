@@ -39,7 +39,7 @@ spec:
         image: {{ include "lakerunner.image" (list .Values.setup.image .) }}
         imagePullPolicy: {{ .Values.setup.image.pullPolicy | default .Values.global.image.pullPolicy }}
         command: ["/app/bin/lakerunner"]
-        args: ["migrate"]
+        args: ["setup"]
         env:
           - name: OTEL_SERVICE_NAME
             value: {{ include "lakerunner.fullname" . }}-setup
@@ -47,7 +47,7 @@ spec:
           {{- include "lakerunner.cardinalTelemetryEnv" . | nindent 10 }}
         resources:
           {{- toYaml .Values.setup.resources | nindent 10 }}
-        {{- if or (eq .Values.storageProfiles.source "config") (eq .Values.apiKeys.source "config") }}
+        {{- if or (eq .Values.storageProfiles.source "config") (eq .Values.apiKeys.source "config") .Values.setup.kafka.enabled }}
         volumeMounts:
         {{- if eq .Values.storageProfiles.source "config" }}
         - name: storage-profiles
@@ -61,8 +61,14 @@ spec:
           subPath: apikeys.yaml
           readOnly: true
         {{- end }}
+        {{- if .Values.setup.kafka.enabled }}
+        - name: kafka-setup
+          mountPath: /app/config/kafka-setup.yaml
+          subPath: kafka-setup.yaml
+          readOnly: true
         {{- end }}
-      {{- if or (eq .Values.storageProfiles.source "config") (eq .Values.apiKeys.source "config") }}
+        {{- end }}
+      {{- if or (eq .Values.storageProfiles.source "config") (eq .Values.apiKeys.source "config") .Values.setup.kafka.enabled }}
       volumes:
       {{- if eq .Values.storageProfiles.source "config" }}
       - name: storage-profiles
@@ -73,6 +79,11 @@ spec:
       - name: apikeys
         secret:
           secretName: {{ include "lakerunner.apiKeysSecretName" . }}
+      {{- end }}
+      {{- if .Values.setup.kafka.enabled }}
+      - name: kafka-setup
+        configMap:
+          name: {{ include "lakerunner.fullname" . }}-kafka-setup
       {{- end }}
       {{- end }}
   backoffLimit: 0
