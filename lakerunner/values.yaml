@@ -266,6 +266,7 @@ storageProfiles:
     #   cloud_provider: "aws"
     #   region: "us-east-2"
     #   bucket: "datalake-11ndajkhk"
+    #   endpoint: ""
     #   use_path_style: true
 
 # API keys are used to control access to the data lake through the data-api service.
