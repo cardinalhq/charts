@@ -47,7 +47,7 @@ spec:
           {{- include "lakerunner.cardinalTelemetryEnv" . | nindent 10 }}
         resources:
           {{- toYaml .Values.setup.resources | nindent 10 }}
-        {{- if or (eq .Values.storageProfiles.source "config") (eq .Values.apiKeys.source "config") .Values.setup.kafka.enabled }}
+        {{- if or (eq .Values.storageProfiles.source "config") (eq .Values.apiKeys.source "config") (and .Values.setup.kafka.enabled (eq .Values.kafkaTopics.source "config")) }}
         volumeMounts:
         {{- if eq .Values.storageProfiles.source "config" }}
         - name: storage-profiles
@@ -61,14 +61,14 @@ spec:
           subPath: apikeys.yaml
           readOnly: true
         {{- end }}
-        {{- if .Values.setup.kafka.enabled }}
-        - name: kafka-setup
-          mountPath: /app/config/kafka-setup.yaml
-          subPath: kafka-setup.yaml
+        {{- if and .Values.setup.kafka.enabled (eq .Values.kafkaTopics.source "config") }}
+        - name: kafka-topics
+          mountPath: /app/config/kafka_topics.yaml
+          subPath: kafka_topics.yaml
           readOnly: true
         {{- end }}
         {{- end }}
-      {{- if or (eq .Values.storageProfiles.source "config") (eq .Values.apiKeys.source "config") .Values.setup.kafka.enabled }}
+      {{- if or (eq .Values.storageProfiles.source "config") (eq .Values.apiKeys.source "config") (and .Values.setup.kafka.enabled (eq .Values.kafkaTopics.source "config")) }}
       volumes:
       {{- if eq .Values.storageProfiles.source "config" }}
       - name: storage-profiles
@@ -80,10 +80,10 @@ spec:
         secret:
           secretName: {{ include "lakerunner.apiKeysSecretName" . }}
       {{- end }}
-      {{- if .Values.setup.kafka.enabled }}
-      - name: kafka-setup
+      {{- if and .Values.setup.kafka.enabled (eq .Values.kafkaTopics.source "config") }}
+      - name: kafka-topics
         configMap:
-          name: {{ include "lakerunner.fullname" . }}-kafka-setup
+          name: {{ include "lakerunner.kafkaTopicsConfigmapName" . }}
       {{- end }}
       {{- end }}
   backoffLimit: 0

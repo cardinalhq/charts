@@ -1,12 +1,12 @@
-{{- if .Values.setup.kafka.enabled }}
+{{ if eq .Values.kafkaTopics.source "config" }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ include "lakerunner.fullname" . }}-kafka-setup
+  name: {{ include "lakerunner.kafkaTopicsConfigmapName" . }}
   labels:
     {{- include "lakerunner.labels" . | nindent 4 }}
   {{ include "lakerunner.annotations" . | nindent 2 }}
 data:
-  kafka-setup.yaml: |
-    {{- toYaml .Values.setup.kafka | nindent 4 }}
-{{- end }}
+  kafka_topics.yaml: |
+{{ .Values.kafkaTopics.yaml | toYaml | indent 6 }}
+{{ end }}

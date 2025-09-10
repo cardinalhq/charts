@@ -274,6 +274,17 @@ Return the configmap name for the Storage Profiles.  If we have create true, we 
 {{- end }}
 
 {{/*
+Return the configmap name for the Kafka Topics.  If we have create true, we will prefix it with the release name.
+*/}}
+{{- define "lakerunner.kafkaTopicsConfigmapName" -}}
+{{- if .Values.kafkaTopics.create }}
+{{- printf "%s-%s" (include "lakerunner.fullname" .) .Values.kafkaTopics.configmapName | trunc 63 | trimSuffix "-" }}
+{{- else }}
+{{- .Values.kafkaTopics.configmapName | trunc 63 | trimSuffix "-" }}
+{{- end }}
+{{- end }}
+
+{{/*
 Return the secret name for the Database credentials.  If we have create true, we will prefix it with the release name.
 */}}
 {{- define "lakerunner.databaseSecretName" -}}
