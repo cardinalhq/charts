@@ -454,7 +454,7 @@ ingestMetrics:
 
 # Ingest Traces configuration
 ingestTraces:
-  enabled: true
+  enabled: false
   # The number of replicas to run.  This is not used if autoscaling is enabled.
   replicas: 2
   image:
