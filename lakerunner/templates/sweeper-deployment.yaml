@@ -44,6 +44,18 @@ spec:
         command: ["/app/bin/lakerunner"]
         args: ["sweeper"]
         env:
+          - name: POD_NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          - name: POD_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name
+          - name: POD_IP
+            valueFrom:
+              fieldRef:
+                fieldPath: status.podIP
           - name: OTEL_SERVICE_NAME
             value: {{ include "lakerunner.fullname" . }}-sweeper
           - name: TMPDIR
