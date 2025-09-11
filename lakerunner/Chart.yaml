@@ -3,7 +3,7 @@ name: lakerunner
 description: A Helm chart for LakeRunner - a log and metrics processing platform
 type: application
 version: 0.8.5-rc2
-appVersion: "v1.3.3"
+appVersion: "v1.3.4-rc12"
 keywords:
   - lakerunner
   - logs
