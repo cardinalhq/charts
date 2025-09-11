@@ -22,6 +22,9 @@ spec:
       labels:
         {{- include "lakerunner.labelsWithComponent" (list . .Values.ingestLogs.labels) | nindent 8 }}
         app.kubernetes.io/component: ingest-logs
+        {{- if eq .Values.cloudProvider.azure.authType "workload_identity" }}
+        azure.workload.identity/use: "true"
+        {{- end }}
       {{- include "lakerunner.annotationsWithComponent" (list . .Values.ingestLogs.annotations) | nindent 6 }}
     spec:
       serviceAccountName: {{ include "lakerunner.serviceAccountName" . }}
@@ -61,6 +64,10 @@ spec:
             value: {{ include "lakerunner.fullname" . }}-ingest-logs
           - name: TMPDIR
             value: /scratch
+          {{- if eq .Values.cloudProvider.provider "azure" }}
+          - name: AZURE_AUTH_TYPE
+            value: {{ .Values.cloudProvider.azure.authType | quote }}
+          {{- end }}
           {{- include "lakerunner.injectEnv" (list . .Values.ingestLogs) | nindent 8 }}
           {{- include "lakerunner.cardinalTelemetryEnv" . | nindent 10 }}
         {{- if eq (include "lakerunner.injectCloudProviderCredentials" .) "true" }}

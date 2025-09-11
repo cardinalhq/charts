@@ -18,6 +18,9 @@ spec:
       labels:
         {{- include "lakerunner.labels" . | nindent 8 }}
         app.kubernetes.io/component: query-worker-v2
+        {{- if eq .Values.cloudProvider.azure.authType "workload_identity" }}
+        azure.workload.identity/use: "true"
+        {{- end }}
       {{- include "lakerunner.annotations" . | nindent 6 }}
     spec:
       serviceAccountName: {{ include "lakerunner.serviceAccountName" . }}
@@ -60,6 +63,10 @@ spec:
             value: {{ include "lakerunner.fullname" . }}-query-worker-v2
           - name: TMPDIR
             value: /scratch
+          {{- if eq .Values.cloudProvider.provider "azure" }}
+          - name: AZURE_AUTH_TYPE
+            value: {{ .Values.cloudProvider.azure.authType | quote }}
+          {{- end }}
           {{- include "lakerunner.injectEnv" (list . .Values.queryWorker) | nindent 8 }}
           {{- include "lakerunner.cardinalTelemetryEnv" . | nindent 10 }}
         envFrom:

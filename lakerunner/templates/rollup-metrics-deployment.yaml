@@ -22,6 +22,9 @@ spec:
       labels:
         {{- include "lakerunner.labels" . | nindent 8 }}
         app.kubernetes.io/component: rollup-metrics
+        {{- if eq .Values.cloudProvider.azure.authType "workload_identity" }}
+        azure.workload.identity/use: "true"
+        {{- end }}
       {{- include "lakerunner.annotations" . | nindent 6 }}
     spec:
       serviceAccountName: {{ include "lakerunner.serviceAccountName" . }}
@@ -64,6 +67,10 @@ spec:
             value: {{ include "lakerunner.fullname" . }}-rollup-metrics
           - name: TMPDIR
             value: /scratch
+          {{- if eq .Values.cloudProvider.provider "azure" }}
+          - name: AZURE_AUTH_TYPE
+            value: {{ .Values.cloudProvider.azure.authType | quote }}
+          {{- end }}
           {{- include "lakerunner.injectEnv" (list . .Values.rollupMetrics) | nindent 8 }}
           {{- include "lakerunner.cardinalTelemetryEnv" . | nindent 10 }}
         {{- if eq (include "lakerunner.injectCloudProviderCredentials" .) "true" }}

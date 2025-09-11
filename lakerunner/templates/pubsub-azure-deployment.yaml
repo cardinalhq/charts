@@ -24,6 +24,9 @@ spec:
       labels:
         {{- include "lakerunner.labels" . | nindent 8 }}
         app.kubernetes.io/component: pubsub-azure
+        {{- if eq .Values.cloudProvider.azure.authType "workload_identity" }}
+        azure.workload.identity/use: "true"
+        {{- end }}
       {{- include "lakerunner.annotations" . | nindent 6 }}
     spec:
       serviceAccountName: {{ include "lakerunner.serviceAccountName" . }}
