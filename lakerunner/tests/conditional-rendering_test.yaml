@@ -2,11 +2,11 @@ suite: test conditional rendering
 values:
   - ../values.yaml
 set:
-  aws.region: us-west-2
+  cloudProvider.aws.region: us-west-2
 templates:
   - setup-job.yaml
-  - query-api-statefulset.yaml
-  - query-worker-deployment.yaml
+  - query-api-v2-deployment.yaml
+  - query-worker-v2-deployment.yaml
   - grafana-deployment.yaml
   - ingest-logs-deployment.yaml
   - ingest-metrics-deployment.yaml
@@ -40,16 +40,34 @@ tests:
     set:
       queryApi.enabled: true
     templates:
-      - query-api-statefulset.yaml
+      - query-api-v2-deployment.yaml
     asserts:
       - isKind:
-          of: StatefulSet
+          of: Deployment
 
   - it: should not render query api when disabled
     set:
       queryApi.enabled: false
     templates:
-      - query-api-statefulset.yaml
+      - query-api-v2-deployment.yaml
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should render query worker when enabled
+    set:
+      queryWorker.enabled: true
+    templates:
+      - query-worker-v2-deployment.yaml
+    asserts:
+      - isKind:
+          of: Deployment
+
+  - it: should not render query worker when disabled
+    set:
+      queryWorker.enabled: false
+    templates:
+      - query-worker-v2-deployment.yaml
     asserts:
       - hasDocuments:
           count: 0

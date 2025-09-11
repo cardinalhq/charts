@@ -774,8 +774,8 @@ pubsub:
     # Optional.
     env: []
 
-# Query API v2 configuration
-queryApiV2:
+# Query API configuration
+queryApi:
   enabled: true
   replicas: 2
   service:
@@ -798,8 +798,8 @@ queryApiV2:
   tolerations: []
   affinity: {}
 
-# Query Worker v2 configuration
-queryWorkerV2:
+# Query Worker configuration
+queryWorker:
   enabled: true
   replicas: 5
   image:
@@ -824,61 +824,6 @@ queryWorkerV2:
   tolerations: []
   affinity: {}
 
-# Query API v1 (legacy) configuration - DEPRECATED
-queryApi:
-  enabled: false
-  replicas: 1
-  minWorkers: 8
-  maxWorkers: 8
-  service:
-    type: ClusterIP
-  image:
-    repository: public.ecr.aws/cardinalhq.io/lakerunner/query-api
-    tag: "v1.2.1"
-    pullPolicy: ""
-  resources:
-    requests:
-      cpu: 2000m
-      memory: 8Gi
-    limits:
-      cpu: 2000m
-      memory: 8Gi
-  terminationGracePeriodSeconds: 120
-  nodeSelector: {}
-  tolerations: []
-  affinity: {}
-
-# Query Worker v1 (legacy) configuration - DEPRECATED
-#
-# We do not specify a number of replicas here, as the QueryAPI will scale the number of workers
-# based on the number of queries being processed.
-queryWorker:
-  enabled: false
-  # Initial number of replicas for local development only.
-  # This is only used when running locally and should be set to 0 for production.
-  # The QueryAPI will still manage scaling based on minWorkers and maxWorkers.
-  initialReplicas: 0
-  image:
-    repository: public.ecr.aws/cardinalhq.io/lakerunner/query-worker
-    tag: "v1.2.1"
-    pullPolicy: ""
-  resources:
-    requests:
-      cpu: 3500m
-      memory: 12Gi
-    limits:
-      cpu: 3500m
-      memory: 12Gi
-  service:
-    type: ClusterIP
-  temporaryStorage:
-    size: "16Gi"
-  terminationGracePeriodSeconds: 120
-  labels: {}
-  annotations: {}
-  nodeSelector: {}
-  tolerations: []
-  affinity: {}
 
 # Grafana configuration
 grafana:

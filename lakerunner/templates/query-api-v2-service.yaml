@@ -1,4 +1,4 @@
-{{- if .Values.queryApiV2.enabled -}}
+{{- if .Values.queryApi.enabled -}}
 apiVersion: v1
 kind: Service
 metadata:
@@ -9,7 +9,7 @@ metadata:
     lakerunner.cardinalhq.io/component: query-api-v2
   {{ include "lakerunner.annotations" . | nindent 2 }}
 spec:
-  type: {{ .Values.queryApiV2.service.type }}
+  type: {{ .Values.queryApi.service.type }}
   ports:
     - port: 8080
       targetPort: http

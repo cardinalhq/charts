@@ -1,4 +1,4 @@
-{{- if .Values.queryWorkerV2.enabled -}}
+{{- if .Values.queryWorker.enabled -}}
 apiVersion: v1
 kind: Service
 metadata:
@@ -9,7 +9,7 @@ metadata:
     lakerunner.cardinalhq.io/component: query-worker-v2
   {{ include "lakerunner.annotations" . | nindent 2 }}
 spec:
-  type: {{ .Values.queryWorkerV2.service.type }}
+  type: {{ .Values.queryWorker.service.type }}
   ports:
     - port: 8081
       targetPort: http

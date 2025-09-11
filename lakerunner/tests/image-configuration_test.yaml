@@ -3,8 +3,8 @@ values:
   - ./test-values.yaml
 templates:
   - setup-job.yaml
-  - query-api-statefulset.yaml
-  - query-worker-deployment.yaml
+  - query-api-v2-deployment.yaml
+  - query-worker-v2-deployment.yaml
   - grafana-deployment.yaml
   - ingest-logs-deployment.yaml
   - compact-logs-deployment.yaml
@@ -42,27 +42,27 @@ tests:
 
   - it: should use correct repository paths for different components
     templates:
-      - query-api-statefulset.yaml
+      - query-api-v2-deployment.yaml
     set:
       queryApi.enabled: true
     asserts:
       - matchRegex:
           path: spec.template.spec.containers[0].image
-          pattern: "^public.ecr.aws/cardinalhq.io/lakerunner/query-api-v2:v[0-9]+\.[0-9]+\.[0-9]+.*$"
+          pattern: "^public.ecr.aws/cardinalhq.io/lakerunner:v[0-9]+\.[0-9]+\.[0-9]+.*$"
 
   - it: should use versioned tags for query components
     templates:
-      - query-api-statefulset.yaml
-      - query-worker-deployment.yaml
+      - query-api-v2-deployment.yaml
+      - query-worker-v2-deployment.yaml
     set:
       queryApi.enabled: true
       queryWorker.enabled: true
     asserts:
-      - template: query-api-statefulset.yaml
+      - template: query-api-v2-deployment.yaml
         matchRegex:
           path: spec.template.spec.containers[0].image
           pattern: ":v[0-9]+\.[0-9]+\.[0-9]+.*$"
-      - template: query-worker-deployment.yaml
+      - template: query-worker-v2-deployment.yaml
         matchRegex:
           path: spec.template.spec.containers[0].image
           pattern: ":v[0-9]+\.[0-9]+\.[0-9]+.*$"

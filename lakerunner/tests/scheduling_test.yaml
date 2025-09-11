@@ -2,10 +2,10 @@ suite: test basic scheduling functionality
 values:
   - ../values.yaml
 set:
-  aws.region: us-west-2
+  cloudProvider.aws.region: us-west-2
 templates:
   - ingest-logs-deployment.yaml
-  - query-worker-deployment.yaml
+  - query-worker-v2-deployment.yaml
   - grafana-deployment.yaml
 tests:
   - it: should not render scheduling when not configured
@@ -39,7 +39,7 @@ tests:
         disktype: nvme
         workload: query
     templates:
-      - query-worker-deployment.yaml
+      - query-worker-v2-deployment.yaml
     asserts:
       - equal:
           path: spec.template.spec.nodeSelector.disktype
@@ -145,7 +145,7 @@ tests:
           operator: "Exists"
           effect: "NoExecute"
     templates:
-      - query-worker-deployment.yaml
+      - query-worker-v2-deployment.yaml
     asserts:
       - equal:
           path: spec.template.spec.tolerations[0].key

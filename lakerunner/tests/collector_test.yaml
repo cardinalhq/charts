@@ -2,7 +2,7 @@ suite: test collector configuration
 values:
   - ../values.yaml
 set:
-  aws.region: us-west-2
+  cloudProvider.aws.region: us-west-2
 templates:
   - collector.yaml
 tests:

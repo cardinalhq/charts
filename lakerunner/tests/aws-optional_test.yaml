@@ -2,8 +2,8 @@ suite: test AWS region optionality
 values:
   - ../values.yaml
 templates:
-  - query-api-statefulset.yaml
-  - query-worker-deployment.yaml
+  - query-api-v2-deployment.yaml
+  - query-worker-v2-deployment.yaml
   - pubsub-gcp-deployment.yaml
   - pubsub-sqs-deployment.yaml
 tests:
@@ -21,7 +21,7 @@ tests:
       pubsub.GCP.enabled: true
       pubsub.GCP.projectID: "test-project"
       pubsub.GCP.subscriptionID: "test-subscription"
-      aws.region: ""
+      cloudProvider.aws.region: ""
     templates:
       - pubsub-gcp-deployment.yaml
     asserts:
@@ -41,18 +41,18 @@ tests:
       pubsub.GCP.enabled: true
       pubsub.GCP.projectID: "test-project"
       pubsub.GCP.subscriptionID: "test-subscription"
-      aws.region: ""
+      cloudProvider.aws.region: ""
     templates:
-      - query-api-statefulset.yaml
-      - query-worker-deployment.yaml
+      - query-api-v2-deployment.yaml
+      - query-worker-v2-deployment.yaml
       - pubsub-sqs-deployment.yaml
       - pubsub-gcp-deployment.yaml
     asserts:
       # Should only render GCP pubsub, others should be empty
-      - template: query-api-statefulset.yaml
+      - template: query-api-v2-deployment.yaml
         hasDocuments:
           count: 0
-      - template: query-worker-deployment.yaml
+      - template: query-worker-v2-deployment.yaml
         hasDocuments:
           count: 0
       - template: pubsub-sqs-deployment.yaml
@@ -69,16 +69,16 @@ tests:
       queryWorker.enabled: true
       pubsub.SQS.enabled: true
       pubsub.SQS.queueURL: "https://sqs.us-east-2.amazonaws.com/123456789012/test-queue"
-      aws.region: "us-east-2"
+      cloudProvider.aws.region: "us-east-2"
     templates:
-      - query-api-statefulset.yaml
-      - query-worker-deployment.yaml
+      - query-api-v2-deployment.yaml
+      - query-worker-v2-deployment.yaml
       - pubsub-sqs-deployment.yaml
     asserts:
-      - template: query-api-statefulset.yaml
+      - template: query-api-v2-deployment.yaml
         isKind:
-          of: StatefulSet
-      - template: query-worker-deployment.yaml
+          of: Deployment
+      - template: query-worker-v2-deployment.yaml
         isKind:
           of: Deployment
       - template: pubsub-sqs-deployment.yaml
@@ -94,15 +94,15 @@ tests:
       pubsub.GCP.enabled: true
       pubsub.GCP.projectID: "test-project"
       pubsub.GCP.subscriptionID: "test-subscription"
-      aws.region: "us-east-2"
+      cloudProvider.aws.region: "us-east-2"
     templates:
-      - query-api-statefulset.yaml
+      - query-api-v2-deployment.yaml
       - pubsub-sqs-deployment.yaml
       - pubsub-gcp-deployment.yaml
     asserts:
-      - template: query-api-statefulset.yaml
+      - template: query-api-v2-deployment.yaml
         isKind:
-          of: StatefulSet
+          of: Deployment
       - template: pubsub-sqs-deployment.yaml
         isKind:
           of: Deployment

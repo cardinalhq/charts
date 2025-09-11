@@ -2,15 +2,15 @@ suite: test environment variable handling
 values:
   - ../values.yaml
 set:
-  aws.region: us-west-2
+  cloudProvider.aws.region: us-west-2
 templates:
   - ingest-logs-deployment.yaml
   - ingest-metrics-deployment.yaml
   - compact-logs-deployment.yaml
   - compact-metrics-deployment.yaml
   - rollup-metrics-deployment.yaml
-  - query-api-statefulset.yaml
-  - query-worker-deployment.yaml
+  - query-api-v2-deployment.yaml
+  - query-worker-v2-deployment.yaml
   - grafana-deployment.yaml
   - setup-job.yaml
   - pubsub-http-deployment.yaml
@@ -106,7 +106,7 @@ tests:
           value: "true"
     templates:
       - ingest-logs-deployment.yaml
-      - query-api-statefulset.yaml
+      - query-api-v2-deployment.yaml
       - grafana-deployment.yaml
     asserts:
       - template: ingest-logs-deployment.yaml
@@ -121,7 +121,7 @@ tests:
           content:
             name: GLOBAL_FEATURE_FLAG
             value: "true"
-      - template: query-api-statefulset.yaml
+      - template: query-api-v2-deployment.yaml
         contains:
           path: spec.template.spec.containers[0].env
           content:
@@ -169,7 +169,7 @@ tests:
               name: config-map
               key: config
     templates:
-      - query-api-statefulset.yaml
+      - query-api-v2-deployment.yaml
     asserts:
       - contains:
           path: spec.template.spec.containers[0].env
@@ -285,7 +285,7 @@ tests:
   - it: should render service-specific environment variables
     templates:
       - ingest-logs-deployment.yaml
-      - query-api-statefulset.yaml
+      - query-api-v2-deployment.yaml
       - setup-job.yaml
     asserts:
       - template: ingest-logs-deployment.yaml
@@ -294,12 +294,12 @@ tests:
           content:
             name: OTEL_SERVICE_NAME
             value: RELEASE-NAME-lakerunner-ingest-logs
-      - template: query-api-statefulset.yaml
+      - template: query-api-v2-deployment.yaml
         contains:
           path: spec.template.spec.containers[0].env
           content:
             name: OTEL_SERVICE_NAME
-            value: RELEASE-NAME-lakerunner-query-api
+            value: RELEASE-NAME-lakerunner-query-api-v2
       - template: setup-job.yaml
         contains:
           path: spec.template.spec.containers[0].env

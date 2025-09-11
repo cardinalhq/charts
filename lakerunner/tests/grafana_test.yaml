@@ -10,11 +10,11 @@ tests:
       grafana.enabled: true
     asserts:
       - equal:
-          path: spec.template.spec.containers[0].env[3].name
+          path: spec.template.spec.containers[0].env[4].name
           value: "GF_INSTALL_PLUGINS"
       - equal:
-          path: spec.template.spec.containers[0].env[3].value
-          value: "https://github.com/cardinalhq/cardinalhq-lakerunner-datasource/raw/refs/heads/main/cardinalhq-lakerunner-datasource.zip;cardinalhq-lakerunner-datasource"
+          path: spec.template.spec.containers[0].env[4].value
+          value: "https://github.com/cardinalhq/cardinalhq-lakerunner-datasource/releases/download/v1.2.0-rc.10/cardinalhq-lakerunner-datasource.zip;cardinalhq-lakerunner-datasource"
 
   - it: should append additional plugins when specified
     templates:
@@ -24,8 +24,8 @@ tests:
       grafana.additionalPlugins: "grafana-clock-panel"
     asserts:
       - equal:
-          path: spec.template.spec.containers[0].env[3].value
-          value: "https://github.com/cardinalhq/cardinalhq-lakerunner-datasource/raw/refs/heads/main/cardinalhq-lakerunner-datasource.zip;cardinalhq-lakerunner-datasource,grafana-clock-panel"
+          path: spec.template.spec.containers[0].env[4].value
+          value: "https://github.com/cardinalhq/cardinalhq-lakerunner-datasource/releases/download/v1.2.0-rc.10/cardinalhq-lakerunner-datasource.zip;cardinalhq-lakerunner-datasource,grafana-clock-panel"
 
   - it: should handle multiple additional plugins
     templates:
@@ -35,8 +35,8 @@ tests:
       grafana.additionalPlugins: "grafana-clock-panel,grafana-simple-json-datasource"
     asserts:
       - equal:
-          path: spec.template.spec.containers[0].env[3].value
-          value: "https://github.com/cardinalhq/cardinalhq-lakerunner-datasource/raw/refs/heads/main/cardinalhq-lakerunner-datasource.zip;cardinalhq-lakerunner-datasource,grafana-clock-panel,grafana-simple-json-datasource"
+          path: spec.template.spec.containers[0].env[4].value
+          value: "https://github.com/cardinalhq/cardinalhq-lakerunner-datasource/releases/download/v1.2.0-rc.10/cardinalhq-lakerunner-datasource.zip;cardinalhq-lakerunner-datasource,grafana-clock-panel,grafana-simple-json-datasource"
 
   - it: should support air-gapped cardinal plugin URL
     templates:
@@ -46,7 +46,7 @@ tests:
       grafana.cardinalPlugin.url: "https://internal-registry.company.com/cardinalhq-lakerunner-datasource.zip;cardinalhq-lakerunner-datasource"
     asserts:
       - equal:
-          path: spec.template.spec.containers[0].env[3].value
+          path: spec.template.spec.containers[0].env[4].value
           value: "https://internal-registry.company.com/cardinalhq-lakerunner-datasource.zip;cardinalhq-lakerunner-datasource"
 
   - it: should support air-gapped plugin with additional plugins
@@ -58,7 +58,7 @@ tests:
       grafana.additionalPlugins: "grafana-clock-panel"
     asserts:
       - equal:
-          path: spec.template.spec.containers[0].env[3].value
+          path: spec.template.spec.containers[0].env[4].value
           value: "https://internal-registry.company.com/cardinalhq-lakerunner-datasource.zip;cardinalhq-lakerunner-datasource,grafana-clock-panel"
 
   - it: should set correct service port
@@ -79,7 +79,7 @@ tests:
       - grafana-datasources-configmap.yaml
     set:
       grafana.enabled: true
-      aws.region: "us-west-2"
+      cloudProvider.aws.region: "us-west-2"
       grafana.cardinal.apiKey: "test-api-key-123"
     asserts:
       - matchRegex:
@@ -106,7 +106,7 @@ tests:
       - grafana-datasources-configmap.yaml
     set:
       grafana.enabled: true
-      aws.region: "us-west-2"
+      cloudProvider.aws.region: "us-west-2"
       grafana.cardinal.apiKey: "test-key-456"
       grafana.cardinal.endpoint: "http://custom-api:8080"
     asserts:
@@ -122,7 +122,7 @@ tests:
       - grafana-datasources-configmap.yaml
     set:
       grafana.enabled: true
-      aws.region: "us-west-2"
+      cloudProvider.aws.region: "us-west-2"
       grafana.cardinal.apiKey: "test-key-789"
       grafana.cardinal.name: "My Cardinal Instance"
       grafana.cardinal.isDefault: false
@@ -146,7 +146,7 @@ tests:
       - grafana-datasources-configmap.yaml
     set:
       grafana.enabled: true
-      aws.region: "us-west-2"
+      cloudProvider.aws.region: "us-west-2"
       grafana.cardinal.apiKey: "cardinal-key"
       grafana.datasources:
         prometheus.yaml:
@@ -172,7 +172,7 @@ tests:
     set:
       grafana.enabled: true
       grafana.replicas: 3
-      aws.region: "us-west-2"
+      cloudProvider.aws.region: "us-west-2"
     asserts:
       - failedTemplate:
           errorMessage: "Grafana replicas is set to 3 but GF_DATABASE_TYPE is not configured. Multiple Grafana replicas require an external database (PostgreSQL/MySQL) since SQLite cannot be shared. Please configure grafana.env with GF_DATABASE_TYPE and related database connection settings."
@@ -183,7 +183,7 @@ tests:
     set:
       grafana.enabled: true
       grafana.replicas: 2
-      aws.region: "us-west-2"
+      cloudProvider.aws.region: "us-west-2"
       grafana.env:
         - name: GF_DATABASE_TYPE
           value: "postgres"
@@ -203,7 +203,7 @@ tests:
     set:
       grafana.enabled: true
       grafana.replicas: 2
-      aws.region: "us-west-2"
+      cloudProvider.aws.region: "us-west-2"
       global.env:
         - name: GF_DATABASE_TYPE
           value: "mysql"
@@ -223,7 +223,7 @@ tests:
     set:
       grafana.enabled: true
       grafana.replicas: 1
-      aws.region: "us-west-2"
+      cloudProvider.aws.region: "us-west-2"
     asserts:
       - equal:
           path: spec.replicas

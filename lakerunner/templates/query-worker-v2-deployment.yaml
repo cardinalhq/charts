@@ -1,4 +1,4 @@
-{{- if .Values.queryWorkerV2.enabled -}}
+{{- if .Values.queryWorker.enabled -}}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -8,7 +8,7 @@ metadata:
     app.kubernetes.io/component: query-worker-v2
   {{ include "lakerunner.annotations" . | nindent 2 }}
 spec:
-  replicas: {{ .Values.queryWorkerV2.replicas }}
+  replicas: {{ .Values.queryWorker.replicas }}
   selector:
     matchLabels:
       {{- include "lakerunner.selectorLabels" . | nindent 6 }}
@@ -21,7 +21,7 @@ spec:
       {{- include "lakerunner.annotations" . | nindent 6 }}
     spec:
       serviceAccountName: {{ include "lakerunner.serviceAccountName" . }}
-      terminationGracePeriodSeconds: {{ .Values.queryWorkerV2.terminationGracePeriodSeconds }}
+      terminationGracePeriodSeconds: {{ .Values.queryWorker.terminationGracePeriodSeconds }}
       securityContext:
         runAsNonRoot: true
         runAsUser: 65532
@@ -36,8 +36,8 @@ spec:
             drop: ["ALL"]
           seccompProfile:
             type: RuntimeDefault
-        image: {{ include "lakerunner.image" (list .Values.queryWorkerV2.image .) }}
-        imagePullPolicy: {{ .Values.queryWorkerV2.image.pullPolicy | default .Values.global.image.pullPolicy }}
+        image: {{ include "lakerunner.image" (list .Values.queryWorker.image .) }}
+        imagePullPolicy: {{ .Values.queryWorker.image.pullPolicy | default .Values.global.image.pullPolicy }}
         command: ["/app/bin/lakerunner"]
         args: ["query-worker"]
         ports:
@@ -60,7 +60,7 @@ spec:
             value: {{ include "lakerunner.fullname" . }}-query-worker-v2
           - name: TMPDIR
             value: /scratch
-          {{- include "lakerunner.injectEnv" (list . .Values.queryWorkerV2) | nindent 8 }}
+          {{- include "lakerunner.injectEnv" (list . .Values.queryWorker) | nindent 8 }}
           {{- include "lakerunner.cardinalTelemetryEnv" . | nindent 10 }}
         envFrom:
         {{- if eq (include "lakerunner.injectCloudProviderCredentials" .) "true" }}
@@ -72,7 +72,7 @@ spec:
               name: {{ include "lakerunner.duckdbSecretName" . }}
         {{- end }}
         resources:
-          {{- toYaml .Values.queryWorkerV2.resources | nindent 10 }}
+          {{- toYaml .Values.queryWorker.resources | nindent 10 }}
         volumeMounts:
         {{- if eq .Values.storageProfiles.source "config" }}
         - name: storage-profiles
@@ -82,11 +82,11 @@ spec:
         {{- end }}
         - name: scratch
           mountPath: /scratch
-      {{- include "lakerunner.sched.nodeSelector" (list .Values.global.nodeSelector .Values.queryWorkerV2.nodeSelector) | nindent 6 }}
-      {{- include "lakerunner.sched.tolerations"  (list .Values.global.tolerations  .Values.queryWorkerV2.tolerations)  | nindent 6 }}
-      {{- include "lakerunner.sched.affinity"     (list .Values.global.affinity     .Values.queryWorkerV2.affinity)     | nindent 6 }}
+      {{- include "lakerunner.sched.nodeSelector" (list .Values.global.nodeSelector .Values.queryWorker.nodeSelector) | nindent 6 }}
+      {{- include "lakerunner.sched.tolerations"  (list .Values.global.tolerations  .Values.queryWorker.tolerations)  | nindent 6 }}
+      {{- include "lakerunner.sched.affinity"     (list .Values.global.affinity     .Values.queryWorker.affinity)     | nindent 6 }}
       volumes:
-      {{- include "lakerunner.ephemeralVolume" (list "scratch" .Values.queryWorkerV2.temporaryStorage.size .) | nindent 6 }}
+      {{- include "lakerunner.ephemeralVolume" (list "scratch" .Values.queryWorker.temporaryStorage.size .) | nindent 6 }}
       {{- if eq .Values.storageProfiles.source "config" }}
       - name: storage-profiles
         configMap:

@@ -2,7 +2,7 @@ suite: test temporary storage configuration
 values:
   - ../values.yaml
 set:
-  aws.region: us-west-2
+  cloudProvider.aws.region: us-west-2
 templates:
   - ingest-logs-deployment.yaml
   - ingest-metrics-deployment.yaml
@@ -11,7 +11,7 @@ templates:
   - compact-metrics-deployment.yaml
   - compact-traces-deployment.yaml
   - rollup-metrics-deployment.yaml
-  - query-worker-deployment.yaml
+  - query-worker-v2-deployment.yaml
   - grafana-deployment.yaml
 tests:
   # Test emptyDir storage type (default)
@@ -44,7 +44,7 @@ tests:
       - ingest-metrics-deployment.yaml
       - compact-logs-deployment.yaml
       - rollup-metrics-deployment.yaml
-      - query-worker-deployment.yaml
+      - query-worker-v2-deployment.yaml
     asserts:
       # ingest-logs should use 10Gi
       - template: ingest-logs-deployment.yaml
@@ -67,9 +67,9 @@ tests:
           path: spec.template.spec.volumes[0].emptyDir.sizeLimit
           value: "10Gi"
       # query-worker should use 16Gi (scratch is volume index 2)
-      - template: query-worker-deployment.yaml
+      - template: query-worker-v2-deployment.yaml
         equal:
-          path: spec.template.spec.volumes[2].emptyDir.sizeLimit
+          path: spec.template.spec.volumes[0].emptyDir.sizeLimit
           value: "16Gi"
 
   # Test ephemeral storage type
@@ -116,7 +116,7 @@ tests:
       - compact-metrics-deployment.yaml
       - compact-traces-deployment.yaml
       - rollup-metrics-deployment.yaml
-      - query-worker-deployment.yaml
+      - query-worker-v2-deployment.yaml
     asserts:
       # ingest-logs should use 10Gi
       - template: ingest-logs-deployment.yaml
@@ -154,9 +154,9 @@ tests:
           path: spec.template.spec.volumes[0].ephemeral.volumeClaimTemplate.spec.resources.requests.storage
           value: "10Gi"
       # query-worker should use 16Gi (note: it's volume index 1 because it has other volumes)
-      - template: query-worker-deployment.yaml
+      - template: query-worker-v2-deployment.yaml
         equal:
-          path: spec.template.spec.volumes[2].ephemeral.volumeClaimTemplate.spec.resources.requests.storage
+          path: spec.template.spec.volumes[0].ephemeral.volumeClaimTemplate.spec.resources.requests.storage
           value: "16Gi"
 
   - it: should use ephemeral volumes without storage class when not specified
@@ -318,12 +318,12 @@ tests:
       queryWorker.temporaryStorage.size: "32Gi"
     templates:
       - ingest-logs-deployment.yaml
-      - query-worker-deployment.yaml
+      - query-worker-v2-deployment.yaml
     asserts:
       # query-worker should use the new custom size (volume index 2)
-      - template: query-worker-deployment.yaml
+      - template: query-worker-v2-deployment.yaml
         equal:
-          path: spec.template.spec.volumes[2].emptyDir.sizeLimit
+          path: spec.template.spec.volumes[0].emptyDir.sizeLimit
           value: "32Gi"
       # ingest-logs should still use its default size
       - template: ingest-logs-deployment.yaml

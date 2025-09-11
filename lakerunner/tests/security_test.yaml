@@ -2,7 +2,7 @@ suite: test security configuration
 values:
   - ../values.yaml
 set:
-  aws.region: us-west-2
+  cloudProvider.aws.region: us-west-2
 templates:
   # Core lakerunner image components
   - setup-job.yaml
@@ -20,8 +20,8 @@ templates:
   - pubsub-sqs-deployment.yaml
   - pubsub-gcp-deployment.yaml
   # Query components (different images)
-  - query-api-statefulset.yaml
-  - query-worker-deployment.yaml
+  - query-api-v2-deployment.yaml
+  - query-worker-v2-deployment.yaml
   # Other components
   - grafana-deployment.yaml
   # RBAC components
@@ -128,8 +128,8 @@ tests:
   # Test query components (different images)
   - it: should set security context for query components
     templates:
-      - query-api-statefulset.yaml
-      - query-worker-deployment.yaml
+      - query-api-v2-deployment.yaml
+      - query-worker-v2-deployment.yaml
     set:
       queryApi.enabled: true
       queryWorker.enabled: true
