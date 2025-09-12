@@ -101,6 +101,7 @@ spec:
             value: {{ .Values.database.lrdb.sslMode | quote }}
           {{- include "lakerunner.injectEnv" (list . .Values.monitoring) | nindent 8 }}
           {{- include "lakerunner.cardinalTelemetryEnv" . | nindent 10 }}
+          {{- include "lakerunner.kafkaEnv" . | nindent 10 }}
         resources:
           {{- toYaml .Values.monitoring.resources | nindent 10 }}
 {{- end }}

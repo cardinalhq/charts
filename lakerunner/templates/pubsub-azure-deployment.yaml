@@ -70,6 +70,7 @@ spec:
             value: {{ .Values.pubsub.Azure.queueName | quote }}
           {{- include "lakerunner.injectEnv" (list . .Values.pubsub.Azure) | nindent 8 }}
           {{- include "lakerunner.cardinalTelemetryEnv" . | nindent 10 }}
+          {{- include "lakerunner.kafkaEnv" . | nindent 10 }}
         {{- if eq (include "lakerunner.injectCloudProviderCredentials" .) "true" }}
         envFrom:
           - secretRef:

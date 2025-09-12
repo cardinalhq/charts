@@ -60,6 +60,7 @@ spec:
             value: {{ include "lakerunner.fullname" . }}-pubsub-http
           {{- include "lakerunner.injectEnv" (list . .Values.pubsub.HTTP) | nindent 8 }}
           {{- include "lakerunner.cardinalTelemetryEnv" . | nindent 10 }}
+          {{- include "lakerunner.kafkaEnv" . | nindent 10 }}
         resources:
           {{- toYaml .Values.pubsub.HTTP.resources | nindent 10 }}
         {{- if eq .Values.storageProfiles.source "config" }}

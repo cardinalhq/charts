@@ -213,6 +213,34 @@ cloudProvider:
     accessKeyId: ""
     secretAccessKey: ""
 
+# Kafka connection settings
+kafka:
+  # Name of the Kubernetes secret containing Kafka credentials
+  secretName: "kafka-credentials"
+  # Whether to create the Kafka credentials secret
+  create: true
+  # Secret key names (only needed if using an existing secret with different key names)
+  usernameKey: "KAFKA_USERNAME" # Key name for username in the secret
+  passwordKey: "KAFKA_PASSWORD" # Key name for password in the secret
+  # Kafka broker configuration
+  # Required - Comma-separated list of Kafka broker addresses
+  # Example: "b-1.cluster.kafka.us-east-1.amazonaws.com:9096,b-2.cluster.kafka.us-east-1.amazonaws.com:9096"
+  brokers: ""
+  # SASL (Simple Authentication and Security Layer) configuration
+  sasl:
+    # Whether to enable SASL authentication (default: true)
+    enabled: true
+    # SASL mechanism - Options: "PLAIN", "SCRAM-SHA-256", "SCRAM-SHA-512"
+    mechanism: "SCRAM-SHA-512"
+    # SASL username (only used if create: true)
+    username: ""
+    # SASL password (only used if create: true)
+    password: ""
+  # TLS configuration
+  tls:
+    # Whether to enable TLS encryption (default: true)
+    enabled: true
+
 # Kafka topics configuration
 # Defines the Kafka topics that will be created during setup.
 # Required when using Kafka for data processing.

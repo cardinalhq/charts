@@ -70,6 +70,7 @@ spec:
           {{- end }}
           {{- include "lakerunner.injectEnv" (list . .Values.ingestLogs) | nindent 8 }}
           {{- include "lakerunner.cardinalTelemetryEnv" . | nindent 10 }}
+          {{- include "lakerunner.kafkaEnv" . | nindent 10 }}
         {{- if eq (include "lakerunner.injectCloudProviderCredentials" .) "true" }}
         envFrom:
           - secretRef:

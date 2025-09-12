@@ -45,6 +45,7 @@ spec:
             value: {{ include "lakerunner.fullname" . }}-setup
           {{- include "lakerunner.injectEnv" (list . .Values.setup) | nindent 8 }}
           {{- include "lakerunner.cardinalTelemetryEnv" . | nindent 10 }}
+          {{- include "lakerunner.kafkaEnv" . | nindent 10 }}
         resources:
           {{- toYaml .Values.setup.resources | nindent 10 }}
         {{- if or (eq .Values.storageProfiles.source "config") (eq .Values.apiKeys.source "config") (and .Values.setup.kafka.enabled (eq .Values.kafkaTopics.source "config")) }}

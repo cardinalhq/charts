@@ -552,3 +552,45 @@ Usage: {{ include "lakerunner.ephemeralVolumeBasic" (list "storage" .) }}
   emptyDir: {}
 {{- end -}}
 {{- end -}}
+
+{{/*
+Return the secret name for the Kafka credentials. If we have create true, we will prefix it with the release name.
+*/}}
+{{- define "lakerunner.kafkaSecretName" -}}
+{{- if .Values.kafka.create }}
+{{- printf "%s-%s" (include "lakerunner.fullname" .) .Values.kafka.secretName | trunc 63 | trimSuffix "-" }}
+{{- else }}
+{{- .Values.kafka.secretName }}
+{{- end }}
+{{- end }}
+
+{{/*
+Generate Kafka environment variables.
+This template injects Kafka configuration environment variables.
+Usage: {{ include "lakerunner.kafkaEnv" . }}
+*/}}
+{{- define "lakerunner.kafkaEnv" -}}
+- name: LAKERUNNER_FLY_BROKERS
+  value: {{ .Values.kafka.brokers | quote }}
+- name: LAKERUNNER_FLY_TLS_ENABLED
+  value: {{ .Values.kafka.tls.enabled | quote }}
+{{- if .Values.kafka.sasl.enabled }}
+- name: LAKERUNNER_FLY_SASL_ENABLED
+  value: "true"
+- name: LAKERUNNER_FLY_SASL_MECHANISM
+  value: {{ .Values.kafka.sasl.mechanism | quote }}
+- name: LAKERUNNER_FLY_SASL_USERNAME
+  valueFrom:
+    secretKeyRef:
+      name: {{ include "lakerunner.kafkaSecretName" . }}
+      key: {{ .Values.kafka.usernameKey }}
+- name: LAKERUNNER_FLY_SASL_PASSWORD
+  valueFrom:
+    secretKeyRef:
+      name: {{ include "lakerunner.kafkaSecretName" . }}
+      key: {{ .Values.kafka.passwordKey }}
+{{- else }}
+- name: LAKERUNNER_FLY_SASL_ENABLED
+  value: "false"
+{{- end }}
+{{- end }}
