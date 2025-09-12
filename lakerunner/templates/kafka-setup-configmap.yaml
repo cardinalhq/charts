@@ -1,4 +1,4 @@
-{{ if eq .Values.kafkaTopics.source "config" }}
+{{ if and (eq .Values.kafkaTopics.source "config") .Values.kafkaTopics.create }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -8,5 +8,5 @@ metadata:
   {{ include "lakerunner.annotations" . | nindent 2 }}
 data:
   kafka_topics.yaml: |
-{{ .Values.kafkaTopics.yaml | toYaml | indent 6 }}
+{{ include "lakerunner.kafkaTopicsConfig" . | indent 4 }}
 {{ end }}

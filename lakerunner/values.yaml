@@ -249,73 +249,39 @@ kafkaTopics:
   source: config # only value for general use.
   configmapName: "kafka-topics" # Name of the ConfigMap containing Kafka topics
   create: true
-  yaml:
-    - name: "lakerunner.boxer.logs.compact"
-      partitions: 16
-      replicationFactor: 2
-      config:
-        cleanup.policy: delete
-        retention.ms: 604800000
-    - name: "lakerunner.boxer.metrics.compact"
-      partitions: 16
-      replicationFactor: 2
-      config:
-        cleanup.policy: delete
-        retention.ms: 604800000
-    - name: "lakerunner.boxer.metrics.rollup"
-      partitions: 16
-      replicationFactor: 2
-      config:
-        cleanup.policy: delete
-        retention.ms: 604800000
-    - name: "lakerunner.boxer.traces.compact"
-      partitions: 16
-      replicationFactor: 2
-      config:
-        cleanup.policy: delete
-        retention.ms: 604800000
-    - name: "lakerunner.objstore.ingest.logs"
-      partitions: 16
-      replicationFactor: 2
-      config:
-        cleanup.policy: delete
-        retention.ms: 604800000
-    - name: "lakerunner.objstore.ingest.metrics"
-      partitions: 16
-      replicationFactor: 2
-      config:
-        cleanup.policy: delete
-        retention.ms: 604800000
-    - name: "lakerunner.objstore.ingest.traces"
-      partitions: 16
-      replicationFactor: 2
-      config:
-        cleanup.policy: delete
-        retention.ms: 604800000
-    - name: "lakerunner.segments.logs.compact"
-      partitions: 16
-      replicationFactor: 2
-      config:
-        cleanup.policy: delete
-        retention.ms: 604800000
-    - name: "lakerunner.segments.metrics.compact"
-      partitions: 16
-      replicationFactor: 2
-      config:
-        cleanup.policy: delete
-        retention.ms: 604800000
-    - name: "lakerunner.segments.metrics.rollup"
-      partitions: 16
-      replicationFactor: 2
-      config:
-        cleanup.policy: delete
-        retention.ms: 604800000
-    - name: "lakerunner.segments.traces.compact"
-      partitions: 16
-      replicationFactor: 2
-      config:
-        cleanup.policy: delete
-        retention.ms: 604800000
+  # Default configuration applied to all topics unless overridden
+  defaults:
+    replicationFactor: 2
+    partitionCount: 16
+    brokerIDs: [ 1, 2, 3 ]
+    topicConfig:
+      "cleanup.policy": "delete"
+      "retention.ms": "604800000"
+      "max.message.bytes": "10485760"
+  # Topic-specific configurations
+  topics:
+    - name: lakerunner.boxer.logs.compact
+      partitionCount: 16
+    - name: lakerunner.boxer.metrics.compact
+      partitionCount: 16
+    - name: lakerunner.boxer.metrics.rollup
+      partitionCount: 16
+    - name: lakerunner.boxer.traces.compact
+      partitionCount: 16
+    - name: lakerunner.objstore.ingest.logs
+      partitionCount: 16
+    - name: lakerunner.objstore.ingest.metrics
+      partitionCount: 16
+    - name: lakerunner.objstore.ingest.traces
+      partitionCount: 16
+    - name: lakerunner.segments.logs.compact
+      partitionCount: 4
+    - name: lakerunner.segments.metrics.compact
+      partitionCount: 4
+    - name: lakerunner.segments.metrics.rollup
+      partitionCount: 4
+    - name: lakerunner.segments.traces.compact
+      partitionCount: 4
 
 
 # Storage profile configuration
