@@ -797,6 +797,10 @@ queryApi:
   nodeSelector: {}
   tolerations: []
   affinity: {}
+  # Component-specific environment variables.
+  # This is a list of key-value pairs.
+  # Optional.
+  env: []
 
 # Query Worker configuration
 queryWorker:
