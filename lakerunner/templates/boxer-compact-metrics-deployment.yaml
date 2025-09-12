@@ -1,0 +1,99 @@
+{{- if .Values.boxerCompactMetrics.enabled -}}
+{{- include "lakerunner.validateScalingMode" . -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "lakerunner.fullname" . }}-boxer-compact-metrics
+  labels:
+    {{- include "lakerunner.labels" . | nindent 4 }}
+    app.kubernetes.io/component: boxer-compact-metrics
+  {{ include "lakerunner.annotations" . | nindent 2 }}
+spec:
+  {{- $scalingMode := include "lakerunner.autoscalingMode" (list .Values.boxerCompactMetrics.autoscaling .) }}
+  {{- if eq $scalingMode "disabled" }}
+  replicas: {{ .Values.boxerCompactMetrics.replicas }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "lakerunner.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: boxer-compact-metrics
+  template:
+    metadata:
+      labels:
+        {{- include "lakerunner.labels" . | nindent 8 }}
+        app.kubernetes.io/component: boxer-compact-metrics
+        {{- if eq .Values.cloudProvider.azure.authType "workload_identity" }}
+        azure.workload.identity/use: "true"
+        {{- end }}
+      {{- include "lakerunner.annotations" . | nindent 6 }}
+    spec:
+      serviceAccountName: {{ include "lakerunner.serviceAccountName" . }}
+      terminationGracePeriodSeconds: {{ .Values.boxerCompactMetrics.terminationGracePeriodSeconds }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+      {{- include "lakerunner.imagePullSecrets" . | nindent 6 }}
+        {{- include "lakerunner.sched.nodeSelector" (list .Values.global.nodeSelector .Values.boxerCompactMetrics.nodeSelector) | nindent 6 }}
+        {{- include "lakerunner.sched.tolerations"  (list .Values.global.tolerations  .Values.boxerCompactMetrics.tolerations)  | nindent 6 }}
+        {{- include "lakerunner.sched.affinity"     (list .Values.global.affinity     .Values.boxerCompactMetrics.affinity)     | nindent 6 }}
+      containers:
+      - name: boxer-compact-metrics
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop: ["ALL"]
+          seccompProfile:
+            type: RuntimeDefault
+        image: {{ include "lakerunner.image" (list .Values.boxerCompactMetrics.image .) }}
+        imagePullPolicy: {{ .Values.boxerCompactMetrics.image.pullPolicy | default .Values.global.image.pullPolicy }}
+        command: ["/app/bin/lakerunner"]
+        args: ["boxer-compact-metrics"]
+        env:
+          - name: POD_NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          - name: POD_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name
+          - name: POD_IP
+            valueFrom:
+              fieldRef:
+                fieldPath: status.podIP
+          - name: OTEL_SERVICE_NAME
+            value: {{ include "lakerunner.fullname" . }}-boxer-compact-metrics
+          - name: TMPDIR
+            value: /tmp
+          {{- if eq .Values.cloudProvider.provider "azure" }}
+          - name: AZURE_AUTH_TYPE
+            value: {{ .Values.cloudProvider.azure.authType | quote }}
+          {{- end }}
+          {{- include "lakerunner.injectEnv" (list . .Values.boxerCompactMetrics) | nindent 8 }}
+          {{- include "lakerunner.cardinalTelemetryEnv" . | nindent 10 }}
+          {{- include "lakerunner.kafkaEnv" . | nindent 10 }}
+        {{- if eq (include "lakerunner.injectCloudProviderCredentials" .) "true" }}
+        envFrom:
+          - secretRef:
+              name: {{ include "lakerunner.cloudProviderSecretName" . }}
+        {{- end }}
+        resources:
+          {{- toYaml .Values.boxerCompactMetrics.resources | nindent 10 }}
+        volumeMounts:
+        {{- if eq .Values.storageProfiles.source "config" }}
+        - name: storage-profiles
+          mountPath: /app/config/storage_profiles.yaml
+          subPath: storage_profiles.yaml
+          readOnly: true
+        {{- end }}
+        {{- include "lakerunner.kafkaTopicsVolumeMount" . | nindent 8 }}
+      volumes:
+      {{- if eq .Values.storageProfiles.source "config" }}
+      - name: storage-profiles
+        configMap:
+          name: {{ include "lakerunner.storageProfilesConfigmapName" . }}
+      {{- end }}
+      {{- include "lakerunner.kafkaTopicsVolume" . | nindent 6 }}
+{{- end }}
