@@ -74,7 +74,7 @@ spec:
           - secretRef:
               name: {{ include "lakerunner.cloudProviderSecretName" . }}
         {{- end }}
-        {{- if .Values.cloudProvider.duckdb }}
+        {{- if eq (include "lakerunner.injectDuckdbCredentials" .) "true" }}
           - secretRef:
               name: {{ include "lakerunner.duckdbSecretName" . }}
         {{- end }}

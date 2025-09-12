@@ -554,6 +554,17 @@ Usage: {{ include "lakerunner.ephemeralVolumeBasic" (list "storage" .) }}
 {{- end -}}
 
 {{/*
+Return whether DuckDB credentials should be injected into pods.
+*/}}
+{{- define "lakerunner.injectDuckdbCredentials" -}}
+{{- if and .Values.cloudProvider.duckdb .Values.cloudProvider.duckdb.inject -}}
+{{- "true" -}}
+{{- else -}}
+{{- "false" -}}
+{{- end -}}
+{{- end }}
+
+{{/*
 Return the secret name for the Kafka credentials. If we have create true, we will prefix it with the release name.
 */}}
 {{- define "lakerunner.kafkaSecretName" -}}
