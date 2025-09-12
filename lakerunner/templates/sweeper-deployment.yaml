@@ -83,8 +83,11 @@ spec:
           mountPath: /app/config/storage_profiles.yaml
           subPath: storage_profiles.yaml
           readOnly: true
-        {{- end }}
         {{- include "lakerunner.kafkaTopicsVolumeMount" . | nindent 8 }}
+        {{- else }}
+        volumeMounts:
+        {{- include "lakerunner.kafkaTopicsVolumeMount" . | nindent 8 }}
+        {{- end }}
       {{- if eq .Values.storageProfiles.source "config" }}
       volumes:
       - name: storage-profiles

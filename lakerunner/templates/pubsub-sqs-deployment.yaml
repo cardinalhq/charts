@@ -84,8 +84,11 @@ spec:
           mountPath: /app/config/storage_profiles.yaml
           subPath: storage_profiles.yaml
           readOnly: true
-        {{- end }}
         {{- include "lakerunner.kafkaTopicsVolumeMount" . | nindent 8 }}
+        {{- else }}
+        volumeMounts:
+        {{- include "lakerunner.kafkaTopicsVolumeMount" . | nindent 8 }}
+        {{- end }}
       {{- include "lakerunner.sched.nodeSelector" (list .Values.global.nodeSelector .Values.pubsub.SQS.nodeSelector) | nindent 6 }}
       {{- include "lakerunner.sched.tolerations"  (list .Values.global.tolerations  .Values.pubsub.SQS.tolerations)  | nindent 6 }}
       {{- include "lakerunner.sched.affinity"     (list .Values.global.affinity     .Values.pubsub.SQS.affinity)     | nindent 6 }}
