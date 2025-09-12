@@ -11,6 +11,12 @@ templates:
   - compact-traces-scaledobject.yaml
   - boxer-rollup-metrics-deployment.yaml
   - boxer-rollup-metrics-scaledobject.yaml
+  - boxer-compact-metrics-deployment.yaml
+  - boxer-compact-metrics-scaledobject.yaml
+  - boxer-compact-logs-deployment.yaml
+  - boxer-compact-logs-scaledobject.yaml
+  - boxer-compact-traces-deployment.yaml
+  - boxer-compact-traces-scaledobject.yaml
 values:
   - ../values.yaml
 set:
@@ -382,6 +388,243 @@ tests:
       boxerRollupMetrics.enabled: true
     templates:
       - boxer-rollup-metrics-deployment.yaml
+    asserts:
+      - failedTemplate:
+          errorPattern: "HPA scaling mode is no longer supported"
+
+  # Boxer Compact Metrics component tests
+  - it: should set correct replicas for boxer compact metrics when autoscaling disabled
+    set:
+      boxerCompactMetrics.enabled: true
+      boxerCompactMetrics.replicas: 3
+      boxerCompactMetrics.autoscaling.enabled: false
+    templates:
+      - boxer-compact-metrics-deployment.yaml
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 3
+
+  - it: should not set replicas for boxer compact metrics when KEDA autoscaling is active
+    set:
+      global.autoscaling.mode: keda
+      monitoring.enabled: true
+      boxerCompactMetrics.enabled: true
+      boxerCompactMetrics.autoscaling.enabled: true
+    templates:
+      - boxer-compact-metrics-deployment.yaml
+    asserts:
+      - notExists:
+          path: spec.replicas
+
+  - it: should create ScaledObject for boxer compact metrics when KEDA mode is enabled
+    set:
+      global.autoscaling.mode: keda
+      boxerCompactMetrics.enabled: true
+      monitoring.enabled: true
+      boxerCompactMetrics.autoscaling.minReplicas: 2
+      boxerCompactMetrics.autoscaling.maxReplicas: 15
+    templates:
+      - boxer-compact-metrics-scaledobject.yaml
+    asserts:
+      - isKind:
+          of: ScaledObject
+      - equal:
+          path: spec.minReplicaCount
+          value: 2
+      - equal:
+          path: spec.maxReplicaCount
+          value: 15
+      - equal:
+          path: spec.triggers[0].type
+          value: "external"
+      - equal:
+          path: spec.triggers[0].metadata.serviceType
+          value: "boxer-compact-metrics"
+
+  - it: should not create ScaledObject for boxer compact metrics when disabled mode is set
+    set:
+      global.autoscaling.mode: disabled
+      boxerCompactMetrics.enabled: true
+    templates:
+      - boxer-compact-metrics-scaledobject.yaml
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should fail deployment for boxer compact metrics when HPA mode is used
+    set:
+      global.autoscaling.mode: hpa
+      ingestLogs.enabled: false
+      ingestMetrics.enabled: false
+      ingestTraces.enabled: false
+      compactLogs.enabled: false
+      compactMetrics.enabled: false
+      compactTraces.enabled: false
+      rollupMetrics.enabled: false
+      boxerRollupMetrics.enabled: false
+      boxerCompactMetrics.enabled: true
+    templates:
+      - boxer-compact-metrics-deployment.yaml
+    asserts:
+      - failedTemplate:
+          errorPattern: "HPA scaling mode is no longer supported"
+
+  # Boxer Compact Logs component tests
+  - it: should set correct replicas for boxer compact logs when autoscaling disabled
+    set:
+      boxerCompactLogs.enabled: true
+      boxerCompactLogs.replicas: 2
+      boxerCompactLogs.autoscaling.enabled: false
+    templates:
+      - boxer-compact-logs-deployment.yaml
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 2
+
+  - it: should not set replicas for boxer compact logs when KEDA autoscaling is active
+    set:
+      global.autoscaling.mode: keda
+      monitoring.enabled: true
+      boxerCompactLogs.enabled: true
+      boxerCompactLogs.autoscaling.enabled: true
+    templates:
+      - boxer-compact-logs-deployment.yaml
+    asserts:
+      - notExists:
+          path: spec.replicas
+
+  - it: should create ScaledObject for boxer compact logs when KEDA mode is enabled
+    set:
+      global.autoscaling.mode: keda
+      boxerCompactLogs.enabled: true
+      monitoring.enabled: true
+      boxerCompactLogs.autoscaling.minReplicas: 1
+      boxerCompactLogs.autoscaling.maxReplicas: 12
+    templates:
+      - boxer-compact-logs-scaledobject.yaml
+    asserts:
+      - isKind:
+          of: ScaledObject
+      - equal:
+          path: spec.minReplicaCount
+          value: 1
+      - equal:
+          path: spec.maxReplicaCount
+          value: 12
+      - equal:
+          path: spec.triggers[0].type
+          value: "external"
+      - equal:
+          path: spec.triggers[0].metadata.serviceType
+          value: "boxer-compact-logs"
+
+  - it: should not create ScaledObject for boxer compact logs when disabled mode is set
+    set:
+      global.autoscaling.mode: disabled
+      boxerCompactLogs.enabled: true
+    templates:
+      - boxer-compact-logs-scaledobject.yaml
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should fail deployment for boxer compact logs when HPA mode is used
+    set:
+      global.autoscaling.mode: hpa
+      ingestLogs.enabled: false
+      ingestMetrics.enabled: false
+      ingestTraces.enabled: false
+      compactLogs.enabled: false
+      compactMetrics.enabled: false
+      compactTraces.enabled: false
+      rollupMetrics.enabled: false
+      boxerRollupMetrics.enabled: false
+      boxerCompactMetrics.enabled: false
+      boxerCompactLogs.enabled: true
+    templates:
+      - boxer-compact-logs-deployment.yaml
+    asserts:
+      - failedTemplate:
+          errorPattern: "HPA scaling mode is no longer supported"
+
+  # Boxer Compact Traces component tests
+  - it: should set correct replicas for boxer compact traces when autoscaling disabled
+    set:
+      boxerCompactTraces.enabled: true
+      boxerCompactTraces.replicas: 2
+      boxerCompactTraces.autoscaling.enabled: false
+    templates:
+      - boxer-compact-traces-deployment.yaml
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 2
+
+  - it: should not set replicas for boxer compact traces when KEDA autoscaling is active
+    set:
+      global.autoscaling.mode: keda
+      monitoring.enabled: true
+      boxerCompactTraces.enabled: true
+      boxerCompactTraces.autoscaling.enabled: true
+    templates:
+      - boxer-compact-traces-deployment.yaml
+    asserts:
+      - notExists:
+          path: spec.replicas
+
+  - it: should create ScaledObject for boxer compact traces when KEDA mode is enabled
+    set:
+      global.autoscaling.mode: keda
+      boxerCompactTraces.enabled: true
+      monitoring.enabled: true
+      boxerCompactTraces.autoscaling.minReplicas: 1
+      boxerCompactTraces.autoscaling.maxReplicas: 8
+    templates:
+      - boxer-compact-traces-scaledobject.yaml
+    asserts:
+      - isKind:
+          of: ScaledObject
+      - equal:
+          path: spec.minReplicaCount
+          value: 1
+      - equal:
+          path: spec.maxReplicaCount
+          value: 8
+      - equal:
+          path: spec.triggers[0].type
+          value: "external"
+      - equal:
+          path: spec.triggers[0].metadata.serviceType
+          value: "boxer-compact-traces"
+
+  - it: should not create ScaledObject for boxer compact traces when disabled mode is set
+    set:
+      global.autoscaling.mode: disabled
+      boxerCompactTraces.enabled: true
+    templates:
+      - boxer-compact-traces-scaledobject.yaml
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should fail deployment for boxer compact traces when HPA mode is used
+    set:
+      global.autoscaling.mode: hpa
+      ingestLogs.enabled: false
+      ingestMetrics.enabled: false
+      ingestTraces.enabled: false
+      compactLogs.enabled: false
+      compactMetrics.enabled: false
+      compactTraces.enabled: false
+      rollupMetrics.enabled: false
+      boxerRollupMetrics.enabled: false
+      boxerCompactMetrics.enabled: false
+      boxerCompactLogs.enabled: false
+      boxerCompactTraces.enabled: true
+    templates:
+      - boxer-compact-traces-deployment.yaml
     asserts:
       - failedTemplate:
           errorPattern: "HPA scaling mode is no longer supported"
