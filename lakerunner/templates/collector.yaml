@@ -9,35 +9,35 @@ metadata:
   labels:
     {{- include "lakerunner.labels" . | nindent 4 }}
     app.kubernetes.io/component: collector
+    {{- if and (eq .Values.cloudProvider.provider "azure") (eq .Values.cloudProvider.azure.authType "workload_identity") }}
+    azure.workload.identity/use: "true"
+    {{- end }}
     lakerunner.cardinalhq.io/bucket: {{ $storageProfile.bucket }}
     lakerunner.cardinalhq.io/region: {{ $storageProfile.region }}
     lakerunner.cardinalhq.io/cloud-provider: {{ $storageProfile.cloud_provider }}
     {{- if .Values.collector.labels }}
     {{- toYaml .Values.collector.labels | nindent 4 }}
     {{- end }}
-  {{- if or .Values.collector.annotations (and (eq .Values.cloudProvider.provider "azure") (eq .Values.cloudProvider.azure.authType "workload_identity")) }}
   annotations:
-    {{- if and (eq .Values.cloudProvider.provider "azure") (eq .Values.cloudProvider.azure.authType "workload_identity") }}
-    azure.workload.identity/use: "true"
-    {{- end }}
     {{- if .Values.collector.annotations }}
     {{- toYaml .Values.collector.annotations | nindent 4 }}
     {{- end }}
-  {{- end }}
 spec:
   environment: {{ .Values.global.cardinal.env }}
   collectorStyle: gateway
   collectorName: {{ $storageProfile.collector_name }}
   apiKeySecretRef: {{ include "lakerunner.fullname" . }}-cardinal-api-key
+
   features:
 {{- if eq $storageProfile.cloud_provider "azure" }}
     azureblobexporter:
       container: {{ $storageProfile.bucket }}
-{{- if $storageProfile.endpoint }}
+      {{- if $storageProfile.endpoint }}
       endpoint: {{ $storageProfile.endpoint }}
-{{- end }}
+      {{- end }}
       organizationId: {{ $storageProfile.organization_id }}
       collectorName: {{ $storageProfile.collector_name }}
+      auth_type: {{ .Values.cloudProvider.azure.authType }}
 {{- else }}
     awss3:
       provider: {{ $storageProfile.cloud_provider }}
@@ -46,112 +46,21 @@ spec:
       organizationId: {{ $storageProfile.organization_id }}
       collectorName: {{ $storageProfile.collector_name }}
 {{- end }}
+
+{{- if eq (include "lakerunner.injectCloudProviderCredentials" .) "true" }}
+  envFrom:
+    - secretRef:
+        name: {{ include "lakerunner.cloudProviderSecretName" . }}
+{{- end }}
+
   env:
     {{- if eq .Values.cloudProvider.provider "azure" }}
     {{- $authType := .Values.cloudProvider.azure.authType | default "service_principal" }}
     - name: AZURE_AUTH_TYPE
       value: {{ $authType | quote }}
     {{- end }}
-    {{- if eq (include "lakerunner.injectCloudProviderCredentials" .) "true" }}
-    {{- if eq .Values.cloudProvider.provider "aws" }}
-    {{- if and .Values.cloudProvider.aws.accessKeyId .Values.cloudProvider.aws.secretAccessKey }}
-    - name: AWS_ACCESS_KEY_ID
-      valueFrom:
-        secretKeyRef:
-          name: {{ include "lakerunner.cloudProviderSecretName" . }}
-          key: AWS_ACCESS_KEY_ID
-    - name: AWS_SECRET_ACCESS_KEY
-      valueFrom:
-        secretKeyRef:
-          name: {{ include "lakerunner.cloudProviderSecretName" . }}
-          key: AWS_SECRET_ACCESS_KEY
-    {{- end }}
-    {{- else if eq .Values.cloudProvider.provider "azure" }}
-    {{- $authType := .Values.cloudProvider.azure.authType | default "service_principal" }}
-    
-    {{- if eq $authType "service_principal" }}
-    {{- if and .Values.cloudProvider.azure.clientId .Values.cloudProvider.azure.clientSecret .Values.cloudProvider.azure.tenantId }}
-    - name: AZURE_CLIENT_ID
-      valueFrom:
-        secretKeyRef:
-          name: {{ include "lakerunner.cloudProviderSecretName" . }}
-          key: AZURE_CLIENT_ID
-    - name: AZURE_CLIENT_SECRET
-      valueFrom:
-        secretKeyRef:
-          name: {{ include "lakerunner.cloudProviderSecretName" . }}
-          key: AZURE_CLIENT_SECRET
-    - name: AZURE_TENANT_ID
-      valueFrom:
-        secretKeyRef:
-          name: {{ include "lakerunner.cloudProviderSecretName" . }}
-          key: AZURE_TENANT_ID
-    {{- end }}
-    
-    {{- else if eq $authType "user_managed_identity" }}
-    {{- if .Values.cloudProvider.azure.clientId }}
-    - name: AZURE_CLIENT_ID
-      valueFrom:
-        secretKeyRef:
-          name: {{ include "lakerunner.cloudProviderSecretName" . }}
-          key: AZURE_CLIENT_ID
-    {{- end }}
-    
-    {{- else if eq $authType "workload_identity" }}
-    {{- if and .Values.cloudProvider.azure.clientId .Values.cloudProvider.azure.tenantId }}
-    - name: AZURE_CLIENT_ID
-      valueFrom:
-        secretKeyRef:
-          name: {{ include "lakerunner.cloudProviderSecretName" . }}
-          key: AZURE_CLIENT_ID
-    - name: AZURE_TENANT_ID
-      valueFrom:
-        secretKeyRef:
-          name: {{ include "lakerunner.cloudProviderSecretName" . }}
-          key: AZURE_TENANT_ID
-    - name: AZURE_FEDERATED_TOKEN_FILE
-      valueFrom:
-        secretKeyRef:
-          name: {{ include "lakerunner.cloudProviderSecretName" . }}
-          key: AZURE_FEDERATED_TOKEN_FILE
-    {{- end }}
-    
-    {{- else if eq $authType "connection_string" }}
-    {{- if .Values.cloudProvider.azure.connectionString }}
-    - name: AZURE_STORAGE_CONNECTION_STRING
-      valueFrom:
-        secretKeyRef:
-          name: {{ include "lakerunner.cloudProviderSecretName" . }}
-          key: AZURE_STORAGE_CONNECTION_STRING
-    {{- end }}
-    
-    {{- else if eq $authType "system_managed_identity" }}
-    # No environment variables needed for system managed identity
-    {{- end }}
-    {{- end }}
-    {{- else if eq .Values.cloudProvider.provider "gcp" }}
-    {{- if .Values.cloudProvider.gcp.serviceAccountJson }}
-    - name: GOOGLE_APPLICATION_CREDENTIALS
-      valueFrom:
-        secretKeyRef:
-          name: {{ include "lakerunner.cloudProviderSecretName" . }}
-          key: GOOGLE_APPLICATION_CREDENTIALS
-    {{- end }}
-    {{- if and .Values.cloudProvider.gcp.accessKeyId .Values.cloudProvider.gcp.secretAccessKey }}
-    - name: AWS_ACCESS_KEY_ID
-      valueFrom:
-        secretKeyRef:
-          name: {{ include "lakerunner.cloudProviderSecretName" . }}
-          key: AWS_ACCESS_KEY_ID
-    - name: AWS_SECRET_ACCESS_KEY
-      valueFrom:
-        secretKeyRef:
-          name: {{ include "lakerunner.cloudProviderSecretName" . }}
-          key: AWS_SECRET_ACCESS_KEY
-    {{- end }}
-    {{- end }}
-    {{- end }}
     {{- if .Values.collector.env }}
     {{- toYaml .Values.collector.env | nindent 4 }}
     {{- end }}
+{{- end }}
 {{- end }}

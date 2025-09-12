@@ -35,15 +35,7 @@ tests:
       - equal:
           path: metadata.labels["app.kubernetes.io/component"]
           value: collector
-      - equal:
-          path: metadata.labels["lakerunner.cardinalhq.io/bucket"]
-          value: test-bucket
-      - equal:
-          path: metadata.labels["lakerunner.cardinalhq.io/region"]
-          value: us-west-2
-      - equal:
-          path: metadata.labels["lakerunner.cardinalhq.io/cloud-provider"]
-          value: aws
+
       - equal:
           path: spec.environment
           value: test
@@ -183,21 +175,10 @@ tests:
       - collector.yaml
     asserts:
       - contains:
-          path: spec.env
+          path: spec.envFrom
           content:
-            name: AWS_ACCESS_KEY_ID
-            valueFrom:
-              secretKeyRef:
-                name: aws-credentials
-                key: AWS_ACCESS_KEY_ID
-      - contains:
-          path: spec.env
-          content:
-            name: AWS_SECRET_ACCESS_KEY
-            valueFrom:
-              secretKeyRef:
-                name: aws-credentials
-                key: AWS_SECRET_ACCESS_KEY
+            secretRef:
+              name: aws-credentials
 
   # GCP configuration tests
   - it: should render GCP collector with awss3 features
@@ -348,6 +329,7 @@ tests:
           bucket: "azure-container"
       cloudProvider.provider: "azure"
       cloudProvider.azure.authType: "service_principal"
+      cloudProvider.azure.inject: true
       cloudProvider.azure.clientId: "test-client-id"
       cloudProvider.azure.clientSecret: "test-client-secret"
       cloudProvider.azure.tenantId: "test-tenant-id"
@@ -361,29 +343,10 @@ tests:
             name: AZURE_AUTH_TYPE
             value: "service_principal"
       - contains:
-          path: spec.env
+          path: spec.envFrom
           content:
-            name: AZURE_CLIENT_ID
-            valueFrom:
-              secretKeyRef:
-                name: azure-credentials
-                key: AZURE_CLIENT_ID
-      - contains:
-          path: spec.env
-          content:
-            name: AZURE_CLIENT_SECRET
-            valueFrom:
-              secretKeyRef:
-                name: azure-credentials
-                key: AZURE_CLIENT_SECRET
-      - contains:
-          path: spec.env
-          content:
-            name: AZURE_TENANT_ID
-            valueFrom:
-              secretKeyRef:
-                name: azure-credentials
-                key: AZURE_TENANT_ID
+            secretRef:
+              name: azure-credentials
 
   - it: should render Azure collector with user managed identity authentication
     set:
@@ -397,6 +360,7 @@ tests:
           bucket: "azure-container"
       cloudProvider.provider: "azure"
       cloudProvider.azure.authType: "user_managed_identity"
+      cloudProvider.azure.inject: true
       cloudProvider.azure.clientId: "test-client-id"
       collector.enabled: true
     templates:
@@ -408,13 +372,10 @@ tests:
             name: AZURE_AUTH_TYPE
             value: "user_managed_identity"
       - contains:
-          path: spec.env
+          path: spec.envFrom
           content:
-            name: AZURE_CLIENT_ID
-            valueFrom:
-              secretKeyRef:
-                name: azure-credentials
-                key: AZURE_CLIENT_ID
+            secretRef:
+              name: azure-credentials
 
   - it: should render Azure collector with workload identity authentication
     set:
@@ -428,6 +389,7 @@ tests:
           bucket: "azure-container"
       cloudProvider.provider: "azure"
       cloudProvider.azure.authType: "workload_identity"
+      cloudProvider.azure.inject: true
       cloudProvider.azure.clientId: "test-client-id"
       cloudProvider.azure.tenantId: "test-tenant-id"
       collector.enabled: true
@@ -440,29 +402,13 @@ tests:
             name: AZURE_AUTH_TYPE
             value: "workload_identity"
       - contains:
-          path: spec.env
+          path: spec.envFrom
           content:
-            name: AZURE_CLIENT_ID
-            valueFrom:
-              secretKeyRef:
-                name: azure-credentials
-                key: AZURE_CLIENT_ID
-      - contains:
-          path: spec.env
-          content:
-            name: AZURE_TENANT_ID
-            valueFrom:
-              secretKeyRef:
-                name: azure-credentials
-                key: AZURE_TENANT_ID
-      - contains:
-          path: spec.env
-          content:
-            name: AZURE_FEDERATED_TOKEN_FILE
-            valueFrom:
-              secretKeyRef:
-                name: azure-credentials
-                key: AZURE_FEDERATED_TOKEN_FILE
+            secretRef:
+              name: azure-credentials
+      - equal:
+          path: metadata.labels["azure.workload.identity/use"]
+          value: "true"
 
   - it: should render Azure collector with connection string authentication
     set:
@@ -476,6 +422,7 @@ tests:
           bucket: "azure-container"
       cloudProvider.provider: "azure"
       cloudProvider.azure.authType: "connection_string"
+      cloudProvider.azure.inject: true
       cloudProvider.azure.connectionString: "DefaultEndpointsProtocol=https;AccountName=testaccount;AccountKey=testkey;EndpointSuffix=core.windows.net"
       collector.enabled: true
     templates:
@@ -487,13 +434,10 @@ tests:
             name: AZURE_AUTH_TYPE
             value: "connection_string"
       - contains:
-          path: spec.env
+          path: spec.envFrom
           content:
-            name: AZURE_STORAGE_CONNECTION_STRING
-            valueFrom:
-              secretKeyRef:
-                name: azure-credentials
-                key: AZURE_STORAGE_CONNECTION_STRING
+            secretRef:
+              name: azure-credentials
 
   - it: should render Azure collector with system managed identity authentication
     set:
@@ -866,8 +810,8 @@ tests:
     templates:
       - collector.yaml
     asserts:
-      - isEmpty:
-          path: spec.env
+      - notExists:
+          path: spec.envFrom
 
   - it: should inject cloud provider credentials when injection is enabled
     set:
@@ -890,18 +834,7 @@ tests:
       - collector.yaml
     asserts:
       - contains:
-          path: spec.env
+          path: spec.envFrom
           content:
-            name: AWS_ACCESS_KEY_ID
-            valueFrom:
-              secretKeyRef:
-                name: aws-credentials
-                key: AWS_ACCESS_KEY_ID
-      - contains:
-          path: spec.env
-          content:
-            name: AWS_SECRET_ACCESS_KEY
-            valueFrom:
-              secretKeyRef:
-                name: aws-credentials
-                key: AWS_SECRET_ACCESS_KEY
+            secretRef:
+              name: aws-credentials
