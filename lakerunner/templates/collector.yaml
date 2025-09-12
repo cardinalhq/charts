@@ -15,9 +15,14 @@ metadata:
     {{- if .Values.collector.labels }}
     {{- toYaml .Values.collector.labels | nindent 4 }}
     {{- end }}
-  {{- if .Values.collector.annotations }}
+  {{- if or .Values.collector.annotations (and (eq .Values.cloudProvider.provider "azure") (eq .Values.cloudProvider.azure.authType "workload_identity")) }}
   annotations:
+    {{- if and (eq .Values.cloudProvider.provider "azure") (eq .Values.cloudProvider.azure.authType "workload_identity") }}
+    azure.workload.identity/use: "true"
+    {{- end }}
+    {{- if .Values.collector.annotations }}
     {{- toYaml .Values.collector.annotations | nindent 4 }}
+    {{- end }}
   {{- end }}
 spec:
   environment: {{ .Values.global.cardinal.env }}
