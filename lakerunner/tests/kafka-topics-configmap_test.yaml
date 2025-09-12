@@ -2,13 +2,12 @@ suite: test kafka topics configmap
 values:
   - ../values.yaml
 set:
-  kafkaTopics.source: config
   kafkaTopics.create: true
 templates:
   - kafka-setup-configmap.yaml
 tests:
   # Test ConfigMap creation with default structure
-  - it: should create configmap with merged kafka topics configuration
+  - it: should create configmap with kafka topics configuration
     asserts:
       - isKind:
           of: ConfigMap
@@ -30,14 +29,6 @@ tests:
           path: data["kafka_topics.yaml"]
           pattern: 'cleanup\.policy: delete'
 
-  # Test ConfigMap not created when source is not config
-  - it: should not create configmap when source is not config
-    set:
-      kafkaTopics.source: other
-    asserts:
-      - hasDocuments:
-          count: 0
-
   # Test ConfigMap not created when create is false
   - it: should not create configmap when create is false
     set:
@@ -46,60 +37,28 @@ tests:
       - hasDocuments:
           count: 0
 
-  # Test topic-specific overrides work
-  - it: should merge topic-specific configuration with defaults
+  # Test that config structure is preserved exactly
+  - it: should preserve exact kafka topics config structure
     set:
-      kafkaTopics.defaults.partitionCount: 8
-      kafkaTopics.defaults.replicationFactor: 3
-      kafkaTopics.topics:
-        - name: test.topic.custom
-          partitionCount: 12
-        - name: test.topic.default
+      kafkaTopics.config:
+        defaults:
+          partitionCount: 8
+          replicationFactor: 3
+        topics:
+          - name: test.topic.custom
+            partitionCount: 12
     asserts:
       - isKind:
           of: ConfigMap
+      - matchRegex:
+          path: data["kafka_topics.yaml"]
+          pattern: "partitionCount: 8"
+      - matchRegex:
+          path: data["kafka_topics.yaml"]
+          pattern: "replicationFactor: 3"
       - matchRegex:
           path: data["kafka_topics.yaml"]
           pattern: "name: test\\.topic\\.custom"
       - matchRegex:
           path: data["kafka_topics.yaml"]
           pattern: "partitionCount: 12"
-      - matchRegex:
-          path: data["kafka_topics.yaml"]
-          pattern: "name: test\\.topic\\.default"
-      # Both topics should get the default replication factor
-      - matchRegex:
-          path: data["kafka_topics.yaml"]
-          pattern: "replicationFactor: 3"
-
-  # Test custom topicConfig merging
-  - it: should merge topic-specific topicConfig with defaults
-    set:
-      kafkaTopics.defaults.topicConfig:
-        "cleanup.policy": "delete"
-        "retention.ms": "604800000"
-      kafkaTopics.topics:
-        - name: test.topic.custom.config
-          topicConfig:
-            "retention.ms": "86400000"
-            "max.message.bytes": "1048576"
-    asserts:
-      - isKind:
-          of: ConfigMap
-      - matchRegex:
-          path: data["kafka_topics.yaml"]
-          pattern: 'cleanup\.policy: delete'
-      - matchRegex:
-          path: data["kafka_topics.yaml"]
-          pattern: 'retention\.ms: "86400000"'
-      - matchRegex:
-          path: data["kafka_topics.yaml"]
-          pattern: 'max\.message\.bytes: "1048576"'
-
-  # Test validation - should require at least one topic
-  - it: should fail when no topics are defined
-    set:
-      kafkaTopics.topics: []
-    asserts:
-      - failedTemplate:
-          errorMessage: "kafkaTopics.topics must contain at least one topic"

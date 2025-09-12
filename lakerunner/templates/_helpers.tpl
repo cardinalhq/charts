@@ -605,28 +605,3 @@ Usage: {{ include "lakerunner.kafkaEnv" . }}
   value: "false"
 {{- end }}
 {{- end }}
-
-{{/*
-Generate the Kafka topics configuration by merging defaults with topic-specific settings.
-Usage: {{ include "lakerunner.kafkaTopicsConfig" . }}
-*/}}
-{{- define "lakerunner.kafkaTopicsConfig" -}}
-{{- if not .Values.kafkaTopics.topics -}}
-{{- fail "kafkaTopics.topics must contain at least one topic" -}}
-{{- end -}}
-{{- if eq (len .Values.kafkaTopics.topics) 0 -}}
-{{- fail "kafkaTopics.topics must contain at least one topic" -}}
-{{- end -}}
-{{- $defaults := .Values.kafkaTopics.defaults -}}
-{{- $topics := list -}}
-{{- range .Values.kafkaTopics.topics -}}
-  {{- $topic := dict "name" .name -}}
-  {{- $topic = set $topic "replicationFactor" (default $defaults.replicationFactor .replicationFactor) -}}
-  {{- $topic = set $topic "partitionCount" (default $defaults.partitionCount .partitionCount) -}}
-  {{- $topic = set $topic "brokerIDs" (default $defaults.brokerIDs .brokerIDs) -}}
-  {{- $topicConfig := merge (default dict .topicConfig) $defaults.topicConfig -}}
-  {{- $topic = set $topic "topicConfig" $topicConfig -}}
-  {{- $topics = append $topics $topic -}}
-{{- end -}}
-{{ $topics | toYaml }}
-{{- end }}
