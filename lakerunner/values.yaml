@@ -253,7 +253,7 @@ kafkaTopics:
   defaults:
     replicationFactor: 2
     partitionCount: 16
-    brokerIDs: [ 1, 2, 3 ]
+    #brokerIDs: [ 1, 2, 3 ] # only needed if there is no broker 0 (MKS)
     topicConfig:
       "cleanup.policy": "delete"
       "retention.ms": "604800000"
