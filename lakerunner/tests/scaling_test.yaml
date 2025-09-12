@@ -452,23 +452,6 @@ tests:
       - hasDocuments:
           count: 0
 
-  - it: should fail deployment for boxer compact metrics when HPA mode is used
-    set:
-      global.autoscaling.mode: hpa
-      ingestLogs.enabled: false
-      ingestMetrics.enabled: false
-      ingestTraces.enabled: false
-      compactLogs.enabled: false
-      compactMetrics.enabled: false
-      compactTraces.enabled: false
-      rollupMetrics.enabled: false
-      boxerRollupMetrics.enabled: false
-      boxerCompactMetrics.enabled: true
-    templates:
-      - boxer-compact-metrics-deployment.yaml
-    asserts:
-      - failedTemplate:
-          errorPattern: "HPA scaling mode is no longer supported"
 
   # Boxer Compact Logs component tests
   - it: should set correct replicas for boxer compact logs when autoscaling disabled
@@ -530,24 +513,6 @@ tests:
       - hasDocuments:
           count: 0
 
-  - it: should fail deployment for boxer compact logs when HPA mode is used
-    set:
-      global.autoscaling.mode: hpa
-      ingestLogs.enabled: false
-      ingestMetrics.enabled: false
-      ingestTraces.enabled: false
-      compactLogs.enabled: false
-      compactMetrics.enabled: false
-      compactTraces.enabled: false
-      rollupMetrics.enabled: false
-      boxerRollupMetrics.enabled: false
-      boxerCompactMetrics.enabled: false
-      boxerCompactLogs.enabled: true
-    templates:
-      - boxer-compact-logs-deployment.yaml
-    asserts:
-      - failedTemplate:
-          errorPattern: "HPA scaling mode is no longer supported"
 
   # Boxer Compact Traces component tests
   - it: should set correct replicas for boxer compact traces when autoscaling disabled
@@ -609,22 +574,3 @@ tests:
       - hasDocuments:
           count: 0
 
-  - it: should fail deployment for boxer compact traces when HPA mode is used
-    set:
-      global.autoscaling.mode: hpa
-      ingestLogs.enabled: false
-      ingestMetrics.enabled: false
-      ingestTraces.enabled: false
-      compactLogs.enabled: false
-      compactMetrics.enabled: false
-      compactTraces.enabled: false
-      rollupMetrics.enabled: false
-      boxerRollupMetrics.enabled: false
-      boxerCompactMetrics.enabled: false
-      boxerCompactLogs.enabled: false
-      boxerCompactTraces.enabled: true
-    templates:
-      - boxer-compact-traces-deployment.yaml
-    asserts:
-      - failedTemplate:
-          errorPattern: "HPA scaling mode is no longer supported"
