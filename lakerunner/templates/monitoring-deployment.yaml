@@ -83,22 +83,6 @@ spec:
             value: {{ include "lakerunner.fullname" . }}-monitoring
           - name: TMPDIR
             value: /scratch
-          # Database configuration
-          - name: LRDB_HOST
-            value: {{ .Values.database.lrdb.host | quote }}
-          - name: LRDB_PORT
-            value: {{ .Values.database.lrdb.port | quote }}
-          - name: LRDB_DBNAME
-            value: {{ .Values.database.lrdb.name | quote }}
-          - name: LRDB_USER
-            value: {{ .Values.database.lrdb.username | quote }}
-          - name: LRDB_PASSWORD
-            valueFrom:
-              secretKeyRef:
-                name: {{ include "lakerunner.databaseSecretName" . }}
-                key: {{ .Values.database.passwordKey }}
-          - name: LRDB_SSLMODE
-            value: {{ .Values.database.lrdb.sslMode | quote }}
           {{- include "lakerunner.injectEnv" (list . .Values.monitoring) | nindent 8 }}
           {{- include "lakerunner.cardinalTelemetryEnv" . | nindent 10 }}
           {{- include "lakerunner.kafkaEnv" . | nindent 10 }}
