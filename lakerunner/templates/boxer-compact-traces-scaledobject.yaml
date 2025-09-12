@@ -1,0 +1,22 @@
+{{- if and .Values.boxerCompactTraces.enabled (eq (include "lakerunner.autoscalingMode" (list .Values.boxerCompactTraces.autoscaling .)) "keda") -}}
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: {{ include "lakerunner.fullname" . }}-boxer-compact-traces
+  labels:
+    {{- include "lakerunner.labels" . | nindent 4 }}
+    app.kubernetes.io/component: boxer-compact-traces
+  {{ include "lakerunner.annotations" . | nindent 2 }}
+spec:
+  scaleTargetRef:
+    name: {{ include "lakerunner.fullname" . }}-boxer-compact-traces
+  pollingInterval: {{ .Values.boxerCompactTraces.autoscaling.keda.pollingInterval }}
+  cooldownPeriod: {{ .Values.boxerCompactTraces.autoscaling.keda.cooldownPeriod }}
+  minReplicaCount: {{ .Values.boxerCompactTraces.autoscaling.minReplicas }}
+  maxReplicaCount: {{ .Values.boxerCompactTraces.autoscaling.maxReplicas }}
+  triggers:
+  - type: external
+    metadata:
+      scalerAddress: "{{ include "lakerunner.fullname" . }}-monitoring.{{ .Release.Namespace }}.svc.cluster.local:9090"
+      serviceType: "boxer-compact-traces"
+{{- end }}

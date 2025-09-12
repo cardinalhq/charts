@@ -710,6 +710,70 @@ boxerCompactMetrics:
   tolerations: []
   affinity: {}
 
+# Boxer Compact Logs configuration
+boxerCompactLogs:
+  enabled: true
+  # The number of replicas to run.  This is not used if autoscaling is enabled.
+  replicas: 1
+  image:
+    repository: public.ecr.aws/cardinalhq.io/lakerunner
+    tag: ""
+    pullPolicy: ""
+  resources:
+    requests:
+      cpu: 1100m
+      memory: 512Mi
+    limits:
+      cpu: 1100m
+      memory: 512Mi
+  autoscaling:
+    enabled: true
+    minReplicas: 1
+    maxReplicas: 10
+    keda:
+      pollingInterval: 60 # Longer interval for batch work
+      cooldownPeriod: 600 # 10-minute cooldown for compact processing
+      targetQueueDepth: 15 # Scale up when pending jobs exceed this
+      activationQueueDepth: 2 # Start scaling when jobs are pending
+  terminationGracePeriodSeconds: 300
+  labels: {}
+  annotations: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+# Boxer Compact Traces configuration
+boxerCompactTraces:
+  enabled: true
+  # The number of replicas to run.  This is not used if autoscaling is enabled.
+  replicas: 1
+  image:
+    repository: public.ecr.aws/cardinalhq.io/lakerunner
+    tag: ""
+    pullPolicy: ""
+  resources:
+    requests:
+      cpu: 1100m
+      memory: 512Mi
+    limits:
+      cpu: 1100m
+      memory: 512Mi
+  autoscaling:
+    enabled: true
+    minReplicas: 1
+    maxReplicas: 10
+    keda:
+      pollingInterval: 60 # Longer interval for batch work
+      cooldownPeriod: 600 # 10-minute cooldown for compact processing
+      targetQueueDepth: 15 # Scale up when pending jobs exceed this
+      activationQueueDepth: 2 # Start scaling when jobs are pending
+  terminationGracePeriodSeconds: 300
+  labels: {}
+  annotations: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
 # Sweeper configuration
 sweeper:
   enabled: true
