@@ -6,17 +6,24 @@ set:
 templates:
   - ingest-logs-deployment.yaml
   - ingest-metrics-deployment.yaml
+  - ingest-traces-deployment.yaml
   - compact-logs-deployment.yaml
   - compact-metrics-deployment.yaml
+  - compact-traces-deployment.yaml
   - rollup-metrics-deployment.yaml
   - boxer-rollup-metrics-deployment.yaml
+  - boxer-compact-metrics-deployment.yaml
+  - boxer-compact-logs-deployment.yaml
+  - boxer-compact-traces-deployment.yaml
   - query-api-v2-deployment.yaml
   - query-worker-v2-deployment.yaml
   - grafana-deployment.yaml
+  - monitoring-deployment.yaml
   - setup-job.yaml
   - pubsub-http-deployment.yaml
   - pubsub-sqs-deployment.yaml
   - pubsub-gcp-deployment.yaml
+  - pubsub-azure-deployment.yaml
   - sweeper-deployment.yaml
 tests:
   - it: should render common environment variables for all components
