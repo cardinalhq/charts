@@ -82,6 +82,7 @@ spec:
           subPath: storage_profiles.yaml
           readOnly: true
         {{- end }}
+        {{- include "lakerunner.kafkaTopicsVolumeMount" . | nindent 8 }}
       {{- include "lakerunner.sched.nodeSelector" (list .Values.global.nodeSelector .Values.pubsub.GCP.nodeSelector) | nindent 6 }}
       {{- include "lakerunner.sched.tolerations"  (list .Values.global.tolerations  .Values.pubsub.GCP.tolerations)  | nindent 6 }}
       {{- include "lakerunner.sched.affinity"     (list .Values.global.affinity     .Values.pubsub.GCP.affinity)     | nindent 6 }}
@@ -90,5 +91,9 @@ spec:
       - name: storage-profiles
         configMap:
           name: {{ include "lakerunner.storageProfilesConfigmapName" . }}
+      {{- include "lakerunner.kafkaTopicsVolume" . | nindent 6 }}
+      {{- else }}
+      volumes:
+      {{- include "lakerunner.kafkaTopicsVolume" . | nindent 6 }}
       {{- end }}
 {{- end }}

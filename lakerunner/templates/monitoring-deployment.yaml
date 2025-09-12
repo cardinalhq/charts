@@ -104,4 +104,8 @@ spec:
           {{- include "lakerunner.kafkaEnv" . | nindent 10 }}
         resources:
           {{- toYaml .Values.monitoring.resources | nindent 10 }}
+        volumeMounts:
+        {{- include "lakerunner.kafkaTopicsVolumeMount" . | nindent 8 }}
+      volumes:
+      {{- include "lakerunner.kafkaTopicsVolume" . | nindent 6 }}
 {{- end }}

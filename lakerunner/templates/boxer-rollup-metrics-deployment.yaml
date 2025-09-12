@@ -88,10 +88,12 @@ spec:
           subPath: storage_profiles.yaml
           readOnly: true
         {{- end }}
+        {{- include "lakerunner.kafkaTopicsVolumeMount" . | nindent 8 }}
       volumes:
       {{- if eq .Values.storageProfiles.source "config" }}
       - name: storage-profiles
         configMap:
           name: {{ include "lakerunner.storageProfilesConfigmapName" . }}
       {{- end }}
+      {{- include "lakerunner.kafkaTopicsVolume" . | nindent 6 }}
 {{- end }}

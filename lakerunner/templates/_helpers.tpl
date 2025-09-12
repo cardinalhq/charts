@@ -605,3 +605,28 @@ Usage: {{ include "lakerunner.kafkaEnv" . }}
   value: "false"
 {{- end }}
 {{- end }}
+
+{{/*
+Generate Kafka topics ConfigMap volume mount.
+Usage: {{ include "lakerunner.kafkaTopicsVolumeMount" . }}
+*/}}
+{{- define "lakerunner.kafkaTopicsVolumeMount" -}}
+{{- if .Values.kafkaTopics.create }}
+- name: kafka-topics
+  mountPath: /app/config/kafka_topics.yaml
+  subPath: kafka_topics.yaml
+  readOnly: true
+{{- end }}
+{{- end }}
+
+{{/*
+Generate Kafka topics ConfigMap volume.
+Usage: {{ include "lakerunner.kafkaTopicsVolume" . }}
+*/}}
+{{- define "lakerunner.kafkaTopicsVolume" -}}
+{{- if .Values.kafkaTopics.create }}
+- name: kafka-topics
+  configMap:
+    name: {{ include "lakerunner.kafkaTopicsConfigmapName" . }}
+{{- end }}
+{{- end }}

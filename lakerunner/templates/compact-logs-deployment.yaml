@@ -88,6 +88,7 @@ spec:
           subPath: storage_profiles.yaml
           readOnly: true
         {{- end }}
+        {{- include "lakerunner.kafkaTopicsVolumeMount" . | nindent 8 }}
         - name: scratch
           mountPath: /scratch
       volumes:
@@ -97,4 +98,5 @@ spec:
         configMap:
           name: {{ include "lakerunner.storageProfilesConfigmapName" . }}
       {{- end }}
+      {{- include "lakerunner.kafkaTopicsVolume" . | nindent 6 }}
 {{- end }}
