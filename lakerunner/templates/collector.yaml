@@ -47,6 +47,11 @@ spec:
       collectorName: {{ $storageProfile.collector_name }}
 {{- end }}
   env:
+    {{- if eq .Values.cloudProvider.provider "azure" }}
+    {{- $authType := .Values.cloudProvider.azure.authType | default "service_principal" }}
+    - name: AZURE_AUTH_TYPE
+      value: {{ $authType | quote }}
+    {{- end }}
     {{- if eq (include "lakerunner.injectCloudProviderCredentials" .) "true" }}
     {{- if eq .Values.cloudProvider.provider "aws" }}
     {{- if and .Values.cloudProvider.aws.accessKeyId .Values.cloudProvider.aws.secretAccessKey }}
@@ -63,8 +68,6 @@ spec:
     {{- end }}
     {{- else if eq .Values.cloudProvider.provider "azure" }}
     {{- $authType := .Values.cloudProvider.azure.authType | default "service_principal" }}
-    - name: AZURE_AUTH_TYPE
-      value: {{ $authType | quote }}
     
     {{- if eq $authType "service_principal" }}
     {{- if and .Values.cloudProvider.azure.clientId .Values.cloudProvider.azure.clientSecret .Values.cloudProvider.azure.tenantId }}
