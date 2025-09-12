@@ -9,6 +9,7 @@ templates:
   - compact-logs-deployment.yaml
   - compact-metrics-deployment.yaml
   - rollup-metrics-deployment.yaml
+  - boxer-rollup-metrics-deployment.yaml
   - query-api-v2-deployment.yaml
   - query-worker-v2-deployment.yaml
   - grafana-deployment.yaml

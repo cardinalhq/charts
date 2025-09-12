@@ -9,6 +9,8 @@ templates:
   - compact-logs-scaledobject.yaml
   - compact-traces-deployment.yaml
   - compact-traces-scaledobject.yaml
+  - boxer-rollup-metrics-deployment.yaml
+  - boxer-rollup-metrics-scaledobject.yaml
 values:
   - ../values.yaml
 set:
@@ -303,6 +305,83 @@ tests:
       rollupMetrics.enabled: false
     templates:
       - compact-traces-deployment.yaml
+    asserts:
+      - failedTemplate:
+          errorPattern: "HPA scaling mode is no longer supported"
+
+  # Boxer Rollup Metrics component tests
+  - it: should set correct replicas for boxer rollup metrics when autoscaling disabled
+    set:
+      boxerRollupMetrics.enabled: true
+      boxerRollupMetrics.replicas: 3
+      boxerRollupMetrics.autoscaling.enabled: false
+    templates:
+      - boxer-rollup-metrics-deployment.yaml
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 3
+
+  - it: should not set replicas for boxer rollup metrics when KEDA autoscaling is active
+    set:
+      global.autoscaling.mode: keda
+      monitoring.enabled: true
+      boxerRollupMetrics.enabled: true
+      boxerRollupMetrics.autoscaling.enabled: true
+    templates:
+      - boxer-rollup-metrics-deployment.yaml
+    asserts:
+      - notExists:
+          path: spec.replicas
+
+  - it: should create ScaledObject for boxer rollup metrics when KEDA mode is enabled
+    set:
+      global.autoscaling.mode: keda
+      boxerRollupMetrics.enabled: true
+      monitoring.enabled: true
+      boxerRollupMetrics.autoscaling.minReplicas: 2
+      boxerRollupMetrics.autoscaling.maxReplicas: 15
+    templates:
+      - boxer-rollup-metrics-scaledobject.yaml
+    asserts:
+      - isKind:
+          of: ScaledObject
+      - equal:
+          path: spec.minReplicaCount
+          value: 2
+      - equal:
+          path: spec.maxReplicaCount
+          value: 15
+      - equal:
+          path: spec.triggers[0].type
+          value: "external"
+      - equal:
+          path: spec.triggers[0].metadata.serviceType
+          value: "boxer-rollup-metrics"
+
+  - it: should not create ScaledObject for boxer rollup metrics when disabled mode is set
+    set:
+      global.autoscaling.mode: disabled
+      boxerRollupMetrics.enabled: true
+    templates:
+      - boxer-rollup-metrics-scaledobject.yaml
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should fail deployment for boxer rollup metrics when HPA mode is used
+    set:
+      global.autoscaling.mode: hpa
+      ingestLogs.enabled: false
+      ingestMetrics.enabled: false
+      ingestTraces.enabled: false
+      compactLogs.enabled: false
+      compactMetrics.enabled: false
+      compactTraces.enabled: false
+      rollupMetrics.enabled: false
+      boxerRollupMetrics.enabled: true
+    templates:
+      - boxer-rollup-metrics-deployment.yaml
     asserts:
       - failedTemplate:
           errorPattern: "HPA scaling mode is no longer supported"

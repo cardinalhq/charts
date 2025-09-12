@@ -13,6 +13,7 @@ templates:
   - compact-logs-deployment.yaml
   - compact-metrics-deployment.yaml
   - rollup-metrics-deployment.yaml
+  - boxer-rollup-metrics-deployment.yaml
   - sweeper-deployment.yaml
   - pubsub-http-deployment.yaml
   - pubsub-sqs-deployment.yaml
@@ -155,6 +156,7 @@ tests:
       compactLogs.enabled: true
       compactMetrics.enabled: true
       rollupMetrics.enabled: true
+      boxerRollupMetrics.enabled: true
       sweeper.enabled: true
     templates:
       - ingest-logs-deployment.yaml
@@ -162,7 +164,26 @@ tests:
       - compact-logs-deployment.yaml
       - compact-metrics-deployment.yaml
       - rollup-metrics-deployment.yaml
+      - boxer-rollup-metrics-deployment.yaml
       - sweeper-deployment.yaml
     asserts:
       - isKind:
           of: Deployment
+
+  - it: should render boxer rollup metrics when enabled
+    set:
+      boxerRollupMetrics.enabled: true
+    templates:
+      - boxer-rollup-metrics-deployment.yaml
+    asserts:
+      - isKind:
+          of: Deployment
+
+  - it: should not render boxer rollup metrics when disabled
+    set:
+      boxerRollupMetrics.enabled: false
+    templates:
+      - boxer-rollup-metrics-deployment.yaml
+    asserts:
+      - hasDocuments:
+          count: 0

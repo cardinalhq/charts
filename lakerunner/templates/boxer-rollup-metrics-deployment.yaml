@@ -1,0 +1,96 @@
+{{- if .Values.boxerRollupMetrics.enabled -}}
+{{- include "lakerunner.validateScalingMode" . -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "lakerunner.fullname" . }}-boxer-rollup-metrics
+  labels:
+    {{- include "lakerunner.labels" . | nindent 4 }}
+    app.kubernetes.io/component: boxer-rollup-metrics
+  {{ include "lakerunner.annotations" . | nindent 2 }}
+spec:
+  {{- $scalingMode := include "lakerunner.autoscalingMode" (list .Values.boxerRollupMetrics.autoscaling .) }}
+  {{- if eq $scalingMode "disabled" }}
+  replicas: {{ .Values.boxerRollupMetrics.replicas }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "lakerunner.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: boxer-rollup-metrics
+  template:
+    metadata:
+      labels:
+        {{- include "lakerunner.labels" . | nindent 8 }}
+        app.kubernetes.io/component: boxer-rollup-metrics
+        {{- if eq .Values.cloudProvider.azure.authType "workload_identity" }}
+        azure.workload.identity/use: "true"
+        {{- end }}
+      {{- include "lakerunner.annotations" . | nindent 6 }}
+    spec:
+      serviceAccountName: {{ include "lakerunner.serviceAccountName" . }}
+      terminationGracePeriodSeconds: {{ .Values.boxerRollupMetrics.terminationGracePeriodSeconds }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+      {{- include "lakerunner.imagePullSecrets" . | nindent 6 }}
+        {{- include "lakerunner.sched.nodeSelector" (list .Values.global.nodeSelector .Values.boxerRollupMetrics.nodeSelector) | nindent 6 }}
+        {{- include "lakerunner.sched.tolerations"  (list .Values.global.tolerations  .Values.boxerRollupMetrics.tolerations)  | nindent 6 }}
+        {{- include "lakerunner.sched.affinity"     (list .Values.global.affinity     .Values.boxerRollupMetrics.affinity)     | nindent 6 }}
+      containers:
+      - name: boxer-rollup-metrics
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop: ["ALL"]
+          seccompProfile:
+            type: RuntimeDefault
+        image: {{ include "lakerunner.image" (list .Values.boxerRollupMetrics.image .) }}
+        imagePullPolicy: {{ .Values.boxerRollupMetrics.image.pullPolicy | default .Values.global.image.pullPolicy }}
+        command: ["/app/bin/lakerunner"]
+        args: ["boxer-rollup-metrics"]
+        env:
+          - name: POD_NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          - name: POD_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name
+          - name: POD_IP
+            valueFrom:
+              fieldRef:
+                fieldPath: status.podIP
+          - name: OTEL_SERVICE_NAME
+            value: {{ include "lakerunner.fullname" . }}-boxer-rollup-metrics
+          - name: TMPDIR
+            value: /tmp
+          {{- if eq .Values.cloudProvider.provider "azure" }}
+          - name: AZURE_AUTH_TYPE
+            value: {{ .Values.cloudProvider.azure.authType | quote }}
+          {{- end }}
+          {{- include "lakerunner.injectEnv" (list . .Values.boxerRollupMetrics) | nindent 8 }}
+          {{- include "lakerunner.cardinalTelemetryEnv" . | nindent 10 }}
+        {{- if eq (include "lakerunner.injectCloudProviderCredentials" .) "true" }}
+        envFrom:
+          - secretRef:
+              name: {{ include "lakerunner.cloudProviderSecretName" . }}
+        {{- end }}
+        resources:
+          {{- toYaml .Values.boxerRollupMetrics.resources | nindent 10 }}
+        volumeMounts:
+        {{- if eq .Values.storageProfiles.source "config" }}
+        - name: storage-profiles
+          mountPath: /app/config/storage_profiles.yaml
+          subPath: storage_profiles.yaml
+          readOnly: true
+        {{- end }}
+      volumes:
+      {{- if eq .Values.storageProfiles.source "config" }}
+      - name: storage-profiles
+        configMap:
+          name: {{ include "lakerunner.storageProfilesConfigmapName" . }}
+      {{- end }}
+{{- end }}
