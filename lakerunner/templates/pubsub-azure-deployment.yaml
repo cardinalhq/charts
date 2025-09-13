@@ -78,8 +78,8 @@ spec:
         {{- end }}
         resources:
           {{- toYaml .Values.pubsub.Azure.resources | nindent 10 }}
-        {{- if eq .Values.storageProfiles.source "config" }}
         volumeMounts:
+        {{- if eq .Values.storageProfiles.source "config" }}
         - name: storage-profiles
           mountPath: /app/config/storage_profiles.yaml
           subPath: storage_profiles.yaml
@@ -89,11 +89,14 @@ spec:
         volumeMounts:
         {{- include "lakerunner.kafkaTopicsVolumeMount" . | nindent 8 }}
         {{- end }}
+        {{- include "lakerunner.azureTokenVolumeMount" . | nindent 8 }}
       {{- include "lakerunner.sched.nodeSelector" (list .Values.global.nodeSelector .Values.pubsub.Azure.nodeSelector) | nindent 6 }}
       {{- include "lakerunner.sched.tolerations"  (list .Values.global.tolerations  .Values.pubsub.Azure.tolerations)  | nindent 6 }}
       {{- include "lakerunner.sched.affinity"     (list .Values.global.affinity     .Values.pubsub.Azure.affinity)     | nindent 6 }}
-      {{- if eq .Values.storageProfiles.source "config" }}
+      {{- $hasVolumes := or (eq .Values.storageProfiles.source "config") (and (eq .Values.cloudProvider.provider "azure") (eq .Values.cloudProvider.azure.authType "workload_identity")) }}
+      {{- if $hasVolumes }}
       volumes:
+      {{- if eq .Values.storageProfiles.source "config" }}
       - name: storage-profiles
         configMap:
           name: {{ include "lakerunner.storageProfilesConfigmapName" . }}
@@ -101,5 +104,7 @@ spec:
       {{- else }}
       volumes:
       {{- include "lakerunner.kafkaTopicsVolume" . | nindent 6 }}
+      {{- end }}
+      {{- include "lakerunner.azureTokenVolume" . | nindent 6 }}
       {{- end }}
 {{- end }}

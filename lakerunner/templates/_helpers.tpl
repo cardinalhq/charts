@@ -630,3 +630,31 @@ Usage: {{ include "lakerunner.kafkaTopicsVolume" . }}
     name: {{ include "lakerunner.kafkaTopicsConfigmapName" . }}
 {{- end }}
 {{- end }}
+
+{{/*
+Generate Azure workload identity token volume mount.
+Always included when using Azure workload identity auth type.
+*/}}
+{{- define "lakerunner.azureTokenVolumeMount" -}}
+{{- if and (eq .Values.cloudProvider.provider "azure") (eq .Values.cloudProvider.azure.authType "workload_identity") }}
+- name: azure-identity-token
+  mountPath: /var/run/secrets/azure/tokens
+  readOnly: true
+{{- end }}
+{{- end }}
+
+{{/*
+Generate Azure workload identity token volume.
+Always included when using Azure workload identity auth type.
+*/}}
+{{- define "lakerunner.azureTokenVolume" -}}
+{{- if and (eq .Values.cloudProvider.provider "azure") (eq .Values.cloudProvider.azure.authType "workload_identity") }}
+- name: azure-identity-token
+  projected:
+    sources:
+    - serviceAccountToken:
+        path: azure-identity-token
+        audience: api://AzureADTokenExchange
+        expirationSeconds: 3600
+{{- end }}
+{{- end }}

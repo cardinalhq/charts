@@ -27,6 +27,7 @@ spec:
   collectorStyle: gateway
   collectorName: {{ $storageProfile.collector_name }}
   apiKeySecretRef: {{ include "lakerunner.fullname" . }}-cardinal-api-key
+  serviceAccountName: {{ include "lakerunner.serviceAccountName" . }}
 
   features:
 {{- if eq $storageProfile.cloud_provider "azure" }}

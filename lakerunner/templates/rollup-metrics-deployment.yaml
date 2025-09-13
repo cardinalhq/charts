@@ -91,6 +91,7 @@ spec:
         {{- include "lakerunner.kafkaTopicsVolumeMount" . | nindent 8 }}
         - name: scratch
           mountPath: /scratch
+        {{- include "lakerunner.azureTokenVolumeMount" . | nindent 8 }}
       volumes:
       {{- include "lakerunner.ephemeralVolume" (list "scratch" .Values.rollupMetrics.temporaryStorage.size .) | nindent 6 }}
       {{- if eq .Values.storageProfiles.source "config" }}
@@ -99,4 +100,5 @@ spec:
           name: {{ include "lakerunner.storageProfilesConfigmapName" . }}
       {{- end }}
       {{- include "lakerunner.kafkaTopicsVolume" . | nindent 6 }}
+      {{- include "lakerunner.azureTokenVolume" . | nindent 6 }}
 {{- end }}
