@@ -42,17 +42,16 @@ spec:
         image: {{ include "lakerunner.image" (list .Values.monitoring.image .) }}
         imagePullPolicy: {{ .Values.monitoring.image.pullPolicy | default .Values.global.image.pullPolicy }}
         command: ["/app/bin/lakerunner"]
-        args: 
+        args:
           - "monitoring"
           - "serve"
           - "--grpc-port={{ .Values.monitoring.grpcPort }}"
-          - "--port={{ .Values.monitoring.httpPort }}"
         ports:
           - name: grpc
             containerPort: {{ .Values.monitoring.grpcPort }}
             protocol: TCP
           - name: http
-            containerPort: {{ .Values.monitoring.httpPort }}
+            containerPort: 8090
             protocol: TCP
         livenessProbe:
           httpGet:
