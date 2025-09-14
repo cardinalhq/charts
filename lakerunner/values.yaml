@@ -244,33 +244,52 @@ kafka:
 
 # Kafka topics configuration
 # Defines the Kafka topics that will be created during setup.
-# Required when using Kafka for data processing.
 kafkaTopics:
   configmapName: "kafka-topics" # Name of the ConfigMap containing Kafka topics
+  # IF create is true, the contents of the `config` block will be used to set up
+  # the Kafka topics.  If false, the configuration defined below will be
+  # ignored, but
   create: true
   config:
-    # Default configuration applied to all topics unless overridden
+    version: 2
     defaults:
-      replicationFactor: 2
+      # This will be the default for all topics unless overridden below.
+      # Can only increase this value as Kafka does not support decreasing
+      # partitions.
       partitionCount: 16
-      #brokerIDs: [ 1, 2, 3 ] # only needed if there is no broker 0 (MKS)
-      topicConfig:
-        "cleanup.policy": "delete"
-        "retention.ms": "604800000"
-        "max.message.bytes": "10485760"
-    # Topic-specific configurations
-    topics:
-      - name: lakerunner.boxer.logs.compact
-      - name: lakerunner.boxer.metrics.compact
-      - name: lakerunner.boxer.metrics.rollup
-      - name: lakerunner.boxer.traces.compact
-      - name: lakerunner.objstore.ingest.logs
-      - name: lakerunner.objstore.ingest.metrics
-      - name: lakerunner.objstore.ingest.traces
-      - name: lakerunner.segments.logs.compact
-      - name: lakerunner.segments.metrics.compact
-      - name: lakerunner.segments.metrics.rollup
-      - name: lakerunner.segments.traces.compact
+      # Set the replication factor for all topics.  This can be changed
+      # and the new value will be configured on the next setup job run.
+      replicationFactor: 2
+      # Additional topic-level configuration options.
+      # These will be applied to all topics unless overridden below,
+      # on the next setup job run.
+      options:
+        "retention.ms": "604800000" # 7 days
+    # Worker overrides by service type will configure the
+    # topic that feeds these services.  See the docs for more details.
+    # workers:
+    #   ingest-logs:
+    #     partitionCount: 16
+    #   ingest-metrics:
+    #     partitionCount: 16
+    #   ingest-traces:
+    #     partitionCount: 16
+    #   compact-logs:
+    #     partitionCount: 16
+    #   compact-metrics:
+    #     partitionCount: 16
+    #   compact-traces:
+    #     partitionCount: 16
+    #   rollup-metrics:
+    #     partitionCount: 16
+    #   boxer-compact-logs:
+    #     partitionCount: 16
+    #   boxer-compact-metrics:
+    #     partitionCount: 16
+    #   boxer-compact-traces:
+    #     partitionCount: 16
+    #   boxer-rollup-metrics:
+    #     partitionCount: 16
 
 
 # Storage profile configuration
