@@ -100,6 +100,43 @@ tests:
               secretKeyRef:
                 name: RELEASE-NAME-lakerunner-kafka-credentials
                 key: KAFKA_PASSWORD
+      # Test corresponding KAFKA_* variables
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: LAKERUNNER_KAFKA_BROKERS
+            value: "b-1.test.kafka.us-east-2.amazonaws.com:9096,b-2.test.kafka.us-east-2.amazonaws.com:9096"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: LAKERUNNER_KAFKA_TLS_ENABLED
+            value: "true"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: LAKERUNNER_KAFKA_SASL_ENABLED
+            value: "true"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: LAKERUNNER_KAFKA_SASL_MECHANISM
+            value: "SCRAM-SHA-512"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: LAKERUNNER_KAFKA_SASL_USERNAME
+            valueFrom:
+              secretKeyRef:
+                name: RELEASE-NAME-lakerunner-kafka-credentials
+                key: KAFKA_USERNAME
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: LAKERUNNER_KAFKA_SASL_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: RELEASE-NAME-lakerunner-kafka-credentials
+                key: KAFKA_PASSWORD
 
   # Test Kafka environment variables with SASL disabled
   - it: should inject kafka environment variables with SASL disabled
@@ -125,6 +162,22 @@ tests:
           content:
             name: LAKERUNNER_FLY_SASL_ENABLED
             value: "false"
+      # Test corresponding KAFKA_* variables
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: LAKERUNNER_KAFKA_BROKERS
+            value: "b-1.test.kafka.us-east-2.amazonaws.com:9096,b-2.test.kafka.us-east-2.amazonaws.com:9096"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: LAKERUNNER_KAFKA_TLS_ENABLED
+            value: "true"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: LAKERUNNER_KAFKA_SASL_ENABLED
+            value: "false"
       # Should not contain SASL credentials when disabled
       - notContains:
           path: spec.template.spec.containers[0].env
@@ -138,6 +191,19 @@ tests:
           path: spec.template.spec.containers[0].env
           content:
             name: LAKERUNNER_FLY_SASL_MECHANISM
+      # Should not contain corresponding KAFKA_* SASL credentials when disabled
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: LAKERUNNER_KAFKA_SASL_USERNAME
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: LAKERUNNER_KAFKA_SASL_PASSWORD
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: LAKERUNNER_KAFKA_SASL_MECHANISM
 
   # Test different SASL mechanisms
   - it: should support PLAIN SASL mechanism

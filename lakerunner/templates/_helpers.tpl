@@ -604,6 +604,30 @@ Usage: {{ include "lakerunner.kafkaEnv" . }}
 - name: LAKERUNNER_FLY_SASL_ENABLED
   value: "false"
 {{- end }}
+# Duplicate KAFKA_* variables for transition phase
+- name: LAKERUNNER_KAFKA_BROKERS
+  value: {{ .Values.kafka.brokers | quote }}
+- name: LAKERUNNER_KAFKA_TLS_ENABLED
+  value: {{ .Values.kafka.tls.enabled | quote }}
+{{- if .Values.kafka.sasl.enabled }}
+- name: LAKERUNNER_KAFKA_SASL_ENABLED
+  value: "true"
+- name: LAKERUNNER_KAFKA_SASL_MECHANISM
+  value: {{ .Values.kafka.sasl.mechanism | quote }}
+- name: LAKERUNNER_KAFKA_SASL_USERNAME
+  valueFrom:
+    secretKeyRef:
+      name: {{ include "lakerunner.kafkaSecretName" . }}
+      key: {{ .Values.kafka.usernameKey }}
+- name: LAKERUNNER_KAFKA_SASL_PASSWORD
+  valueFrom:
+    secretKeyRef:
+      name: {{ include "lakerunner.kafkaSecretName" . }}
+      key: {{ .Values.kafka.passwordKey }}
+{{- else }}
+- name: LAKERUNNER_KAFKA_SASL_ENABLED
+  value: "false"
+{{- end }}
 {{- end }}
 
 {{/*
