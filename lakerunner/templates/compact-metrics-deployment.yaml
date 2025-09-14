@@ -47,6 +47,10 @@ spec:
         imagePullPolicy: {{ .Values.compactMetrics.image.pullPolicy | default .Values.global.image.pullPolicy }}
         command: ["/app/bin/lakerunner"]
         args: ["compact-metrics"]
+        ports:
+          - name: healthcheck
+            containerPort: {{ .Values.global.healthProbes.healthcheckPort }}
+            protocol: TCP
         env:
           - name: POD_NAMESPACE
             valueFrom:
@@ -76,6 +80,7 @@ spec:
           - secretRef:
               name: {{ include "lakerunner.cloudProviderSecretName" . }}
         {{- end }}
+        {{- include "lakerunner.healthProbes" (list . .Values.compactMetrics) | nindent 8 }}
         resources:
           {{- toYaml .Values.compactMetrics.resources | nindent 10 }}
         volumeMounts:

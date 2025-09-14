@@ -49,6 +49,10 @@ spec:
         imagePullPolicy: {{ .Values.pubsub.Azure.image.pullPolicy | default .Values.global.image.pullPolicy }}
         command: ["/app/bin/lakerunner"]
         args: ["pubsub", "azure"]
+        ports:
+          - name: healthcheck
+            containerPort: {{ .Values.global.healthProbes.healthcheckPort }}
+            protocol: TCP
         env:
           - name: POD_NAMESPACE
             valueFrom:
@@ -76,6 +80,7 @@ spec:
           - secretRef:
               name: {{ include "lakerunner.cloudProviderSecretName" . }}
         {{- end }}
+        {{- include "lakerunner.healthProbes" (list . .Values.pubsub.Azure) | nindent 8 }}
         resources:
           {{- toYaml .Values.pubsub.Azure.resources | nindent 10 }}
         volumeMounts:

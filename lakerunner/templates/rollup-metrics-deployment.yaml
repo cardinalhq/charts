@@ -50,6 +50,10 @@ spec:
         imagePullPolicy: {{ .Values.rollupMetrics.image.pullPolicy | default .Values.global.image.pullPolicy }}
         command: ["/app/bin/lakerunner"]
         args: ["rollup-metrics"]
+        ports:
+          - name: healthcheck
+            containerPort: {{ .Values.global.healthProbes.healthcheckPort }}
+            protocol: TCP
         env:
           - name: POD_NAMESPACE
             valueFrom:
@@ -79,6 +83,7 @@ spec:
           - secretRef:
               name: {{ include "lakerunner.cloudProviderSecretName" . }}
         {{- end }}
+        {{- include "lakerunner.healthProbes" (list . .Values.rollupMetrics) | nindent 8 }}
         resources:
           {{- toYaml .Values.rollupMetrics.resources | nindent 10 }}
         volumeMounts:

@@ -112,7 +112,7 @@ tests:
     set:
       monitoring.enabled: true
       monitoring.grpcPort: 9999
-      monitoring.httpPort: 8888
+      monitoring.healthcheckPort: 8888
     templates:
       - monitoring-deployment.yaml
     asserts:
@@ -133,7 +133,7 @@ tests:
     set:
       monitoring.enabled: true
       monitoring.grpcPort: 9999
-      monitoring.httpPort: 8888
+      monitoring.healthcheckPort: 8888
     templates:
       - monitoring-deployment.yaml
     asserts:
@@ -236,32 +236,6 @@ tests:
               secretKeyRef:
                 name: existing-db-secret
                 key: db-password
-
-  # Health Check Configuration Tests
-  - it: should configure health checks
-    set:
-      monitoring.enabled: true
-    templates:
-      - monitoring-deployment.yaml
-    asserts:
-      - equal:
-          path: spec.template.spec.containers[0].livenessProbe.httpGet.path
-          value: "/healthz"
-      - equal:
-          path: spec.template.spec.containers[0].livenessProbe.httpGet.port
-          value: "http"
-      - equal:
-          path: spec.template.spec.containers[0].livenessProbe.initialDelaySeconds
-          value: 10
-      - equal:
-          path: spec.template.spec.containers[0].readinessProbe.httpGet.path
-          value: "/healthz"
-      - equal:
-          path: spec.template.spec.containers[0].readinessProbe.httpGet.port
-          value: "http"
-      - equal:
-          path: spec.template.spec.containers[0].readinessProbe.initialDelaySeconds
-          value: 5
 
   # Security Context Tests
   - it: should apply security context

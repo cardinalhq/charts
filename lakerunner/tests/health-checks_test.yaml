@@ -1,0 +1,127 @@
+suite: test health check configuration
+values:
+  - ../values.yaml
+set:
+  cloudProvider.aws.region: us-west-2
+templates:
+  - ingest-logs-deployment.yaml
+  - ingest-metrics-deployment.yaml
+  - ingest-traces-deployment.yaml
+  - compact-logs-deployment.yaml
+  - compact-metrics-deployment.yaml
+  - compact-traces-deployment.yaml
+  - rollup-metrics-deployment.yaml
+  - sweeper-deployment.yaml
+  - query-api-v2-deployment.yaml
+  - query-worker-v2-deployment.yaml
+  - grafana-deployment.yaml
+  - pubsub-http-deployment.yaml
+  - pubsub-sqs-deployment.yaml
+  - pubsub-azure-deployment.yaml
+  - pubsub-gcp-deployment.yaml
+  - boxer-compact-logs-deployment.yaml
+  - boxer-compact-metrics-deployment.yaml
+  - boxer-compact-traces-deployment.yaml
+  - boxer-rollup-metrics-deployment.yaml
+  - monitoring-deployment.yaml
+tests:
+  # Global Health Probe Configuration Tests
+  - it: should not have health probes when globally disabled
+    set:
+      global.healthProbes.enabled: false
+    templates:
+      - ingest-logs-deployment.yaml
+      - compact-logs-deployment.yaml
+      - query-api-v2-deployment.yaml
+      - monitoring-deployment.yaml
+    asserts:
+      - isNull:
+          path: spec.template.spec.containers[0].livenessProbe
+      - isNull:
+          path: spec.template.spec.containers[0].readinessProbe
+
+  - it: should have health probes when globally enabled
+    set:
+      global.healthProbes.enabled: true
+    templates:
+      - ingest-logs-deployment.yaml
+      - compact-logs-deployment.yaml
+      - query-api-v2-deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.httpGet.path
+          value: "/livez"
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.httpGet.port
+          value: "healthcheck"
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.httpGet.path
+          value: "/readyz"
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.httpGet.port
+          value: "healthcheck"
+
+  # Service-Level Override Tests
+  - it: should allow service-level health probe override to enabled
+    set:
+      global.healthProbes.enabled: false
+      ingestLogs.healthProbes.enabled: true
+    templates:
+      - ingest-logs-deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.httpGet.path
+          value: "/livez"
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.httpGet.path
+          value: "/readyz"
+
+  - it: should allow service-level health probe override to disabled
+    set:
+      global.healthProbes.enabled: true
+      ingestLogs.healthProbes.enabled: false
+    templates:
+      - ingest-logs-deployment.yaml
+    asserts:
+      - isNull:
+          path: spec.template.spec.containers[0].livenessProbe
+      - isNull:
+          path: spec.template.spec.containers[0].readinessProbe
+
+  # Health Check Port Configuration Tests
+  - it: should configure healthcheck port on all services
+    set:
+      global.healthProbes.enabled: true
+      global.healthProbes.healthcheckPort: 8091
+    templates:
+      - ingest-logs-deployment.yaml
+      - compact-logs-deployment.yaml
+      - query-api-v2-deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].ports
+          content:
+            name: healthcheck
+            containerPort: 8091
+            protocol: TCP
+
+  # Monitoring Service Special Case
+  - it: should configure monitoring service health probes with custom endpoints
+    set:
+      global.healthProbes.enabled: false  # monitoring uses its own config
+      monitoring.healthProbes.enabled: true
+    templates:
+      - monitoring-deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.httpGet.path
+          value: "/livez"
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.httpGet.port
+          value: "healthcheck"
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.httpGet.path
+          value: "/readyz"
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.httpGet.port
+          value: "healthcheck"

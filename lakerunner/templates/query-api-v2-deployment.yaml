@@ -46,6 +46,9 @@ spec:
         ports:
         - containerPort: 8080
           name: http
+        - name: healthcheck
+          containerPort: {{ .Values.global.healthProbes.healthcheckPort }}
+          protocol: TCP
         env:
           - name: OTEL_SERVICE_NAME
             value: {{ include "lakerunner.fullname" . }}-query-api-v2
@@ -80,6 +83,7 @@ spec:
           - secretRef:
               name: {{ include "lakerunner.cloudProviderSecretName" . }}
         {{- end }}
+        {{- include "lakerunner.healthProbes" (list . .Values.queryApi) | nindent 8 }}
         resources:
           {{- toYaml .Values.queryApi.resources | nindent 10 }}
         volumeMounts:

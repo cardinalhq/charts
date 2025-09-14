@@ -62,6 +62,9 @@ spec:
         - name: http
           containerPort: 3000
           protocol: TCP
+        - name: healthcheck
+          containerPort: {{ .Values.global.healthProbes.healthcheckPort }}
+          protocol: TCP
         env:
           - name: GF_SECURITY_ADMIN_USER
             value: "admin"
@@ -76,6 +79,7 @@ spec:
           - name: GF_SERVER_ROOT_URL
             value: "%(protocol)s://%(domain)s:%(http_port)s"
           {{- include "lakerunner.injectEnv" (list . .Values.grafana) | nindent 8 }}
+        {{- include "lakerunner.healthProbes" (list . .Values.grafana) | nindent 8 }}
         resources:
           {{- toYaml .Values.grafana.resources | nindent 10 }}
         volumeMounts:

@@ -47,6 +47,13 @@ global:
     # You must have KEDA installed in your cluster to use "keda" mode.
     # See https://keda.sh for installation instructions.
     mode: "disabled"
+  # Global health probe configuration
+  # These defaults can be overridden per service
+  healthProbes:
+    # Global default for health probe enablement
+    enabled: false  # Set to true to enable health probes globally
+    # Default health check port name (most services use this)
+    healthcheckPort: 8090
   # Additional annotations to add to all resources.
   # This is a key: value map.
   # Optional.
@@ -455,6 +462,9 @@ ingestLogs:
       targetQueueDepth: 100 # Scale up when queue depth exceeds this (logs process quickly)
       activationQueueDepth: 10 # Start scaling when queue depth reaches this
   terminationGracePeriodSeconds: 600
+  # Health probe configuration (inherits from global.healthProbes if not specified)
+  healthProbes:
+    enabled: null  # null = inherit from global.healthProbes.enabled
   labels: {}
   annotations: {}
   nodeSelector: {}
@@ -820,7 +830,7 @@ monitoring:
   enabled: true
   replicas: 1
   grpcPort: 9090
-  httpPort: 8090
+  healthcheckPort: 8090
   service:
     type: ClusterIP
   image:
@@ -835,6 +845,9 @@ monitoring:
       cpu: 250m
       memory: 80Mi
   terminationGracePeriodSeconds: 30
+  # Health probe configuration - currently disabled for testing
+  healthProbes:
+    enabled: false  # Set to true to restore health probes
   labels: {}
   annotations: {}
   nodeSelector: {}

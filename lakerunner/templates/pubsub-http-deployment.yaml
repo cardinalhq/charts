@@ -43,6 +43,9 @@ spec:
         ports:
         - containerPort: 8080
           name: http
+        - name: healthcheck
+          containerPort: {{ .Values.global.healthProbes.healthcheckPort }}
+          protocol: TCP
         env:
           - name: POD_NAMESPACE
             valueFrom:
@@ -61,6 +64,7 @@ spec:
           {{- include "lakerunner.injectEnv" (list . .Values.pubsub.HTTP) | nindent 8 }}
           {{- include "lakerunner.cardinalTelemetryEnv" . | nindent 10 }}
           {{- include "lakerunner.kafkaEnv" . | nindent 10 }}
+        {{- include "lakerunner.healthProbes" (list . .Values.pubsub.HTTP) | nindent 8 }}
         resources:
           {{- toYaml .Values.pubsub.HTTP.resources | nindent 10 }}
         {{- if eq .Values.storageProfiles.source "config" }}

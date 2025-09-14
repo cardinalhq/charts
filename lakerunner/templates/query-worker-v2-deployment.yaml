@@ -46,6 +46,9 @@ spec:
         ports:
         - containerPort: 8081
           name: http
+        - name: healthcheck
+          containerPort: {{ .Values.global.healthProbes.healthcheckPort }}
+          protocol: TCP
         env:
           - name: POD_NAMESPACE
             valueFrom:
@@ -78,6 +81,7 @@ spec:
           - secretRef:
               name: {{ include "lakerunner.duckdbSecretName" . }}
         {{- end }}
+        {{- include "lakerunner.healthProbes" (list . .Values.queryWorker) | nindent 8 }}
         resources:
           {{- toYaml .Values.queryWorker.resources | nindent 10 }}
         volumeMounts:

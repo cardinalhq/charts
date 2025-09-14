@@ -658,3 +658,50 @@ Always included when using Azure workload identity auth type.
         expirationSeconds: 3600
 {{- end }}
 {{- end }}
+
+{{/*
+Health probe configuration helper
+Takes root context and service configuration and returns whether health probes should be enabled
+Usage: {{ include "lakerunner.healthProbesEnabled" (list . .Values.serviceName) }}
+*/}}
+{{- define "lakerunner.healthProbesEnabled" -}}
+{{- $root := index . 0 -}}
+{{- $serviceConfig := index . 1 -}}
+{{- if hasKey $serviceConfig "healthProbes" -}}
+  {{- if not (eq $serviceConfig.healthProbes.enabled nil) -}}
+    {{- $serviceConfig.healthProbes.enabled -}}
+  {{- else -}}
+    {{- $root.Values.global.healthProbes.enabled -}}
+  {{- end -}}
+{{- else -}}
+  {{- $root.Values.global.healthProbes.enabled -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Health probe template for lakerunner services
+Generates standard liveness and readiness probes for lakerunner services
+Usage: {{ include "lakerunner.healthProbes" (list . .Values.serviceName) }}
+*/}}
+{{- define "lakerunner.healthProbes" -}}
+{{- $root := index . 0 -}}
+{{- $serviceConfig := index . 1 -}}
+{{- if include "lakerunner.healthProbesEnabled" (list $root $serviceConfig) | eq "true" }}
+livenessProbe:
+  httpGet:
+    path: /livez
+    port: healthcheck
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+readinessProbe:
+  httpGet:
+    path: /readyz
+    port: healthcheck
+  initialDelaySeconds: 5
+  periodSeconds: 5
+  timeoutSeconds: 3
+  failureThreshold: 3
+{{- end -}}
+{{- end -}}

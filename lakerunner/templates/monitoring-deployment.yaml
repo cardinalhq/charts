@@ -46,12 +46,13 @@ spec:
           - "monitoring"
           - "serve"
           - "--grpc-port={{ .Values.monitoring.grpcPort }}"
+          - "--port={{ .Values.monitoring.healthcheckPort }}"
         ports:
           - name: grpc
             containerPort: {{ .Values.monitoring.grpcPort }}
             protocol: TCP
           - name: http
-            containerPort: 8090
+            containerPort: {{ .Values.monitoring.healthcheckPort }}
             protocol: TCP
         env:
           - name: POD_NAMESPACE
@@ -73,6 +74,7 @@ spec:
           {{- include "lakerunner.injectEnv" (list . .Values.monitoring) | nindent 8 }}
           {{- include "lakerunner.cardinalTelemetryEnv" . | nindent 10 }}
           {{- include "lakerunner.kafkaEnv" . | nindent 10 }}
+        {{- include "lakerunner.healthProbes" (list . .Values.monitoring) | nindent 8 }}
         resources:
           {{- toYaml .Values.monitoring.resources | nindent 10 }}
         volumeMounts:
