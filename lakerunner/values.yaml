@@ -445,11 +445,11 @@ ingestLogs:
     pullPolicy: ""
   resources:
     requests:
-      cpu: 500m
-      memory: 200Mi
+      cpu: 1200m
+      memory: 1Gi
     limits:
-      cpu: 1100m
-      memory: 200Mi
+      cpu: 1200m
+      memory: 1Gi
   temporaryStorage:
     size: "10Gi"
   autoscaling:
@@ -482,11 +482,11 @@ ingestMetrics:
     pullPolicy: ""
   resources:
     requests:
-      cpu: 1100m
-      memory: 500Mi
+      cpu: 1200m
+      memory: 1Gi
     limits:
-      cpu: 1100m
-      memory: 500Mi
+      cpu: 1200m
+      memory: 1Gi
   temporaryStorage:
     size: "10Gi"
   autoscaling:
@@ -516,11 +516,11 @@ ingestTraces:
     pullPolicy: ""
   resources:
     requests:
-      cpu: 800m
-      memory: 400Mi
+      cpu: 1200m
+      memory: 1Gi
     limits:
-      cpu: 1100m
-      memory: 400Mi
+      cpu: 1200m
+      memory: 1Gi
   temporaryStorage:
     size: "10Gi"
   autoscaling:
@@ -550,13 +550,13 @@ compactLogs:
     pullPolicy: ""
   resources:
     requests:
-      cpu: 1100m
+      cpu: 1200m
       memory: 500Mi
     limits:
-      cpu: 1100m
+      cpu: 1200m
       memory: 500Mi
   temporaryStorage:
-    size: "5Gi"
+    size: "10Gi"
   autoscaling:
     enabled: true
     minReplicas: 1
@@ -584,13 +584,13 @@ compactMetrics:
     pullPolicy: ""
   resources:
     requests:
-      cpu: 2100m
-      memory: 1Gi
+      cpu: 1200m
+      memory: 500Mi
     limits:
-      cpu: 2100m
-      memory: 1Gi
+      cpu: 1200m
+      memory: 500Mi
   temporaryStorage:
-    size: "5Gi"
+    size: "10Gi"
   autoscaling:
     enabled: true
     minReplicas: 1
@@ -618,13 +618,13 @@ compactTraces:
     pullPolicy: ""
   resources:
     requests:
-      cpu: 1800m
-      memory: 1Gi
+      cpu: 1200m
+      memory: 500Mi
     limits:
-      cpu: 1800m
-      memory: 1Gi
+      cpu: 1200m
+      memory: 500Mi
   temporaryStorage:
-    size: "5Gi"
+    size: "10Gi"
   autoscaling:
     enabled: true
     minReplicas: 1
@@ -652,11 +652,11 @@ rollupMetrics:
     pullPolicy: ""
   resources:
     requests:
-      cpu: 1100m
-      memory: 1Gi
+      cpu: 1200m
+      memory: 500Mi
     limits:
-      cpu: 1100m
-      memory: 1Gi
+      cpu: 1200m
+      memory: 500Mi
   temporaryStorage:
     size: "10Gi"
   autoscaling:
@@ -686,11 +686,11 @@ boxerRollupMetrics:
     pullPolicy: ""
   resources:
     requests:
-      cpu: 1100m
-      memory: 512Mi
+      cpu: 500m
+      memory: 128Mi
     limits:
-      cpu: 1100m
-      memory: 512Mi
+      cpu: 500m
+      memory: 128Mi
   autoscaling:
     enabled: true
     minReplicas: 1
@@ -718,11 +718,11 @@ boxerCompactMetrics:
     pullPolicy: ""
   resources:
     requests:
-      cpu: 1100m
-      memory: 512Mi
+      cpu: 500m
+      memory: 128Mi
     limits:
-      cpu: 1100m
-      memory: 512Mi
+      cpu: 500m
+      memory: 128Mi
   autoscaling:
     enabled: true
     minReplicas: 1
@@ -750,11 +750,11 @@ boxerCompactLogs:
     pullPolicy: ""
   resources:
     requests:
-      cpu: 1100m
-      memory: 512Mi
+      cpu: 500m
+      memory: 128Mi
     limits:
-      cpu: 1100m
-      memory: 512Mi
+      cpu: 500m
+      memory: 128Mi
   autoscaling:
     enabled: true
     minReplicas: 1
@@ -782,11 +782,11 @@ boxerCompactTraces:
     pullPolicy: ""
   resources:
     requests:
-      cpu: 1100m
-      memory: 512Mi
+      cpu: 500m
+      memory: 128Mi
     limits:
-      cpu: 1100m
-      memory: 512Mi
+      cpu: 500m
+      memory: 128Mi
   autoscaling:
     enabled: true
     minReplicas: 1
@@ -813,11 +813,11 @@ sweeper:
     pullPolicy: ""
   resources:
     requests:
-      cpu: 100m
-      memory: 80Mi
+      cpu: 250m
+      memory: 300Mi
     limits:
       cpu: 250m
-      memory: 80Mi
+      memory: 300Mi
   terminationGracePeriodSeconds: 300
   labels: {}
   annotations: {}
@@ -839,11 +839,11 @@ monitoring:
     pullPolicy: ""
   resources:
     requests:
-      cpu: 100m
-      memory: 80Mi
+      cpu: 250m
+      memory: 250Mi
     limits:
       cpu: 250m
-      memory: 80Mi
+      memory: 250Mi
   terminationGracePeriodSeconds: 30
   # Health probe configuration - currently disabled for testing
   healthProbes:
@@ -867,7 +867,7 @@ pubsub:
       pullPolicy: ""
     resources:
       requests:
-        cpu: 100m
+        cpu: 200m
         memory: 200Mi
       limits:
         cpu: 200m
@@ -892,7 +892,7 @@ pubsub:
       pullPolicy: ""
     resources:
       requests:
-        cpu: 100m
+        cpu: 200m
         memory: 200Mi
       limits:
         cpu: 200m
@@ -916,7 +916,7 @@ pubsub:
       pullPolicy: ""
     resources:
       requests:
-        cpu: 100m
+        cpu: 200m
         memory: 200Mi
       limits:
         cpu: 200m
@@ -944,7 +944,7 @@ pubsub:
       pullPolicy: ""
     resources:
       requests:
-        cpu: 100m
+        cpu: 200m
         memory: 200Mi
       limits:
         cpu: 200m
@@ -971,10 +971,10 @@ queryApi:
   resources:
     requests:
       cpu: 2000m
-      memory: 2Gi
+      memory: 4Gi
     limits:
       cpu: 2000m
-      memory: 2Gi
+      memory: 4Gi
   temporaryStorage:
     size: "16Gi"
   terminationGracePeriodSeconds: 120
@@ -996,10 +996,10 @@ queryWorker:
     pullPolicy: ""
   resources:
     requests:
-      cpu: 2000m
+      cpu: 4000m
       memory: 6Gi
     limits:
-      cpu: 2000m
+      cpu: 4000m
       memory: 6Gi
   service:
     type: ClusterIP
@@ -1040,8 +1040,8 @@ grafana:
     pullPolicy: ""
   resources:
     requests:
-      cpu: 100m
-      memory: 128Mi
+      cpu: 200m
+      memory: 256Mi
     limits:
       cpu: 200m
       memory: 256Mi

@@ -16,7 +16,7 @@ Create a `values-local.yaml` file (see below) and run:
 
 ```sh
 helm install lakerunner oci://public.ecr.aws/cardinalhq.io/lakerunner \
-   --version 0.8.5 \
+   --version 0.9.0-rc1 \
    --values values-local.yaml \
    --namespace lakerunner --create-namespace
 ```
@@ -215,9 +215,10 @@ grafana:
 ```
 
 This automatically:
-- Configures the Cardinal LakeRunner datasource
-- Sets the endpoint to the deployed query-api service
-- Makes it the default datasource in Grafana
+
+* Configures the Cardinal LakeRunner datasource
+* Sets the endpoint to the deployed query-api service
+* Makes it the default datasource in Grafana
 
 ### Advanced Configuration
 
@@ -297,3 +298,46 @@ grafana:
 ```
 
 For the complete list of Grafana configuration options, see the [Grafana documentation](https://grafana.com/docs/grafana/latest/setup-grafana/configure-grafana/).
+
+## Default Resource Requirements
+
+The following table summarizes the default resource requirements for each LakeRunner component as configured in the default `values.yaml`:
+
+| Component | CPU | Memory | Temp Storage |
+|-----------|-----|--------|--------------|
+| **PubSub Components** ||||
+| pubsub.HTTP | 200m | 200Mi | - |
+| pubsub.SQS | 200m | 200Mi | - |
+| pubsub.GCP | 200m | 200Mi | - |
+| pubsub.Azure | 200m | 200Mi | - |
+| **Data Ingestion** ||||
+| ingestLogs | 1200m | 1Gi | 10Gi |
+| ingestMetrics | 1200m | 1Gi | 10Gi |
+| ingestTraces | 1200m | 1Gi | 10Gi |
+| **Data Processing** ||||
+| boxerRollupMetrics | 500m | 128Mi | - |
+| boxerCompactMetrics | 500m | 128Mi | - |
+| boxerCompactLogs | 500m | 128Mi | - |
+| boxerCompactTraces | 500m | 128Mi | - |
+| compactLogs | 1200m | 500Mi | 10Gi |
+| compactMetrics | 1200m | 500Mi | 10Gi |
+| compactTraces | 1200m | 500Mi | 10Gi |
+| rollupMetrics | 1200m | 500Mi | 10Gi |
+| **Query Layer** ||||
+| queryApi | 2000m | 4Gi | 16Gi |
+| queryWorker | 4000m | 6Gi | 16Gi |
+| sweeper | 250m | 300Mi | - |
+| **Infrastructure** ||||
+| setup | 1100m | 250Mi | - |
+| monitoring | 250m | 100Mi | - |
+| **Add-Ons** ||||
+| grafana | 200m | 256Mi | - |
+
+**Notes:**
+
+* Resource values are based on the default `values.yaml` configuration
+* These settings are suitable for small to medium installations
+* Adjust these values based on your specific workload requirements
+* Components with autoscaling enabled can scale between configured min/max replicas
+* Temporary storage is used for processing intermediate data and caching and will benefit from fast local epheremal storage.
+* PubSub components are mutually exclusive - typically only one is enabled based on your cloud provider
