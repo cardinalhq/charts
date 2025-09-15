@@ -46,13 +46,12 @@ spec:
           - "monitoring"
           - "serve"
           - "--grpc-port={{ .Values.monitoring.grpcPort }}"
-          - "--port={{ .Values.monitoring.healthcheckPort }}"
         ports:
           - name: grpc
             containerPort: {{ .Values.monitoring.grpcPort }}
             protocol: TCP
-          - name: http
-            containerPort: {{ .Values.monitoring.healthcheckPort }}
+          - name: healthcheck
+            containerPort: {{ .Values.global.healthProbes.healthcheckPort }}
             protocol: TCP
         env:
           - name: POD_NAMESPACE

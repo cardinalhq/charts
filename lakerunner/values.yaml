@@ -830,7 +830,6 @@ monitoring:
   enabled: true
   replicas: 1
   grpcPort: 9090
-  healthcheckPort: 8090
   service:
     type: ClusterIP
   image:
@@ -845,9 +844,6 @@ monitoring:
       cpu: 250m
       memory: 250Mi
   terminationGracePeriodSeconds: 30
-  # Health probe configuration - currently disabled for testing
-  healthProbes:
-    enabled: false  # Set to true to restore health probes
   labels: {}
   annotations: {}
   nodeSelector: {}

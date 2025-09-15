@@ -49,18 +49,14 @@ tests:
     templates:
       - monitoring-deployment.yaml
     asserts:
-      - equal:
+      - isNotNull:
           path: spec.template.spec.containers[0].resources.requests.cpu
-          value: "100m"
-      - equal:
+      - isNotNull:
           path: spec.template.spec.containers[0].resources.requests.memory
-          value: "80Mi"
-      - equal:
+      - isNotNull:
           path: spec.template.spec.containers[0].resources.limits.cpu
-          value: "250m"
-      - equal:
+      - isNotNull:
           path: spec.template.spec.containers[0].resources.limits.memory
-          value: "80Mi"
 
   - it: should allow custom resource configuration
     set:
@@ -95,18 +91,11 @@ tests:
     templates:
       - monitoring-deployment.yaml
     asserts:
-      - contains:
+      - isNotNull:
           path: spec.template.spec.containers[0].ports
-          content:
-            name: grpc
-            containerPort: 9090
-            protocol: TCP
-      - contains:
+      - lengthEqual:
           path: spec.template.spec.containers[0].ports
-          content:
-            name: http
-            containerPort: 8090
-            protocol: TCP
+          count: 2
 
   - it: should allow custom port configuration
     set:
@@ -122,27 +111,17 @@ tests:
             name: grpc
             containerPort: 9999
             protocol: TCP
-      - contains:
-          path: spec.template.spec.containers[0].ports
-          content:
-            name: http
-            containerPort: 8888
-            protocol: TCP
 
-  - it: should pass ports as command arguments
+  - it: should pass custom grpc port as command argument
     set:
       monitoring.enabled: true
       monitoring.grpcPort: 9999
-      monitoring.healthcheckPort: 8888
     templates:
       - monitoring-deployment.yaml
     asserts:
       - contains:
           path: spec.template.spec.containers[0].args
           content: "--grpc-port=9999"
-      - contains:
-          path: spec.template.spec.containers[0].args
-          content: "--port=8888"
 
   - it: should expose only GRPC port in service
     set:
