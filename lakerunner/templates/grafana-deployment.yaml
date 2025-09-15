@@ -80,8 +80,10 @@ spec:
             value: "%(protocol)s://%(domain)s:%(http_port)s"
           {{- include "lakerunner.injectEnv" (list . .Values.grafana) | nindent 8 }}
         {{- include "lakerunner.healthProbes" (list . .Values.grafana) | nindent 8 }}
+        {{- if .Values.global.resources.enabled }}
         resources:
           {{- toYaml .Values.grafana.resources | nindent 10 }}
+        {{- end }}
         volumeMounts:
         - name: grafana-storage
           mountPath: /var/lib/grafana

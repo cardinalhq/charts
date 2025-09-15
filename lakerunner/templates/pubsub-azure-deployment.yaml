@@ -81,8 +81,10 @@ spec:
               name: {{ include "lakerunner.cloudProviderSecretName" . }}
         {{- end }}
         {{- include "lakerunner.healthProbes" (list . .Values.pubsub.Azure) | nindent 8 }}
+        {{- if .Values.global.resources.enabled }}
         resources:
           {{- toYaml .Values.pubsub.Azure.resources | nindent 10 }}
+        {{- end }}
         volumeMounts:
         {{- if eq .Values.storageProfiles.source "config" }}
         - name: storage-profiles

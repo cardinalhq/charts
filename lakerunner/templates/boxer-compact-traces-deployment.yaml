@@ -84,8 +84,10 @@ spec:
               name: {{ include "lakerunner.cloudProviderSecretName" . }}
         {{- end }}
         {{- include "lakerunner.healthProbes" (list . .Values.boxerCompactTraces) | nindent 8 }}
+        {{- if .Values.global.resources.enabled }}
         resources:
           {{- toYaml .Values.boxerCompactTraces.resources | nindent 10 }}
+        {{- end }}
         volumeMounts:
         {{- if eq .Values.storageProfiles.source "config" }}
         - name: storage-profiles

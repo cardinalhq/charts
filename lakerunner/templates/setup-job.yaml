@@ -46,8 +46,10 @@ spec:
           {{- include "lakerunner.injectEnv" (list . .Values.setup) | nindent 8 }}
           {{- include "lakerunner.cardinalTelemetryEnv" . | nindent 10 }}
           {{- include "lakerunner.kafkaEnv" . | nindent 10 }}
+        {{- if .Values.global.resources.enabled }}
         resources:
           {{- toYaml .Values.setup.resources | nindent 10 }}
+        {{- end }}
         {{- if or (eq .Values.storageProfiles.source "config") (eq .Values.apiKeys.source "config") (and .Values.setup.kafka.enabled .Values.kafkaTopics.create) }}
         volumeMounts:
         {{- if eq .Values.storageProfiles.source "config" }}

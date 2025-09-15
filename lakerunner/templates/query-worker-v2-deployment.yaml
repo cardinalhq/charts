@@ -82,8 +82,10 @@ spec:
               name: {{ include "lakerunner.duckdbSecretName" . }}
         {{- end }}
         {{- include "lakerunner.healthProbes" (list . .Values.queryWorker) | nindent 8 }}
+        {{- if .Values.global.resources.enabled }}
         resources:
           {{- toYaml .Values.queryWorker.resources | nindent 10 }}
+        {{- end }}
         volumeMounts:
         {{- if eq .Values.storageProfiles.source "config" }}
         - name: storage-profiles

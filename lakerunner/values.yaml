@@ -3,6 +3,12 @@
 
 # Global settings
 global:
+  # Global resource configuration
+  resources:
+    # Whether to render resource limits and requests in deployments
+    # Set to false to omit resource specifications entirely from rendered templates
+    # Default: true
+    enabled: true
   # CardinalHQ telemetry configuration
   cardinal:
     # API key for CardinalHQ telemetry endpoint

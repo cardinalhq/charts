@@ -65,8 +65,10 @@ spec:
           {{- include "lakerunner.cardinalTelemetryEnv" . | nindent 10 }}
           {{- include "lakerunner.kafkaEnv" . | nindent 10 }}
         {{- include "lakerunner.healthProbes" (list . .Values.pubsub.HTTP) | nindent 8 }}
+        {{- if .Values.global.resources.enabled }}
         resources:
           {{- toYaml .Values.pubsub.HTTP.resources | nindent 10 }}
+        {{- end }}
         {{- if eq .Values.storageProfiles.source "config" }}
         volumeMounts:
         - name: storage-profiles
