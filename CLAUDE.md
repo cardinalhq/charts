@@ -107,9 +107,8 @@ Organization-scoped authentication for query API access.
 ### Secrets Management
 The chart uses Kubernetes secrets for:
 - Database credentials (`postgresql-secret.yaml`)
-- AWS credentials (`aws-credentials-secret.yaml`) 
+- AWS credentials (`aws-credentials-secret.yaml`)
 - API keys (`apikeys-secret.yaml`)
-- Inter-service tokens (`token-secret.yaml`)
 
 ### Scaling Configuration
 Most services support HPA (Horizontal Pod Autoscaling) and have configurable resource limits. Key scaling points:

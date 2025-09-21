@@ -64,43 +64,7 @@ tests:
     templates:
       - ingest-logs-deployment.yaml
     asserts:
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: LAKERUNNER_FLY_BROKERS
-            value: "b-1.test.kafka.us-east-2.amazonaws.com:9096,b-2.test.kafka.us-east-2.amazonaws.com:9096"
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: LAKERUNNER_FLY_TLS_ENABLED
-            value: "true"
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: LAKERUNNER_FLY_SASL_ENABLED
-            value: "true"
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: LAKERUNNER_FLY_SASL_MECHANISM
-            value: "SCRAM-SHA-512"
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: LAKERUNNER_FLY_SASL_USERNAME
-            valueFrom:
-              secretKeyRef:
-                name: RELEASE-NAME-lakerunner-kafka-credentials
-                key: KAFKA_USERNAME
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: LAKERUNNER_FLY_SASL_PASSWORD
-            valueFrom:
-              secretKeyRef:
-                name: RELEASE-NAME-lakerunner-kafka-credentials
-                key: KAFKA_PASSWORD
-      # Test corresponding KAFKA_* variables
+      # Test KAFKA_* variables
       - contains:
           path: spec.template.spec.containers[0].env
           content:
@@ -147,22 +111,7 @@ tests:
     templates:
       - ingest-metrics-deployment.yaml
     asserts:
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: LAKERUNNER_FLY_BROKERS
-            value: "b-1.test.kafka.us-east-2.amazonaws.com:9096,b-2.test.kafka.us-east-2.amazonaws.com:9096"
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: LAKERUNNER_FLY_TLS_ENABLED
-            value: "true"
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: LAKERUNNER_FLY_SASL_ENABLED
-            value: "false"
-      # Test corresponding KAFKA_* variables
+      # Test KAFKA_* variables
       - contains:
           path: spec.template.spec.containers[0].env
           content:
@@ -178,20 +127,7 @@ tests:
           content:
             name: LAKERUNNER_KAFKA_SASL_ENABLED
             value: "false"
-      # Should not contain SASL credentials when disabled
-      - notContains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: LAKERUNNER_FLY_SASL_USERNAME
-      - notContains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: LAKERUNNER_FLY_SASL_PASSWORD
-      - notContains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: LAKERUNNER_FLY_SASL_MECHANISM
-      # Should not contain corresponding KAFKA_* SASL credentials when disabled
+      # Should not contain KAFKA_* SASL credentials when disabled
       - notContains:
           path: spec.template.spec.containers[0].env
           content:
@@ -217,7 +153,7 @@ tests:
       - contains:
           path: spec.template.spec.containers[0].env
           content:
-            name: LAKERUNNER_FLY_SASL_MECHANISM
+            name: LAKERUNNER_KAFKA_SASL_MECHANISM
             value: "PLAIN"
 
   - it: should support SCRAM-SHA-256 SASL mechanism
@@ -231,7 +167,7 @@ tests:
       - contains:
           path: spec.template.spec.containers[0].env
           content:
-            name: LAKERUNNER_FLY_SASL_MECHANISM
+            name: LAKERUNNER_KAFKA_SASL_MECHANISM
             value: "SCRAM-SHA-256"
 
   # Test TLS disabled
@@ -246,12 +182,12 @@ tests:
       - contains:
           path: spec.template.spec.containers[0].env
           content:
-            name: LAKERUNNER_FLY_TLS_ENABLED
+            name: LAKERUNNER_KAFKA_TLS_ENABLED
             value: "false"
       - contains:
           path: spec.template.spec.containers[0].env
           content:
-            name: LAKERUNNER_FLY_SASL_ENABLED
+            name: LAKERUNNER_KAFKA_SASL_ENABLED
             value: "true"
 
   # Test all service types get Kafka environment variables
@@ -282,55 +218,55 @@ tests:
         contains:
           path: spec.template.spec.containers[0].env
           content:
-            name: LAKERUNNER_FLY_BROKERS
+            name: LAKERUNNER_KAFKA_BROKERS
             value: "b-1.test.kafka.us-east-2.amazonaws.com:9096,b-2.test.kafka.us-east-2.amazonaws.com:9096"
       - template: ingest-metrics-deployment.yaml
         contains:
           path: spec.template.spec.containers[0].env
           content:
-            name: LAKERUNNER_FLY_BROKERS
+            name: LAKERUNNER_KAFKA_BROKERS
             value: "b-1.test.kafka.us-east-2.amazonaws.com:9096,b-2.test.kafka.us-east-2.amazonaws.com:9096"
       - template: compact-logs-deployment.yaml
         contains:
           path: spec.template.spec.containers[0].env
           content:
-            name: LAKERUNNER_FLY_BROKERS
+            name: LAKERUNNER_KAFKA_BROKERS
             value: "b-1.test.kafka.us-east-2.amazonaws.com:9096,b-2.test.kafka.us-east-2.amazonaws.com:9096"
       - template: rollup-metrics-deployment.yaml
         contains:
           path: spec.template.spec.containers[0].env
           content:
-            name: LAKERUNNER_FLY_BROKERS
+            name: LAKERUNNER_KAFKA_BROKERS
             value: "b-1.test.kafka.us-east-2.amazonaws.com:9096,b-2.test.kafka.us-east-2.amazonaws.com:9096"
       - template: boxer-rollup-metrics-deployment.yaml
         contains:
           path: spec.template.spec.containers[0].env
           content:
-            name: LAKERUNNER_FLY_BROKERS
+            name: LAKERUNNER_KAFKA_BROKERS
             value: "b-1.test.kafka.us-east-2.amazonaws.com:9096,b-2.test.kafka.us-east-2.amazonaws.com:9096"
       - template: sweeper-deployment.yaml
         contains:
           path: spec.template.spec.containers[0].env
           content:
-            name: LAKERUNNER_FLY_BROKERS
+            name: LAKERUNNER_KAFKA_BROKERS
             value: "b-1.test.kafka.us-east-2.amazonaws.com:9096,b-2.test.kafka.us-east-2.amazonaws.com:9096"
       - template: monitoring-deployment.yaml
         contains:
           path: spec.template.spec.containers[0].env
           content:
-            name: LAKERUNNER_FLY_BROKERS
+            name: LAKERUNNER_KAFKA_BROKERS
             value: "b-1.test.kafka.us-east-2.amazonaws.com:9096,b-2.test.kafka.us-east-2.amazonaws.com:9096"
       - template: pubsub-http-deployment.yaml
         contains:
           path: spec.template.spec.containers[0].env
           content:
-            name: LAKERUNNER_FLY_BROKERS
+            name: LAKERUNNER_KAFKA_BROKERS
             value: "b-1.test.kafka.us-east-2.amazonaws.com:9096,b-2.test.kafka.us-east-2.amazonaws.com:9096"
       - template: setup-job.yaml
         contains:
           path: spec.template.spec.containers[0].env
           content:
-            name: LAKERUNNER_FLY_BROKERS
+            name: LAKERUNNER_KAFKA_BROKERS
             value: "b-1.test.kafka.us-east-2.amazonaws.com:9096,b-2.test.kafka.us-east-2.amazonaws.com:9096"
 
   # Test services that should NOT get Kafka environment variables
@@ -346,12 +282,12 @@ tests:
         notContains:
           path: spec.template.spec.containers[0].env
           content:
-            name: LAKERUNNER_FLY_BROKERS
+            name: LAKERUNNER_KAFKA_BROKERS
       - template: query-worker-v2-deployment.yaml
         notContains:
           path: spec.template.spec.containers[0].env
           content:
-            name: LAKERUNNER_FLY_BROKERS
+            name: LAKERUNNER_KAFKA_BROKERS
 
   # Test using existing secret
   - it: should use existing secret when create is false
@@ -367,7 +303,7 @@ tests:
       - contains:
           path: spec.template.spec.containers[0].env
           content:
-            name: LAKERUNNER_FLY_SASL_USERNAME
+            name: LAKERUNNER_KAFKA_SASL_USERNAME
             valueFrom:
               secretKeyRef:
                 name: existing-kafka-secret
@@ -375,7 +311,7 @@ tests:
       - contains:
           path: spec.template.spec.containers[0].env
           content:
-            name: LAKERUNNER_FLY_SASL_PASSWORD
+            name: LAKERUNNER_KAFKA_SASL_PASSWORD
             valueFrom:
               secretKeyRef:
                 name: existing-kafka-secret

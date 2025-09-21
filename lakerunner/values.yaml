@@ -401,19 +401,6 @@ configdb:
     # Optional, but recommended.
     sslMode: "require"
 
-# Authentication configuration
-auth:
-  # token is used for the query-api pod to authenticate to the query-worker pods.
-  # This secret must contain a key named `TOKEN` with the value being the token string.
-  # Required.
-  token:
-    # The name of the Kubernetes secret that contains the token.
-    # Required.
-    secretName: "query-token"
-    # If create is set to true, the secret will be created with the secretValue provided below.
-    create: true
-    secretValue: ""
-
 # Setup job configuration (runs before all other services)
 # This job is responsible for running database migrations and initial setup tasks.
 setup:
