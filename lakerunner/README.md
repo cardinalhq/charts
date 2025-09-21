@@ -5,6 +5,7 @@
 * A Kubernetes cluster running a modern version of Kubernetes, at least 1.28.
 * A PostgreSQL database, at least version 16.
 * An S3 (or compatible) object store configured to send object create notifications either via SQS or a web hook.
+* Kafka.  Our use of Kafka is small (we send metadata only, not the telemetmry itself) but you will want at least two brokers in produciton.
 * (Optional but **recommended for production use**) [KEDA](https://keda.sh/) installed in your cluster for intelligent autoscaling.
 
 For AWS S3, SQS queues for bucket notifications should be used.  Other systems may have
@@ -16,7 +17,7 @@ Create a `values-local.yaml` file (see below) and run:
 
 ```sh
 helm install lakerunner oci://public.ecr.aws/cardinalhq.io/lakerunner \
-   --version 0.9.0 \
+   --version 0.10.0 \
    --values values-local.yaml \
    --namespace lakerunner --create-namespace
 ```
