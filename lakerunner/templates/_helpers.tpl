@@ -8,6 +8,32 @@ Validate that HPA mode is not used - fail deployment if it is
 {{- end -}}
 
 {{/*
+Validate that boxer instances do not have overlapping tasks
+*/}}
+{{- define "lakerunner.validateBoxerInstances" -}}
+{{- if .Values.boxers.instances -}}
+{{- $allTasks := list -}}
+{{- range $instance := .Values.boxers.instances -}}
+  {{- if not (hasKey $instance "name") -}}
+    {{- fail "Boxer instance missing required 'name' field." -}}
+  {{- end -}}
+  {{- if not (hasKey $instance "tasks") -}}
+    {{- fail (printf "Boxer instance '%s' missing required 'tasks' field." $instance.name) -}}
+  {{- end -}}
+  {{- if not $instance.tasks -}}
+    {{- fail (printf "Boxer instance '%s' has no tasks assigned. Each instance must have at least one task." $instance.name) -}}
+  {{- end -}}
+  {{- range $task := $instance.tasks -}}
+    {{- if has $task $allTasks -}}
+      {{- fail (printf "Task '%s' is assigned to multiple boxer instances. Each task can only be assigned to one instance." $task) -}}
+    {{- end -}}
+    {{- $allTasks = append $allTasks $task -}}
+  {{- end -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
 Expand the name of the chart.
 */}}
 {{- define "lakerunner.name" -}}

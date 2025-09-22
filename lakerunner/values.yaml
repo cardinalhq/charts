@@ -668,9 +668,53 @@ rollupMetrics:
   tolerations: []
   affinity: {}
 
-# Boxer Rollup Metrics configuration
+# Boxer configuration
+# New instances-based configuration for running multiple tasks in a single pod
+boxers:
+  # Default configuration that applies to all boxer instances
+  # The number of replicas to run. This is not used if autoscaling is enabled.
+  replicas: 1
+  image:
+    repository: public.ecr.aws/cardinalhq.io/lakerunner
+    tag: ""
+    pullPolicy: ""
+  resources:
+    requests:
+      cpu: 500m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 128Mi
+  autoscaling:
+    enabled: true
+    minReplicas: 1
+    maxReplicas: 10
+    keda:
+      pollingInterval: 60 # Longer interval for batch work
+      cooldownPeriod: 600 # 10-minute cooldown for processing
+      targetQueueDepth: 15 # Scale up when pending jobs exceed this
+      activationQueueDepth: 2 # Start scaling when jobs are pending
+  terminationGracePeriodSeconds: 300
+  labels: {}
+  annotations: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+  # Boxer instances configuration
+  instances:
+    # Default configuration: single boxer with all tasks
+    - name: default
+      tasks:
+        - compact-logs
+        - compact-metrics
+        - compact-traces
+        - rollup-metrics
+
+# Legacy boxer configurations (deprecated - use boxers.instances instead)
+# These are kept for backward compatibility but will be ignored if boxers.instances is defined
 boxerRollupMetrics:
-  enabled: true
+  enabled: false
   # The number of replicas to run.  This is not used if autoscaling is enabled.
   replicas: 1
   image:
@@ -702,7 +746,7 @@ boxerRollupMetrics:
 
 # Boxer Compact Metrics configuration
 boxerCompactMetrics:
-  enabled: true
+  enabled: false
   # The number of replicas to run.  This is not used if autoscaling is enabled.
   replicas: 1
   image:
@@ -734,7 +778,7 @@ boxerCompactMetrics:
 
 # Boxer Compact Logs configuration
 boxerCompactLogs:
-  enabled: true
+  enabled: false
   # The number of replicas to run.  This is not used if autoscaling is enabled.
   replicas: 1
   image:
@@ -766,7 +810,7 @@ boxerCompactLogs:
 
 # Boxer Compact Traces configuration
 boxerCompactTraces:
-  enabled: true
+  enabled: false
   # The number of replicas to run.  This is not used if autoscaling is enabled.
   replicas: 1
   image:

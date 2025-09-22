@@ -1,0 +1,224 @@
+suite: test boxer instances configuration
+templates:
+  - boxer-deployment.yaml
+  - boxer-scaledobject.yaml
+values:
+  - ../values.yaml
+set:
+  cloudProvider.aws.region: us-west-2
+  # Disable legacy boxer components to focus on new instances
+  boxerRollupMetrics.enabled: false
+  boxerCompactMetrics.enabled: false
+  boxerCompactLogs.enabled: false
+  boxerCompactTraces.enabled: false
+tests:
+  # Default configuration tests
+  - it: should create default boxer deployment with all tasks
+    templates:
+      - boxer-deployment.yaml
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: Deployment
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-lakerunner-boxer-default
+      - equal:
+          path: spec.template.spec.containers[0].args
+          value: ["boxer", "--compact-logs", "--compact-metrics", "--compact-traces", "--rollup-metrics"]
+
+  - it: should create ScaledObject for default boxer with correct task metadata
+    set:
+      global.autoscaling.mode: keda
+      monitoring.enabled: true
+    templates:
+      - boxer-scaledobject.yaml
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: ScaledObject
+      - equal:
+          path: spec.triggers[0].metadata.boxerTasks
+          value: "compact-logs,compact-metrics,compact-traces,rollup-metrics"
+      - equal:
+          path: spec.triggers[0].type
+          value: "external"
+
+  # Multiple instances configuration tests
+  - it: should create multiple boxer deployments for different instances
+    set:
+      boxers.instances:
+        - name: metrics
+          tasks:
+            - compact-metrics
+            - rollup-metrics
+        - name: common
+          tasks:
+            - compact-logs
+            - compact-traces
+    templates:
+      - boxer-deployment.yaml
+    asserts:
+      - hasDocuments:
+          count: 2
+      - isKind:
+          of: Deployment
+          documentIndex: 0
+      - isKind:
+          of: Deployment
+          documentIndex: 1
+
+  - it: should create ScaledObjects for multiple instances with correct task metadata
+    set:
+      global.autoscaling.mode: keda
+      monitoring.enabled: true
+      boxers.instances:
+        - name: metrics
+          tasks:
+            - compact-metrics
+            - rollup-metrics
+        - name: common
+          tasks:
+            - compact-logs
+            - compact-traces
+    templates:
+      - boxer-scaledobject.yaml
+    asserts:
+      - hasDocuments:
+          count: 2
+      - isKind:
+          of: ScaledObject
+          documentIndex: 0
+      - isKind:
+          of: ScaledObject
+          documentIndex: 1
+
+  # Scaling tests
+  - it: should respect replicas setting when autoscaling is disabled
+    set:
+      global.autoscaling.mode: disabled
+      boxers.replicas: 3
+    templates:
+      - boxer-deployment.yaml
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 3
+
+  - it: should not set replicas when KEDA autoscaling is enabled
+    set:
+      global.autoscaling.mode: keda
+      monitoring.enabled: true
+      boxers.replicas: 3
+    templates:
+      - boxer-deployment.yaml
+    asserts:
+      - notExists:
+          path: spec.replicas
+
+  - it: should not create ScaledObjects when autoscaling is disabled
+    set:
+      global.autoscaling.mode: disabled
+    templates:
+      - boxer-scaledobject.yaml
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  # Validation tests
+  - it: should fail when tasks overlap between instances
+    set:
+      boxers.instances:
+        - name: instance1
+          tasks:
+            - compact-logs
+            - compact-metrics
+        - name: instance2
+          tasks:
+            - compact-logs
+            - rollup-metrics
+    templates:
+      - boxer-deployment.yaml
+    asserts:
+      - failedTemplate:
+          errorPattern: "Task 'compact-logs' is assigned to multiple boxer instances"
+
+  - it: should fail when an instance has no tasks
+    set:
+      boxers.instances:
+        - name: empty-instance
+          tasks: []
+    templates:
+      - boxer-deployment.yaml
+    asserts:
+      - failedTemplate:
+          errorPattern: "Boxer instance 'empty-instance' has no tasks assigned"
+
+  # Resource and environment tests
+  - it: should apply correct resource limits from global configuration
+    set:
+      global.resources.enabled: true
+      boxers.resources.requests.memory: "256Mi"
+      boxers.resources.limits.memory: "512Mi"
+    templates:
+      - boxer-deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].resources.requests.memory
+          value: "256Mi"
+      - equal:
+          path: spec.template.spec.containers[0].resources.limits.memory
+          value: "512Mi"
+
+  - it: should set correct environment variables and service name
+    set:
+      boxers.instances:
+        - name: test-boxer
+          tasks:
+            - compact-logs
+    templates:
+      - boxer-deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: OTEL_SERVICE_NAME
+            value: RELEASE-NAME-lakerunner-boxer-test-boxer
+
+
+  # Scheduling configuration tests
+  - it: should apply node selector and tolerations
+    set:
+      boxers.nodeSelector.disktype: ssd
+      boxers.tolerations:
+        - key: special-node
+          operator: Equal
+          value: "true"
+          effect: NoSchedule
+    templates:
+      - boxer-deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.nodeSelector.disktype
+          value: ssd
+      - contains:
+          path: spec.template.spec.tolerations
+          content:
+            key: special-node
+            operator: Equal
+            value: "true"
+            effect: NoSchedule
+
+  # No instances configured tests
+  - it: should not create any resources when instances is empty
+    set:
+      boxers.instances: []
+    templates:
+      - boxer-deployment.yaml
+      - boxer-scaledobject.yaml
+    asserts:
+      - hasDocuments:
+          count: 0
+
