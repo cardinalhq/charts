@@ -12,7 +12,7 @@ Validate that legacy boxer configurations are not used
 */}}
 {{- define "lakerunner.validateLegacyBoxerConfigs" -}}
 {{- if or (hasKey .Values "boxerRollupMetrics") (hasKey .Values "boxerCompactMetrics") (hasKey .Values "boxerCompactLogs") (hasKey .Values "boxerCompactTraces") -}}
-{{- fail "Legacy boxer configurations (boxerRollupMetrics, boxerCompactMetrics, boxerCompactLogs, boxerCompactTraces) are no longer supported. Please migrate to the new boxers.instances configuration. Example:\n\nboxers:\n  instances:\n    - name: metrics\n      tasks:\n        - compact-metrics\n        - rollup-metrics\n    - name: common\n      tasks:\n        - compact-logs\n        - compact-traces" -}}
+{{- fail "Legacy boxer configurations (boxerRollupMetrics, boxerCompactMetrics, boxerCompactLogs, boxerCompactTraces) are no longer supported. Please migrate to the new boxers.instances configuration. Example:\n\nboxers:\n  instances:\n    - name: common\n      tasks:\n        - compact-logs\n        - compact-metrics\n        - compact-traces\n        - rollup-metrics\n\nFor multiple instances, specify additional entries with different names and task lists." -}}
 {{- end -}}
 {{- end -}}
 
