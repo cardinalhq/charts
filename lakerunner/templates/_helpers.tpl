@@ -8,6 +8,15 @@ Validate that HPA mode is not used - fail deployment if it is
 {{- end -}}
 
 {{/*
+Validate that legacy boxer configurations are not used
+*/}}
+{{- define "lakerunner.validateLegacyBoxerConfigs" -}}
+{{- if or (hasKey .Values "boxerRollupMetrics") (hasKey .Values "boxerCompactMetrics") (hasKey .Values "boxerCompactLogs") (hasKey .Values "boxerCompactTraces") -}}
+{{- fail "Legacy boxer configurations (boxerRollupMetrics, boxerCompactMetrics, boxerCompactLogs, boxerCompactTraces) are no longer supported. Please migrate to the new boxers.instances configuration. Example:\n\nboxers:\n  instances:\n    - name: metrics\n      tasks:\n        - compact-metrics\n        - rollup-metrics\n    - name: common\n      tasks:\n        - compact-logs\n        - compact-traces" -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
 Validate that boxer instances do not have overlapping tasks
 */}}
 {{- define "lakerunner.validateBoxerInstances" -}}

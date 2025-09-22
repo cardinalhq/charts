@@ -1,3 +1,4 @@
+{{- include "lakerunner.validateLegacyBoxerConfigs" . -}}
 {{- if .Values.boxers.instances -}}
 {{- include "lakerunner.validateScalingMode" . -}}
 {{- include "lakerunner.validateBoxerInstances" . -}}

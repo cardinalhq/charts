@@ -14,7 +14,7 @@ templates:
   - compact-metrics-deployment.yaml
   - compact-traces-deployment.yaml
   - rollup-metrics-deployment.yaml
-  - boxer-rollup-metrics-deployment.yaml
+  - boxer-deployment.yaml
   - sweeper-deployment.yaml
   - monitoring-deployment.yaml
   - pubsub-http-deployment.yaml
@@ -197,7 +197,6 @@ tests:
       ingestMetrics.enabled: true
       compactLogs.enabled: true
       rollupMetrics.enabled: true
-      boxerRollupMetrics.enabled: true
       sweeper.enabled: true
       monitoring.enabled: true
       pubsub.HTTP.enabled: true
@@ -207,7 +206,7 @@ tests:
       - ingest-metrics-deployment.yaml
       - compact-logs-deployment.yaml
       - rollup-metrics-deployment.yaml
-      - boxer-rollup-metrics-deployment.yaml
+      - boxer-deployment.yaml
       - sweeper-deployment.yaml
       - monitoring-deployment.yaml
       - pubsub-http-deployment.yaml
@@ -238,7 +237,7 @@ tests:
           content:
             name: LAKERUNNER_KAFKA_BROKERS
             value: "b-1.test.kafka.us-east-2.amazonaws.com:9096,b-2.test.kafka.us-east-2.amazonaws.com:9096"
-      - template: boxer-rollup-metrics-deployment.yaml
+      - template: boxer-deployment.yaml
         contains:
           path: spec.template.spec.containers[0].env
           content:

@@ -13,10 +13,7 @@ templates:
   - compact-logs-deployment.yaml
   - compact-metrics-deployment.yaml
   - rollup-metrics-deployment.yaml
-  - boxer-rollup-metrics-deployment.yaml
-  - boxer-compact-metrics-deployment.yaml
-  - boxer-compact-logs-deployment.yaml
-  - boxer-compact-traces-deployment.yaml
+  - boxer-deployment.yaml
   - sweeper-deployment.yaml
   - pubsub-http-deployment.yaml
   - pubsub-sqs-deployment.yaml
@@ -159,10 +156,6 @@ tests:
       compactLogs.enabled: true
       compactMetrics.enabled: true
       rollupMetrics.enabled: true
-      boxerRollupMetrics.enabled: true
-      boxerCompactMetrics.enabled: true
-      boxerCompactLogs.enabled: true
-      boxerCompactTraces.enabled: true
       sweeper.enabled: true
     templates:
       - ingest-logs-deployment.yaml
@@ -170,83 +163,9 @@ tests:
       - compact-logs-deployment.yaml
       - compact-metrics-deployment.yaml
       - rollup-metrics-deployment.yaml
-      - boxer-rollup-metrics-deployment.yaml
-      - boxer-compact-metrics-deployment.yaml
-      - boxer-compact-logs-deployment.yaml
-      - boxer-compact-traces-deployment.yaml
+      - boxer-deployment.yaml
       - sweeper-deployment.yaml
     asserts:
       - isKind:
           of: Deployment
 
-  - it: should render boxer rollup metrics when enabled
-    set:
-      boxerRollupMetrics.enabled: true
-    templates:
-      - boxer-rollup-metrics-deployment.yaml
-    asserts:
-      - isKind:
-          of: Deployment
-
-  - it: should not render boxer rollup metrics when disabled
-    set:
-      boxerRollupMetrics.enabled: false
-    templates:
-      - boxer-rollup-metrics-deployment.yaml
-    asserts:
-      - hasDocuments:
-          count: 0
-
-  - it: should render boxer compact metrics when enabled
-    set:
-      boxerCompactMetrics.enabled: true
-    templates:
-      - boxer-compact-metrics-deployment.yaml
-    asserts:
-      - isKind:
-          of: Deployment
-
-  - it: should not render boxer compact metrics when disabled
-    set:
-      boxerCompactMetrics.enabled: false
-    templates:
-      - boxer-compact-metrics-deployment.yaml
-    asserts:
-      - hasDocuments:
-          count: 0
-
-  - it: should render boxer compact logs when enabled
-    set:
-      boxerCompactLogs.enabled: true
-    templates:
-      - boxer-compact-logs-deployment.yaml
-    asserts:
-      - isKind:
-          of: Deployment
-
-  - it: should not render boxer compact logs when disabled
-    set:
-      boxerCompactLogs.enabled: false
-    templates:
-      - boxer-compact-logs-deployment.yaml
-    asserts:
-      - hasDocuments:
-          count: 0
-
-  - it: should render boxer compact traces when enabled
-    set:
-      boxerCompactTraces.enabled: true
-    templates:
-      - boxer-compact-traces-deployment.yaml
-    asserts:
-      - isKind:
-          of: Deployment
-
-  - it: should not render boxer compact traces when disabled
-    set:
-      boxerCompactTraces.enabled: false
-    templates:
-      - boxer-compact-traces-deployment.yaml
-    asserts:
-      - hasDocuments:
-          count: 0

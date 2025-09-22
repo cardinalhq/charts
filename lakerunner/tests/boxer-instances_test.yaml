@@ -6,11 +6,6 @@ values:
   - ../values.yaml
 set:
   cloudProvider.aws.region: us-west-2
-  # Disable legacy boxer components to focus on new instances
-  boxerRollupMetrics.enabled: false
-  boxerCompactMetrics.enabled: false
-  boxerCompactLogs.enabled: false
-  boxerCompactTraces.enabled: false
 tests:
   # Default configuration tests
   - it: should create default boxer deployment with all tasks

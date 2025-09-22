@@ -11,7 +11,6 @@ templates:
   - compact-metrics-deployment.yaml
   - compact-traces-deployment.yaml
   - rollup-metrics-deployment.yaml
-  - boxer-rollup-metrics-deployment.yaml
   - query-worker-v2-deployment.yaml
   - grafana-deployment.yaml
 tests:
@@ -401,27 +400,3 @@ tests:
           path: spec.template.spec.volumes[0].ephemeral.volumeClaimTemplate.spec.resources.requests.storage
           value: "7Gi"
 
-  # Test that boxer-rollup-metrics does not have scratch storage
-  - it: should not have scratch volume for boxer rollup metrics
-    set:
-      boxerRollupMetrics.enabled: true
-    templates:
-      - boxer-rollup-metrics-deployment.yaml
-    asserts:
-      # Should only have storage-profiles volume (if enabled), not scratch volume
-      - isNull:
-          path: spec.template.spec.volumes[?(@.name == "scratch")]
-
-  - it: should have only config volumes for boxer rollup metrics when storage profiles enabled
-    set:
-      boxerRollupMetrics.enabled: true
-      storageProfiles.source: "config"
-    templates:
-      - boxer-rollup-metrics-deployment.yaml
-    asserts:
-      # Should have storage-profiles volume
-      - isNotNull:
-          path: spec.template.spec.volumes[?(@.name == "storage-profiles")]
-      # Should not have scratch volume
-      - isNull:
-          path: spec.template.spec.volumes[?(@.name == "scratch")]

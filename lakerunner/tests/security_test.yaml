@@ -13,7 +13,7 @@ templates:
   - compact-metrics-deployment.yaml
   - compact-traces-deployment.yaml
   - rollup-metrics-deployment.yaml
-  - boxer-rollup-metrics-deployment.yaml
+  - boxer-deployment.yaml
   - sweeper-deployment.yaml
   - monitoring-deployment.yaml
   # PubSub components
@@ -40,7 +40,7 @@ tests:
       - compact-metrics-deployment.yaml
       - compact-traces-deployment.yaml
       - rollup-metrics-deployment.yaml
-      - boxer-rollup-metrics-deployment.yaml
+      - boxer-deployment.yaml
       - sweeper-deployment.yaml
       - monitoring-deployment.yaml
     set:
@@ -51,7 +51,6 @@ tests:
       compactMetrics.enabled: true
       compactTraces.enabled: true
       rollupMetrics.enabled: true
-      boxerRollupMetrics.enabled: true
       sweeper.enabled: true
       monitoring.enabled: true
     asserts:
@@ -75,7 +74,7 @@ tests:
       - compact-metrics-deployment.yaml
       - compact-traces-deployment.yaml
       - rollup-metrics-deployment.yaml
-      - boxer-rollup-metrics-deployment.yaml
+      - boxer-deployment.yaml
       - sweeper-deployment.yaml
       - monitoring-deployment.yaml
     set:
@@ -86,7 +85,6 @@ tests:
       compactMetrics.enabled: true
       compactTraces.enabled: true
       rollupMetrics.enabled: true
-      boxerRollupMetrics.enabled: true
       sweeper.enabled: true
       monitoring.enabled: true
     asserts:
