@@ -18,7 +18,7 @@ tests:
           of: Deployment
       - equal:
           path: metadata.name
-          value: RELEASE-NAME-lakerunner-boxer-default
+          value: RELEASE-NAME-lakerunner-boxer-common
       - equal:
           path: spec.template.spec.containers[0].args
           value: ["boxer", "--compact-logs", "--compact-metrics", "--compact-traces", "--rollup-metrics"]
