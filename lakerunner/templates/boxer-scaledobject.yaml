@@ -22,7 +22,7 @@ spec:
   - type: external
     metadata:
       scalerAddress: "{{ include "lakerunner.fullname" $ }}-monitoring.{{ $.Release.Namespace }}.svc.cluster.local:9090"
-      serviceType: "boxer-{{ $instance.name }}"
+      serviceType: "boxer"
       boxerTasks: "{{ join "," $instance.tasks }}"
 {{- end }}
 {{- end }}
