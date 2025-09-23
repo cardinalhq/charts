@@ -784,14 +784,14 @@ pubsub:
 
 collector:
   enabled: $([ "$ENABLE_CARDINAL_TELEMETRY" = true ] && echo "true" || echo "false")
-  replicas: 2
-  resources:
-    requests:
-      cpu: 2000m
-      memory: 2Gi
-    limits:
-      cpu: 2000m
-      memory: 2Gi
+  replicas: 1
+#   resources:
+#     requests:
+#       cpu: 2000m
+#       memory: 2Gi
+#     limits:
+#       cpu: 2000m
+#       memory: 2Gi
 
 # Reduce resource requirements for local development
 setup:
