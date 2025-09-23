@@ -934,7 +934,7 @@ queryApi:
 
 queryWorker:
   enabled: true
-  replicas: 2
+  replicas: 1
   resources:
     requests:
       cpu: 500m
