@@ -826,26 +826,8 @@ queryWorker:
 # Grafana configuration
 grafana:
   enabled: true
-  replicas: 1
-  # Use the Cardinal datasource configuration (this is the proper way)
   cardinal:
     apiKey: "$API_KEY"
-    # endpoint is auto-configured by the chart to point to query-api-v2
-    name: "Cardinal Lakerunner"
-    isDefault: true
-    editable: true
-  image:
-    repository: grafana/grafana
-    tag: latest
-    pullPolicy: Always
-  service:
-    type: ClusterIP
-    port: 3000
-  # The plugin URL is configured via cardinalPlugin.url in the chart
-  cardinalPlugin:
-    url: "https://github.com/cardinalhq/cardinalhq-lakerunner-datasource/releases/download/v1.2.0-rc.12/cardinalhq-lakerunner-datasource.zip;cardinalhq-lakerunner-datasource"
-  # No additional datasources needed - the Cardinal datasource is configured above
-  datasources: {}
 EOF
 
     print_success "generated/values-local.yaml generated"

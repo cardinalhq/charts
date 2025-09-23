@@ -922,7 +922,7 @@ grafana:
     # Example: "http://my-custom-query-api:8080"
     endpoint: ""
     # Optional: Custom name for the datasource (defaults to "Cardinal")
-    name: "Cardinal"
+    name: "Cardinal Lakerunner"
     # Optional: Whether this datasource should be the default (defaults to true)
     isDefault: true
     # Optional: Whether this datasource should be editable in Grafana UI (defaults to true)

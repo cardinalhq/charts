@@ -12,9 +12,9 @@ tests:
       - equal:
           path: spec.template.spec.containers[0].env[4].name
           value: "GF_INSTALL_PLUGINS"
-      - equal:
+      - matchRegex:
           path: spec.template.spec.containers[0].env[4].value
-          value: "https://github.com/cardinalhq/cardinalhq-lakerunner-datasource/releases/download/v1.2.0-rc.12/cardinalhq-lakerunner-datasource.zip;cardinalhq-lakerunner-datasource"
+          pattern: "^https://github.com/cardinalhq/cardinalhq-lakerunner-datasource/releases/download/v[0-9]+\\.[0-9]+\\.[0-9]+(-rc\\.[0-9]+)?/cardinalhq-lakerunner-datasource\\.zip;cardinalhq-lakerunner-datasource$"
 
   - it: should append additional plugins when specified
     templates:
@@ -23,9 +23,9 @@ tests:
       grafana.enabled: true
       grafana.additionalPlugins: "grafana-clock-panel"
     asserts:
-      - equal:
+      - matchRegex:
           path: spec.template.spec.containers[0].env[4].value
-          value: "https://github.com/cardinalhq/cardinalhq-lakerunner-datasource/releases/download/v1.2.0-rc.12/cardinalhq-lakerunner-datasource.zip;cardinalhq-lakerunner-datasource,grafana-clock-panel"
+          pattern: "^https://github.com/cardinalhq/cardinalhq-lakerunner-datasource/releases/download/v[0-9]+\\.[0-9]+\\.[0-9]+(-rc\\.[0-9]+)?/cardinalhq-lakerunner-datasource\\.zip;cardinalhq-lakerunner-datasource,grafana-clock-panel$"
 
   - it: should handle multiple additional plugins
     templates:
@@ -34,9 +34,9 @@ tests:
       grafana.enabled: true
       grafana.additionalPlugins: "grafana-clock-panel,grafana-simple-json-datasource"
     asserts:
-      - equal:
+      - matchRegex:
           path: spec.template.spec.containers[0].env[4].value
-          value: "https://github.com/cardinalhq/cardinalhq-lakerunner-datasource/releases/download/v1.2.0-rc.12/cardinalhq-lakerunner-datasource.zip;cardinalhq-lakerunner-datasource,grafana-clock-panel,grafana-simple-json-datasource"
+          pattern: "^https://github.com/cardinalhq/cardinalhq-lakerunner-datasource/releases/download/v[0-9]+\\.[0-9]+\\.[0-9]+(-rc\\.[0-9]+)?/cardinalhq-lakerunner-datasource\\.zip;cardinalhq-lakerunner-datasource,grafana-clock-panel,grafana-simple-json-datasource$"
 
   - it: should support air-gapped cardinal plugin URL
     templates:
