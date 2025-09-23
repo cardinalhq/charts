@@ -700,7 +700,6 @@ boxers:
   nodeSelector: {}
   tolerations: []
   affinity: {}
-
   # Boxer instances configuration
   instances:
     # Default configuration: single boxer with all tasks
@@ -829,9 +828,6 @@ pubsub:
     nodeSelector: {}
     tolerations: []
     affinity: {}
-    # Component-specific environment variables.
-    # This is a list of key-value pairs.
-    # Optional.
     env: []
   Azure:
     enabled: false
@@ -857,9 +853,6 @@ pubsub:
     nodeSelector: {}
     tolerations: []
     affinity: {}
-    # Component-specific environment variables.
-    # This is a list of key-value pairs.
-    # Optional.
     env: []
 
 # Query API configuration
@@ -883,9 +876,6 @@ queryApi:
   nodeSelector: {}
   tolerations: []
   affinity: {}
-  # Component-specific environment variables.
-  # This is a list of key-value pairs.
-  # Optional.
   env: []
 
 # Query Worker configuration
@@ -906,7 +896,7 @@ queryWorker:
   service:
     type: ClusterIP
   temporaryStorage:
-    size: "16Gi"
+    size: "32Gi"
   terminationGracePeriodSeconds: 120
   labels: {}
   annotations: {}
