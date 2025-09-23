@@ -18,7 +18,7 @@
 # This script installs Lakerunner with local MinIO and PostgreSQL
 
 # Helm Chart Versions
-LAKERUNNER_VERSION="0.11.0-rc3"
+LAKERUNNER_VERSION="0.11.2-rc2"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -597,7 +597,7 @@ install_kafka() {
         fi
 
         # Create temporary Kafka values file
-        cat > /tmp/kafka-values.yaml << EOF
+        cat > generated/kafka-values.yaml << EOF
 controller:
   replicaCount: 1
 
@@ -633,10 +633,7 @@ EOF
 
         helm install kafka bitnami/kafka \
             --namespace "$NAMESPACE" \
-            --values /tmp/kafka-values.yaml | output_redirect
-
-        # Clean up temporary file
-        rm -f /tmp/kafka-values.yaml
+            --values generated/kafka-values.yaml | output_redirect
 
         show_progress "Waiting for Kafka to be ready" "kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=kafka -n '$NAMESPACE' --timeout=300s"
 
@@ -652,9 +649,6 @@ generate_values_file() {
 
     # Create generated directory if it doesn't exist
     mkdir -p generated
-
-    AUTH_TOKEN=$(generate_random_string)
-    print_status "Auto-generated internal auth token for service communication"
 
     # After MinIO is installed and before generating values-local.yaml, set credentials:
     if [ "$INSTALL_MINIO" = true ]; then
@@ -716,13 +710,6 @@ apiKeys:
       keys:
         - "$API_KEY"
 
-# Authentication token for query-api to query-worker communication
-auth:
-  token:
-    create: true
-    secretName: "query-token"
-    value: "$AUTH_TOKEN"
-
 # Cloud provider configuration
 cloudProvider:
   provider: "aws"  # Using AWS provider for S3-compatible storage (including MinIO)
@@ -761,22 +748,19 @@ $([ -n "$KAFKA_PASSWORD" ] && echo "    password: \"$KAFKA_PASSWORD\"" || echo "
 # Global configuration
 global:
   resources:
-    enabled: false
+    enabled: false # for a POC local install, this allows the components to use whatever they need.
   autoscaling:
     mode: disabled
 $([ "$ENABLE_CARDINAL_TELEMETRY" = true ] && echo "  # Cardinal telemetry configuration" || echo "  # Cardinal telemetry configuration (disabled)")
 $([ "$ENABLE_CARDINAL_TELEMETRY" = true ] && echo "  cardinal:" || echo "  # cardinal:")
 $([ "$ENABLE_CARDINAL_TELEMETRY" = true ] && echo "    apiKey: \"$CARDINAL_API_KEY\"" || echo "  #   apiKey: \"\"")
 $([ "$ENABLE_CARDINAL_TELEMETRY" = true ] && [ -n "$LAKERUNNER_CARDINAL_ENV" ] && echo "    env: \"$LAKERUNNER_CARDINAL_ENV\"" || echo "")
-  # Global environment variables for all Lakerunner components
-  # env:
 
 # PubSub configuration
 pubsub:
   HTTP:
     enabled: $([ "$USE_SQS" = true ] && echo "false" || echo "true")
     replicas: 1
-
   SQS:
     enabled: $([ "$USE_SQS" = true ] && echo "true" || echo "false")
     $([ "$USE_SQS" = true ] && echo "queueURL: \"$SQS_QUEUE_URL\"" || echo "# queueURL: \"\"")
@@ -793,113 +777,32 @@ collector:
 #       cpu: 2000m
 #       memory: 2Gi
 
-# Reduce resource requirements for local development
 setup:
   enabled: true
-  resources:
-    requests:
-      cpu: 500m
-      memory: 200Mi
-    limits:
-      cpu: 1000m
-      memory: 400Mi
 
 ingestLogs:
   enabled: $([ "$ENABLE_LOGS" = true ] && echo "true" || echo "false")
-  replicas: 1
-  resources:
-    requests:
-      cpu: 200m
-      memory: 100Mi
-    limits:
-      cpu: 500m
-      memory: 200Mi
-  autoscaling:
-    enabled: false  # Disable autoscaling for local development
 
 ingestMetrics:
   enabled: $([ "$ENABLE_METRICS" = true ] && echo "true" || echo "false")
-  replicas: 1
-  resources:
-    requests:
-      cpu: 500m
-      memory: 200Mi
-    limits:
-      cpu: 1000m
-      memory: 400Mi
-  autoscaling:
-    enabled: false  # Disable autoscaling for local development
 
 ingestTraces:
   enabled: $([ "$ENABLE_TRACES" = true ] && echo "true" || echo "false")
-  replicas: 1
-  resources:
-    requests:
-      cpu: 500m
-      memory: 200Mi
-    limits:
-      cpu: 1000m
-      memory: 400Mi
-  autoscaling:
-    enabled: false
 
 compactLogs:
   enabled: $([ "$ENABLE_LOGS" = true ] && echo "true" || echo "false")
-  replicas: 1
-  resources:
-    requests:
-      cpu: 500m
-      memory: 200Mi
-    limits:
-      cpu: 1000m
-      memory: 400Mi
-  autoscaling:
-    enabled: false
 
 compactMetrics:
   enabled: $([ "$ENABLE_METRICS" = true ] && echo "true" || echo "false")
-  replicas: 1
-  resources:
-    requests:
-      cpu: 500m
-      memory: 200Mi
-    limits:
-      cpu: 1000m
-      memory: 400Mi
-  autoscaling:
-    enabled: false
 
 compactTraces:
   enabled: $([ "$ENABLE_TRACES" = true ] && echo "true" || echo "false")
-  replicas: 1
-  resources:
-    requests:
-      cpu: 500m
-      memory: 200Mi
-    limits:
-      cpu: 1000m
-      memory: 400Mi
-  autoscaling:
-    enabled: false
 
 rollupMetrics:
   enabled: $([ "$ENABLE_METRICS" = true ] && echo "true" || echo "false")
-  replicas: 1
-  resources:
-    requests:
-      cpu: 500m
-      memory: 500Mi
-    limits:
-      cpu: 1000m
-      memory: 500Mi
-  autoscaling:
-    enabled: false
 
 # Boxer configuration - single instance running all tasks
 boxers:
-  replicas: 1
-  autoscaling:
-    enabled: false
   instances:
     - name: common
       tasks:
@@ -910,38 +813,15 @@ $([ "$ENABLE_METRICS" = true ] && echo "        - rollup-metrics" || echo "")
 
 sweeper:
   enabled: true
-  replicas: 1
-  resources:
-    requests:
-      cpu: 50m
-      memory: 50Mi
-    limits:
-      cpu: 100m
-      memory: 100Mi
 
 queryApi:
   enabled: true
   replicas: 1
-  resources:
-    requests:
-      cpu: 1000m
-      memory: 1Gi
-    limits:
-      cpu: 1000m
-      memory: 1Gi
   temporaryStorage:
     size: "8Gi"  # Reduce for local development
 
 queryWorker:
   enabled: true
-  replicas: 1
-  resources:
-    requests:
-      cpu: 500m
-      memory: 1Gi
-    limits:
-      cpu: 500m
-      memory: 1Gi
 
 # Grafana configuration
 grafana:
@@ -958,13 +838,6 @@ grafana:
     repository: grafana/grafana
     tag: latest
     pullPolicy: Always
-  resources:
-    requests:
-      cpu: 100m
-      memory: 128Mi
-    limits:
-      cpu: 200m
-      memory: 256Mi
   service:
     type: ClusterIP
     port: 3000
@@ -975,9 +848,8 @@ grafana:
   datasources: {}
 EOF
 
-    print_success "generated/values-local.yaml generated successfully"
+    print_success "generated/values-local.yaml generated"
 }
-
 
 # Function to install Lakerunner
 install_lakerunner() {
@@ -1477,7 +1349,6 @@ install_otel_demo() {
         else
             print_warning "Using external S3 storage. Please ensure the '$S3_BUCKET' bucket exists."
             print_warning "The OTEL demo apps will fail if the bucket doesn't exist."
-            read -p "Press Enter to continue..."
         fi
 
         kubectl get namespace "otel-demo" >/dev/null 2>&1 || kubectl create namespace "otel-demo" >/dev/null 2>&1
@@ -1498,7 +1369,7 @@ install_otel_demo() {
         echo "Demo applications have been installed in the 'otel-demo' namespace."
         echo "These apps will generate sample telemetry data that will be:"
         echo "1. Collected by the OpenTelemetry Collector"
-        echo "2. Exported to MinIO S3 storage"
+        echo "2. Exported to object storage"
         echo "3. Processed by Lakerunner"
         echo "4. Available in Grafana dashboard"
         echo

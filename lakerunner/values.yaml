@@ -405,6 +405,7 @@ configdb:
 # This job is responsible for running database migrations and initial setup tasks.
 setup:
   enabled: true
+  replicas: 1
   image:
     repository: public.ecr.aws/cardinalhq.io/lakerunner
     tag: ""
@@ -431,7 +432,7 @@ setup:
 ingestLogs:
   enabled: true
   # The number of replicas to run.  This is not used if autoscaling is enabled.
-  replicas: 2
+  replicas: 1
   image:
     repository: public.ecr.aws/cardinalhq.io/lakerunner
     tag: ""
@@ -468,7 +469,7 @@ ingestLogs:
 ingestMetrics:
   enabled: true
   # The number of replicas to run.  This is not used if autoscaling is enabled.
-  replicas: 2
+  replicas: 1
   image:
     repository: public.ecr.aws/cardinalhq.io/lakerunner
     tag: ""
@@ -502,7 +503,7 @@ ingestMetrics:
 ingestTraces:
   enabled: false
   # The number of replicas to run.  This is not used if autoscaling is enabled.
-  replicas: 2
+  replicas: 1
   image:
     repository: public.ecr.aws/cardinalhq.io/lakerunner
     tag: ""
@@ -746,10 +747,10 @@ monitoring:
   resources:
     requests:
       cpu: 250m
-      memory: 250Mi
+      memory: 100Mi
     limits:
       cpu: 250m
-      memory: 250Mi
+      memory: 100Mi
   terminationGracePeriodSeconds: 30
   labels: {}
   annotations: {}
@@ -761,7 +762,7 @@ monitoring:
 pubsub:
   HTTP:
     enabled: false
-    replicas: 2 # recommend at least 2
+    replicas: 1 # recommend at least 2 in production
     service:
       type: ClusterIP
     image:
@@ -888,10 +889,10 @@ queryWorker:
     pullPolicy: ""
   resources:
     requests:
-      cpu: 4000m
+      cpu: 4200m
       memory: 6Gi
     limits:
-      cpu: 4000m
+      cpu: 4200m
       memory: 6Gi
   service:
     type: ClusterIP
