@@ -18,7 +18,7 @@
 # This script installs Lakerunner with local MinIO and PostgreSQL
 
 # Helm Chart Versions
-LAKERUNNER_VERSION="0.11.2-rc1"
+LAKERUNNER_VERSION="0.11.0-rc3"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -680,9 +680,10 @@ database:
     username: "$([ "$INSTALL_POSTGRES" = true ] && echo "lakerunner" || echo "$POSTGRES_USER")"
     password: "$([ "$INSTALL_POSTGRES" = true ] && echo "lakerunnerpass" || echo "$POSTGRES_PASSWORD")"
     sslMode: "$([ "$INSTALL_POSTGRES" = true ] && echo "disable" || echo "require")"  # Disable SSL for local development
+
+# Configuration database
 configdb:
   create: true  # Create the secret with credentials
-  secretName: "lakerunner-configdb-credentials"
   lrdb:
     host: "$([ "$INSTALL_POSTGRES" = true ] && echo "postgres-postgresql.$NAMESPACE.svc.cluster.local" || echo "$POSTGRES_HOST")"
     port: $([ "$INSTALL_POSTGRES" = true ] && echo "5432" || echo "$POSTGRES_PORT")
@@ -720,7 +721,7 @@ auth:
   token:
     create: true
     secretName: "query-token"
-    secretValue: "$AUTH_TOKEN"
+    value: "$AUTH_TOKEN"
 
 # Cloud provider configuration
 cloudProvider:
@@ -738,6 +739,7 @@ cloudProvider:
     accessKeyId: "$MINIO_ACCESS_KEY"
     secretAccessKey: "$MINIO_SECRET_KEY"
 
+# Kafka topics configuration
 kafkaTopics:
   config:
     version: 2
@@ -893,57 +895,18 @@ rollupMetrics:
   autoscaling:
     enabled: false
 
-boxerRollupMetrics:
-  enabled: $([ "$ENABLE_METRICS" = true ] && echo "true" || echo "false")
+# Boxer configuration - single instance running all tasks
+boxers:
   replicas: 1
-  resources:
-    requests:
-      cpu: 500m
-      memory: 500Mi
-    limits:
-      cpu: 1000m
-      memory: 500Mi
   autoscaling:
     enabled: false
-
-boxerCompactMetrics:
-  enabled: $([ "$ENABLE_METRICS" = true ] && echo "true" || echo "false")
-  replicas: 1
-  resources:
-    requests:
-      cpu: 500m
-      memory: 200Mi
-    limits:
-      cpu: 1000m
-      memory: 400Mi
-  autoscaling:
-    enabled: false
-
-boxerCompactLogs:
-  enabled: $([ "$ENABLE_LOGS" = true ] && echo "true" || echo "false")
-  replicas: 1
-  resources:
-    requests:
-      cpu: 500m
-      memory: 200Mi
-    limits:
-      cpu: 1000m
-      memory: 400Mi
-  autoscaling:
-    enabled: false
-
-boxerCompactTraces:
-  enabled: $([ "$ENABLE_TRACES" = true ] && echo "true" || echo "false")
-  replicas: 1
-  resources:
-    requests:
-      cpu: 500m
-      memory: 200Mi
-    limits:
-      cpu: 1000m
-      memory: 400Mi
-  autoscaling:
-    enabled: false
+  instances:
+    - name: common
+      tasks:
+$([ "$ENABLE_LOGS" = true ] && echo "        - compact-logs" || echo "")
+$([ "$ENABLE_METRICS" = true ] && echo "        - compact-metrics" || echo "")
+$([ "$ENABLE_TRACES" = true ] && echo "        - compact-traces" || echo "")
+$([ "$ENABLE_METRICS" = true ] && echo "        - rollup-metrics" || echo "")
 
 sweeper:
   enabled: true
@@ -1027,6 +990,7 @@ install_lakerunner() {
         --values generated/values-local.yaml \
         --namespace $NAMESPACE > "$helm_output_file" 2>&1
     helm_exit_code=$?
+    echo EXIT CODE: $helm_exit_code
     helm_output=$(cat "$helm_output_file" 2>/dev/null || echo "Failed to read helm output")
 
     if [ $helm_exit_code -ne 0 ]; then
