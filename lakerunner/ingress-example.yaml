@@ -1,0 +1,49 @@
+# Example Kubernetes Ingress for CardinalHQ Collector Service
+#
+# To use this example:
+# 1. Customize the hostname and TLS settings for your environment
+# 2. Ensure you have an Ingress Controller installed (nginx, traefik, etc.)
+# 3. Apply this manifest after deploying the lakerunner chart
+#
+# Note: This example assumes the collector service is exposed on standard
+# OpenTelemetry ports (4317 for gRPC, 4318 for HTTP)
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: lakerunner-collector-ingress
+  labels:
+    app.kubernetes.io/name: lakerunner
+    app.kubernetes.io/component: collector-ingress
+    app.kubernetes.io/part-of: lakerunner
+  annotations:
+    # Example for nginx ingress controller
+    # Enable larger body sizes for telemetry data
+    nginx.ingress.kubernetes.io/proxy-body-size: "32m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
+
+    # Example for cert-manager automatic TLS certificates
+    # cert-manager.io/cluster-issuer: "letsencrypt-prod"
+
+spec:
+  # Optional: Specify ingress class if you have multiple ingress controllers
+  # ingressClassName: nginx
+
+  tls:
+    - hosts:
+        - collector.example.com
+      secretName: collector-tls
+
+  rules:
+    - host: collector.example.com
+      http:
+        paths:
+          # OpenTelemetry HTTP endpoint (port 4318)
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: lakerunner-collector  # This should match your collector service name
+                port:
+                  number: 4318
