@@ -838,3 +838,291 @@ tests:
           content:
             secretRef:
               name: aws-credentials
+
+  # Resource configuration tests (CPU, memory, replicas)
+  - it: should render collector with default CPU, memory, and replicas values
+    set:
+      global.cardinal.apiKey: "test-api-key"
+      global.cardinal.env: "test"
+      storageProfiles.yaml:
+        - organization_id: "test-org-id"
+          collector_name: "test-collector"
+          cloud_provider: "aws"
+          region: "us-west-2"
+          bucket: "test-bucket"
+      collector.enabled: true
+    templates:
+      - collector.yaml
+    asserts:
+      - equal:
+          path: spec.cpu
+          value: "1"
+      - equal:
+          path: spec.memory
+          value: "1Gi"
+      - equal:
+          path: spec.replicas
+          value: 1
+
+  - it: should render collector with custom CPU value
+    set:
+      global.cardinal.apiKey: "test-api-key"
+      global.cardinal.env: "test"
+      storageProfiles.yaml:
+        - organization_id: "test-org-id"
+          collector_name: "test-collector"
+          cloud_provider: "aws"
+          region: "us-west-2"
+          bucket: "test-bucket"
+      collector.enabled: true
+      collector.cpu: "2"
+    templates:
+      - collector.yaml
+    asserts:
+      - equal:
+          path: spec.cpu
+          value: "2"
+      - equal:
+          path: spec.memory
+          value: "1Gi"
+      - equal:
+          path: spec.replicas
+          value: 1
+
+  - it: should render collector with custom memory value
+    set:
+      global.cardinal.apiKey: "test-api-key"
+      global.cardinal.env: "test"
+      storageProfiles.yaml:
+        - organization_id: "test-org-id"
+          collector_name: "test-collector"
+          cloud_provider: "aws"
+          region: "us-west-2"
+          bucket: "test-bucket"
+      collector.enabled: true
+      collector.memory: "2Gi"
+    templates:
+      - collector.yaml
+    asserts:
+      - equal:
+          path: spec.cpu
+          value: "1"
+      - equal:
+          path: spec.memory
+          value: "2Gi"
+      - equal:
+          path: spec.replicas
+          value: 1
+
+  - it: should render collector with custom replicas value
+    set:
+      global.cardinal.apiKey: "test-api-key"
+      global.cardinal.env: "test"
+      storageProfiles.yaml:
+        - organization_id: "test-org-id"
+          collector_name: "test-collector"
+          cloud_provider: "aws"
+          region: "us-west-2"
+          bucket: "test-bucket"
+      collector.enabled: true
+      collector.replicas: 3
+    templates:
+      - collector.yaml
+    asserts:
+      - equal:
+          path: spec.cpu
+          value: "1"
+      - equal:
+          path: spec.memory
+          value: "1Gi"
+      - equal:
+          path: spec.replicas
+          value: 3
+
+  - it: should render collector with all custom resource values
+    set:
+      global.cardinal.apiKey: "test-api-key"
+      global.cardinal.env: "test"
+      storageProfiles.yaml:
+        - organization_id: "test-org-id"
+          collector_name: "test-collector"
+          cloud_provider: "aws"
+          region: "us-west-2"
+          bucket: "test-bucket"
+      collector.enabled: true
+      collector.cpu: "4"
+      collector.memory: "8Gi"
+      collector.replicas: 5
+    templates:
+      - collector.yaml
+    asserts:
+      - equal:
+          path: spec.cpu
+          value: "4"
+      - equal:
+          path: spec.memory
+          value: "8Gi"
+      - equal:
+          path: spec.replicas
+          value: 5
+
+  - it: should render collector with fractional CPU values
+    set:
+      global.cardinal.apiKey: "test-api-key"
+      global.cardinal.env: "test"
+      storageProfiles.yaml:
+        - organization_id: "test-org-id"
+          collector_name: "test-collector"
+          cloud_provider: "aws"
+          region: "us-west-2"
+          bucket: "test-bucket"
+      collector.enabled: true
+      collector.cpu: "0.5"
+    templates:
+      - collector.yaml
+    asserts:
+      - equal:
+          path: spec.cpu
+          value: "0.5"
+      - equal:
+          path: spec.memory
+          value: "1Gi"
+      - equal:
+          path: spec.replicas
+          value: 1
+
+  - it: should render collector with millicpu values
+    set:
+      global.cardinal.apiKey: "test-api-key"
+      global.cardinal.env: "test"
+      storageProfiles.yaml:
+        - organization_id: "test-org-id"
+          collector_name: "test-collector"
+          cloud_provider: "aws"
+          region: "us-west-2"
+          bucket: "test-bucket"
+      collector.enabled: true
+      collector.cpu: "500m"
+    templates:
+      - collector.yaml
+    asserts:
+      - equal:
+          path: spec.cpu
+          value: "500m"
+      - equal:
+          path: spec.memory
+          value: "1Gi"
+      - equal:
+          path: spec.replicas
+          value: 1
+
+  - it: should render collector with various memory units
+    set:
+      global.cardinal.apiKey: "test-api-key"
+      global.cardinal.env: "test"
+      storageProfiles.yaml:
+        - organization_id: "test-org-id"
+          collector_name: "test-collector"
+          cloud_provider: "aws"
+          region: "us-west-2"
+          bucket: "test-bucket"
+      collector.enabled: true
+      collector.memory: "512Mi"
+    templates:
+      - collector.yaml
+    asserts:
+      - equal:
+          path: spec.cpu
+          value: "1"
+      - equal:
+          path: spec.memory
+          value: "512Mi"
+      - equal:
+          path: spec.replicas
+          value: 1
+
+  - it: should render collector with zero replicas
+    set:
+      global.cardinal.apiKey: "test-api-key"
+      global.cardinal.env: "test"
+      storageProfiles.yaml:
+        - organization_id: "test-org-id"
+          collector_name: "test-collector"
+          cloud_provider: "aws"
+          region: "us-west-2"
+          bucket: "test-bucket"
+      collector.enabled: true
+      collector.replicas: 0
+    templates:
+      - collector.yaml
+    asserts:
+      - equal:
+          path: spec.cpu
+          value: "1"
+      - equal:
+          path: spec.memory
+          value: "1Gi"
+      - equal:
+          path: spec.replicas
+          value: 0
+
+  # Test that resource settings work with different cloud providers
+  - it: should render GCP collector with custom resources
+    set:
+      global.cardinal.apiKey: "test-api-key"
+      global.cardinal.env: "test"
+      storageProfiles.yaml:
+        - organization_id: "test-org-id"
+          collector_name: "gcp-collector"
+          cloud_provider: "gcp"
+          region: "us-central1"
+          bucket: "gcp-bucket"
+      collector.enabled: true
+      collector.cpu: "2"
+      collector.memory: "4Gi"
+      collector.replicas: 2
+    templates:
+      - collector.yaml
+    asserts:
+      - equal:
+          path: spec.cpu
+          value: "2"
+      - equal:
+          path: spec.memory
+          value: "4Gi"
+      - equal:
+          path: spec.replicas
+          value: 2
+      - equal:
+          path: spec.features.awss3.provider
+          value: gcp
+
+  - it: should render Azure collector with custom resources
+    set:
+      global.cardinal.apiKey: "test-api-key"
+      global.cardinal.env: "test"
+      storageProfiles.yaml:
+        - organization_id: "test-org-id"
+          collector_name: "azure-collector"
+          cloud_provider: "azure"
+          region: "eastus"
+          bucket: "azure-container"
+      collector.enabled: true
+      collector.cpu: "3"
+      collector.memory: "6Gi"
+      collector.replicas: 4
+    templates:
+      - collector.yaml
+    asserts:
+      - equal:
+          path: spec.cpu
+          value: "3"
+      - equal:
+          path: spec.memory
+          value: "6Gi"
+      - equal:
+          path: spec.replicas
+          value: 4
+      - equal:
+          path: spec.features.azureblobexporter.container
+          value: azure-container

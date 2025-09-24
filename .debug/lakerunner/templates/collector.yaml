@@ -1,0 +1,39 @@
+
+---
+apiVersion: collector.cardinalhq.io/v1alpha1
+kind: Collector
+metadata:
+  name: RELEASE-NAME-lakerunner-collector
+  labels:
+    app.kubernetes.io/instance: RELEASE-NAME
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: lakerunner
+    app.kubernetes.io/version: v1.4.2
+    helm.sh/chart: lakerunner-0.11.2
+    lakerunner.cardinalhq.io/instance: RELEASE-NAME
+    app.kubernetes.io/component: collector
+    lakerunner.cardinalhq.io/bucket: azure-container
+    lakerunner.cardinalhq.io/region: eastus
+    lakerunner.cardinalhq.io/cloud-provider: azure
+  annotations:
+spec:
+  environment: test
+  collectorStyle: gateway
+  collectorName: azure-collector
+  apiKeySecretRef: RELEASE-NAME-lakerunner-cardinal-api-key
+  serviceAccountName: lakerunner
+  cpu: "3"
+  memory: "6Gi"
+  replicas: 4
+
+  features:
+    azureblobexporter:
+      container: azure-container
+      organizationId: test-org-id
+      collectorName: azure-collector
+      auth_type: service_principal
+  envFrom:
+    - secretRef:
+        name: aws-credentials
+
+  env:

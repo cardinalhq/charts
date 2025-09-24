@@ -28,6 +28,9 @@ spec:
   collectorName: {{ $storageProfile.collector_name }}
   apiKeySecretRef: {{ include "lakerunner.fullname" . }}-cardinal-api-key
   serviceAccountName: {{ include "lakerunner.serviceAccountName" . }}
+  cpu: {{ .Values.collector.cpu | quote }}
+  memory: {{ .Values.collector.memory | quote }}
+  replicas: {{ .Values.collector.replicas }}
 
   features:
 {{- if eq $storageProfile.cloud_provider "azure" }}

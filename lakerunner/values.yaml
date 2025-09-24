@@ -970,6 +970,14 @@ collector:
   # Default: true (creates collector when Cardinal API key and storage profiles are configured)
   enabled: true
 
+  # Resource configuration for the collector
+  # CPU and memory limits and requests
+  cpu: "1"
+  memory: "1Gi"
+
+  # Number of collector replicas
+  replicas: 1
+
   # Additional environment variables to inject into the Collector
   # These will be merged with the default environment variables
   # Optional.
