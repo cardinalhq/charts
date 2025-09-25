@@ -485,7 +485,7 @@ get_cardinal_api_key() {
     print_status "4. Create a new API key"
     print_status "5. Copy the API key"
     echo
-    print_warning "The API key will be stored in values-local.yaml. Keep it secure!"
+    print_warning "The API key will be stored in lakerunner-values.yaml. Keep it secure!"
     echo
 
     while true; do
@@ -645,12 +645,12 @@ EOF
 
 
 generate_values_file() {
-    print_status "Generating values-local.yaml..."
+    print_status "Generating lakerunner-values.yaml..."
 
     # Create generated directory if it doesn't exist
     mkdir -p generated
 
-    # After MinIO is installed and before generating values-local.yaml, set credentials:
+    # After MinIO is installed and before generating lakerunner-values.yaml, set credentials:
     if [ "$INSTALL_MINIO" = true ]; then
         MINIO_ACCESS_KEY=$(kubectl get secret minio -n "$NAMESPACE" -o jsonpath="{.data.root-user}" 2>/dev/null | base64 --decode 2>/dev/null || echo "minioadmin")
         MINIO_SECRET_KEY=$(kubectl get secret minio -n "$NAMESPACE" -o jsonpath="{.data.root-password}" 2>/dev/null | base64 --decode 2>/dev/null || echo "minioadmin")
@@ -659,7 +659,7 @@ generate_values_file() {
         MINIO_SECRET_KEY="$S3_SECRET_KEY"
     fi
 
-    cat > generated/values-local.yaml << EOF
+    cat > generated/lakerunner-values.yaml << EOF
 # Local development values for lakerunner
 # Configured for $([ "$INSTALL_POSTGRES" = true ] && echo "local PostgreSQL" || echo "external PostgreSQL") and $([ "$INSTALL_MINIO" = true ] && echo "local MinIO" || echo "external S3 storage")
 
@@ -834,7 +834,7 @@ debugger:
   enabled: $([ "$ENABLE_DEBUG_POD" = true ] && echo "true" || echo "false")
 EOF
 
-    print_success "generated/values-local.yaml generated"
+    print_success "generated/lakerunner-values.yaml generated"
 }
 
 # Function to install Lakerunner
@@ -845,7 +845,7 @@ install_lakerunner() {
     helm_output_file="/tmp/helm_install_output_$$"
     helm install lakerunner oci://public.ecr.aws/cardinalhq.io/lakerunner \
         --version $LAKERUNNER_VERSION \
-        --values generated/values-local.yaml \
+        --values generated/lakerunner-values.yaml \
         --namespace $NAMESPACE > "$helm_output_file" 2>&1
     helm_exit_code=$?
     echo EXIT CODE: $helm_exit_code
@@ -855,7 +855,7 @@ install_lakerunner() {
         print_error "Lakerunner installation failed with exit code: $helm_exit_code"
         echo
         echo "Helm command that failed:"
-        echo "helm install lakerunner oci://public.ecr.aws/cardinalhq.io/lakerunner --version $LAKERUNNER_VERSION --values generated/values-local.yaml --namespace $NAMESPACE"
+        echo "helm install lakerunner oci://public.ecr.aws/cardinalhq.io/lakerunner --version $LAKERUNNER_VERSION --values generated/lakerunner-values.yaml --namespace $NAMESPACE"
         echo
         echo "Error output:"
         echo "$helm_output"
@@ -1006,6 +1006,23 @@ display_connection_info() {
         echo "  URL: http://lakerunner-pubsub-http.$NAMESPACE.svc.cluster.local:8080/"
         echo
     fi
+
+    echo "=== Generated Values Files ==="
+    echo "Configuration files have been generated in the ./generated/ directory:"
+    echo "  - lakerunner-values.yaml: Main Lakerunner configuration"
+    if [ "$INSTALL_KAFKA" = true ]; then
+        echo "  - kafka-values.yaml: Kafka configuration"
+    fi
+    if [ "$INSTALL_OTEL_DEMO" = true ]; then
+        echo "  - otel-demo-values.yaml: OpenTelemetry demo configuration"
+    fi
+    echo
+    echo "To upgrade your installation later, use:"
+    echo "  helm upgrade lakerunner oci://public.ecr.aws/cardinalhq.io/lakerunner \\"
+    echo "    --version [NEW_VERSION] \\"
+    echo "    --values generated/lakerunner-values.yaml \\"
+    echo "    --namespace $NAMESPACE"
+    echo
 
     echo "=== Next Steps ==="
 
