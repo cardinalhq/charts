@@ -1,0 +1,55 @@
+{{- if .Values.debugger.enabled -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "lakerunner.fullname" . }}-debugger
+  labels:
+    {{- include "lakerunner.labels" . | nindent 4 }}
+    app.kubernetes.io/component: debugger
+  {{ include "lakerunner.annotations" . | nindent 2 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "lakerunner.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: debugger
+  template:
+    metadata:
+      labels:
+        {{- include "lakerunner.labels" . | nindent 8 }}
+        app.kubernetes.io/component: debugger
+      {{- include "lakerunner.annotations" . | nindent 6 }}
+    spec:
+      serviceAccountName: {{ include "lakerunner.serviceAccountName" . }}
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999
+        runAsGroup: 999
+        fsGroup: 999
+      {{- include "lakerunner.imagePullSecrets" . | nindent 6 }}
+      containers:
+      - name: debugger
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop: ["ALL"]
+          seccompProfile:
+            type: RuntimeDefault
+        image: {{ include "lakerunner.image" (list .Values.debugger.image .) }}
+        imagePullPolicy: {{ .Values.debugger.image.pullPolicy | default .Values.global.image.pullPolicy }}
+        # Keep the container running for debugging
+        command: ["/bin/sh"]
+        args: ["-c", "while true; do sleep 30; done"]
+        env:
+          {{- include "lakerunner.commonEnv" . | nindent 10 }}
+          {{- with .Values.global.env -}}
+          {{ toYaml . | nindent 10 -}}
+          {{- end -}}
+          {{- with .Values.debugger.env -}}
+          {{ toYaml . | nindent 10 -}}
+          {{- end -}}
+      {{- include "lakerunner.sched.nodeSelector" (list .Values.global.nodeSelector .Values.debugger.nodeSelector) | nindent 6 }}
+      {{- include "lakerunner.sched.tolerations"  (list .Values.global.tolerations  .Values.debugger.tolerations)  | nindent 6 }}
+      {{- include "lakerunner.sched.affinity"     (list .Values.global.affinity     .Values.debugger.affinity)     | nindent 6 }}
+{{- end }}

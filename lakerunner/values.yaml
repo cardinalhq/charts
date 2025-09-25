@@ -1001,3 +1001,13 @@ collector:
   # These will be merged with the default annotations
   # Optional.
   annotations: {}
+
+# Debug container configuration
+# A PostgreSQL debugging container with psql client for troubleshooting
+debugger:
+  # Whether to deploy the debug container
+  enabled: false
+  image:
+    repository: postgres
+    tag: "15-alpine"
+    pullPolicy: ""
