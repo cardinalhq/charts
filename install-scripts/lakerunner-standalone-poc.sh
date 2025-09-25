@@ -18,7 +18,7 @@
 # This script installs Lakerunner with local MinIO and PostgreSQL
 
 # Helm Chart Versions
-LAKERUNNER_VERSION="0.11.2-rc2"
+LAKERUNNER_VERSION="0.11.4"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -828,6 +828,10 @@ grafana:
   enabled: true
   cardinal:
     apiKey: "$API_KEY"
+
+# Debug container configuration
+debugger:
+  enabled: $([ "$ENABLE_DEBUG_POD" = true ] && echo "true" || echo "false")
 EOF
 
     print_success "generated/values-local.yaml generated"
@@ -984,6 +988,16 @@ display_connection_info() {
     echo "  Password: admin"
     echo "  Datasource: Cardinal (pre-configured)"
     echo
+
+    # Debug Pod Access (only if debug pod was enabled)
+    if [ "$ENABLE_DEBUG_POD" = true ]; then
+        echo "=== PostgreSQL Debug Pod Access ==="
+        echo "To connect to the debug pod with psql:"
+        echo "  kubectl exec -it deployment/lakerunner-debugger -n $NAMESPACE -- sh -c 'psql -h \\\$LRDB_HOST -p \\\$LRDB_PORT -U \\\$LRDB_USER -d \\\$LRDB_DBNAME'"
+        echo "  kubectl exec -it deployment/lakerunner-debugger -n $NAMESPACE -- sh -c 'psql -h \\\$CONFIGDB_HOST -p \\\$CONFIGDB_PORT -U \\\$CONFIGDB_USER -d \\\$CONFIGDB_DBNAME'"
+        echo "  All database environment variables are pre-configured in the pod"
+        echo
+    fi
 
     # Only show PubSub HTTP endpoint if MinIO was NOT installed and not using SQS
     if [ "$INSTALL_MINIO" = false ] && [ "$USE_SQS" = false ]; then
@@ -1373,6 +1387,7 @@ parse_args() {
     STANDALONE_FLAG=false
     SKIP_HELM_REPO_UPDATES=false
     VERBOSE=false
+    ENABLE_DEBUG_POD=false
 
     while [[ $# -gt 0 ]]; do
         case $1 in
@@ -1390,6 +1405,10 @@ parse_args() {
                 ;;
             --verbose)
                 VERBOSE=true
+                shift
+                ;;
+            --debug-psql-pod)
+                ENABLE_DEBUG_POD=true
                 shift
                 ;;
             --version)
@@ -1430,6 +1449,8 @@ show_help() {
     echo "                            working in environments with restricted network access"
     echo "  --verbose                 Show detailed output from helm install commands"
     echo "                            By default, helm output is hidden to reduce noise"
+    echo "  --debug-psql-pod          Enable PostgreSQL debugging container with psql client"
+    echo "                            Deploys a pod with database access for troubleshooting"
     echo "  --version VERSION         Override the Lakerunner helm chart version"
     echo "  --help, -h               Show this help message"
     echo
@@ -1571,6 +1592,7 @@ configure_standalone() {
     print_status "  Telemetry: $telemetry_status"
     print_status "  Demo apps: Enabled"
     print_status "  Cardinal telemetry: $([ "$ENABLE_CARDINAL_TELEMETRY" = true ] && echo "Enabled" || echo "Disabled")"
+    print_status "  Debug pod: $([ "$ENABLE_DEBUG_POD" = true ] && echo "Enabled" || echo "Disabled")"
 }
 
 main() {
