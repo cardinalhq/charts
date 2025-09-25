@@ -18,7 +18,7 @@
 # This script installs Lakerunner with local MinIO and PostgreSQL
 
 # Helm Chart Versions
-LAKERUNNER_VERSION="0.11.4"
+LAKERUNNER_VERSION="0.11.5"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'

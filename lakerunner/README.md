@@ -17,7 +17,6 @@ Create a `values-local.yaml` file (see below) and run:
 
 ```sh
 helm install lakerunner oci://public.ecr.aws/cardinalhq.io/lakerunner \
-   --version 0.11.3 \
    --values values-local.yaml \
    --namespace lakerunner --create-namespace
 ```
