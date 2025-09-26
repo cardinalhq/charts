@@ -21,7 +21,7 @@ tests:
           value: RELEASE-NAME-lakerunner-boxer-common
       - equal:
           path: spec.template.spec.containers[0].args
-          value: ["boxer", "--compact-logs", "--compact-metrics", "--compact-traces", "--rollup-metrics"]
+          value: ["boxer", "--compact-logs", "--compact-metrics", "--compact-traces", "--ingest-logs", "--ingest-metrics", "--ingest-traces", "--rollup-metrics"]
 
   - it: should create ScaledObject for default boxer with correct task metadata
     set:
@@ -36,7 +36,7 @@ tests:
           of: ScaledObject
       - equal:
           path: spec.triggers[0].metadata.boxerTasks
-          value: "compact-logs,compact-metrics,compact-traces,rollup-metrics"
+          value: "compact-logs,compact-metrics,compact-traces,ingest-logs,ingest-metrics,ingest-traces,rollup-metrics"
       - equal:
           path: spec.triggers[0].type
           value: "external"
