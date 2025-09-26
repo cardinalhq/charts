@@ -421,7 +421,6 @@ setup:
   nodeSelector: {}
   tolerations: []
   affinity: {}
-
   # Kafka topic setup configuration
   # This enables the setup job to create Kafka topics from the kafkaTopics configuration
   kafka:
@@ -708,6 +707,9 @@ boxers:
         - compact-logs
         - compact-metrics
         - compact-traces
+        - ingest-logs
+        - ingest-metrics
+        - ingest-traces
         - rollup-metrics
 
 # Sweeper configuration
