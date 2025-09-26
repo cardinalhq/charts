@@ -1,0 +1,71 @@
+# Copyright The OpenTelemetry Authors
+# SPDX-License-Identifier: Apache-2.0
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: ${env:OTEL_COLLECTOR_HOST}:${env:OTEL_COLLECTOR_PORT_GRPC}
+      http:
+        endpoint: ${env:OTEL_COLLECTOR_HOST}:${env:OTEL_COLLECTOR_PORT_HTTP}
+        cors:
+          allowed_origins:
+            - "http://*"
+            - "https://*"
+  httpcheck/frontend-proxy:
+    targets:
+      - endpoint: http://${env:FRONTEND_PROXY_ADDR}
+  nginx:
+    endpoint: http://${env:IMAGE_PROVIDER_HOST}:${env:IMAGE_PROVIDER_PORT}/status
+    collection_interval: 10s
+  redis:
+    endpoint: "valkey-cart:6379"
+    username: "valkey"
+    collection_interval: 10s
+exporters:
+  debug:
+processors:
+  batch:
+  memory_limiter:
+    check_interval: 5s
+    limit_percentage: 80
+    spike_limit_percentage: 25
+  resourcedetection:
+    detectors: [env, docker, system]
+  transform:
+    error_mode: ignore
+    trace_statements:
+      - context: span
+        statements:
+          # could be removed when https://github.com/vercel/next.js/pull/64852 is fixed upstream
+          - replace_pattern(name, "\\?.*", "")
+          - replace_match(name, "GET /api/products/*", "GET /api/products/{productId}")
+
+connectors:
+  spanmetrics:
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [resourcedetection, memory_limiter, transform, batch]
+      exporters: [debug, spanmetrics]
+    metrics:
+      receivers: [httpcheck/frontend-proxy, nginx, otlp, redis, spanmetrics]
+      processors: [resourcedetection, memory_limiter, batch]
+      exporters: [debug]
+    logs:
+      receivers: [otlp]
+      processors: [resourcedetection, memory_limiter, batch]
+      exporters: [debug]
+  telemetry:
+    metrics:
+      level: detailed
+      readers:
+        - periodic:
+            interval: 10000
+            timeout: 5000
+            exporter:
+              otlp:
+                protocol: http/protobuf
+                endpoint: http://${env:OTEL_COLLECTOR_HOST}:${env:OTEL_COLLECTOR_PORT_HTTP}
