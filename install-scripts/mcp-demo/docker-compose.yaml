@@ -532,3 +532,12 @@ services:
       - POSTGRES_PORT=5432
       - POSTGRES_PASSWORD=otel
       - GOMEMLIMIT=160MiB
+
+  # Chip MCP, by Cardinal HQ
+  chip-mcp:
+    image: public.ecr.aws/cardinalhq.io/chip-mcp:latest
+    container_name: chip-mcp
+    ports:
+      - "3001"
+    environment:
+      - GRAFANA_SERVICE_ACCOUNT_TOKEN=
