@@ -111,12 +111,13 @@ main() {
     echo
 
     # Run docker-compose
+    print_status "Using Cardinal API key: ${LAKERUNNER_CARDINAL_APIKEY:0:10}..."
     if docker compose version >/dev/null 2>&1; then
         # Modern docker with compose subcommand
-        docker compose up --force-recreate --remove-orphans --detach
+        LAKERUNNER_CARDINAL_APIKEY="$LAKERUNNER_CARDINAL_APIKEY" docker compose up --force-recreate --remove-orphans --detach
     else
         # Legacy docker-compose command
-        docker-compose up --force-recreate --remove-orphans --detach
+        LAKERUNNER_CARDINAL_APIKEY="$LAKERUNNER_CARDINAL_APIKEY" docker-compose up --force-recreate --remove-orphans --detach
     fi
 
     if [ $? -eq 0 ]; then
@@ -139,6 +140,26 @@ main() {
         echo
         echo "Stop and remove all data:"
         echo "  docker compose down -v"
+        echo
+        echo "=== MCP Client Configuration ==="
+        echo
+        echo "To start asking questions about the demo app data, add this to your MCP client config:"
+        echo "(For Claude Desktop, add to your claude_desktop_config.json file)"
+        echo
+        echo "{"
+        echo "  \"mcpServers\": {"
+        echo "    \"chip\": {"
+        echo "      \"command\": \"npx\","
+        echo "      \"args\": ["
+        echo "        \"-y\","
+        echo "        \"mcp-remote\","
+        echo "        \"http://localhost:3001/mcp\","
+        echo "        \"--header\","
+        echo "        \"x-cardinalhq-api-key: $LAKERUNNER_CARDINAL_APIKEY\""
+        echo "      ]"
+        echo "    }"
+        echo "  }"
+        echo "}"
         echo
         print_status "The demo is generating telemetry data that will appear in Cardinal within a few minutes."
     else

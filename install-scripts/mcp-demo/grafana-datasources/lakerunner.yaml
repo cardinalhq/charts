@@ -1,0 +1,11 @@
+apiVersion: 1
+datasources:
+  - name: Cardinal Lakerunner
+    type: cardinalhq-lakerunner-datasource
+    access: proxy
+    isDefault: true
+    editable: true
+    jsonData:
+      customPath: https://lakerunner-query-api.global.aws.cardinalhq.io
+    secureJsonData:
+      apiKey: ${LAKERUNNER_CARDINAL_APIKEY}

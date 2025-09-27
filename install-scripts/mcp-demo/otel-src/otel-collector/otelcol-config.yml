@@ -24,6 +24,10 @@ receivers:
     collection_interval: 10s
 exporters:
   debug:
+  otlphttp/cardinal:
+    endpoint: https://otelhttp.intake.us-east-2.aws.cardinalhq.io
+    headers:
+      x-cardinalhq-api-key: ${env:LAKERUNNER_CARDINAL_APIKEY}
 processors:
   batch:
   memory_limiter:
@@ -49,15 +53,15 @@ service:
     traces:
       receivers: [otlp]
       processors: [resourcedetection, memory_limiter, transform, batch]
-      exporters: [debug, spanmetrics]
+      exporters: [debug, spanmetrics, otlphttp/cardinal]
     metrics:
       receivers: [httpcheck/frontend-proxy, nginx, otlp, redis, spanmetrics]
       processors: [resourcedetection, memory_limiter, batch]
-      exporters: [debug]
+      exporters: [debug, otlphttp/cardinal]
     logs:
       receivers: [otlp]
       processors: [resourcedetection, memory_limiter, batch]
-      exporters: [debug]
+      exporters: [debug, otlphttp/cardinal]
   telemetry:
     metrics:
       level: detailed
