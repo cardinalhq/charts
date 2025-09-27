@@ -57,7 +57,7 @@ global:
   # These defaults can be overridden per service
   healthProbes:
     # Global default for health probe enablement
-    enabled: false  # Set to true to enable health probes globally
+    enabled: false # Set to true to enable health probes globally
     # Default health check port name (most services use this)
     healthcheckPort: 8090
   # Additional annotations to add to all resources.
@@ -304,7 +304,6 @@ kafkaTopics:
     #   boxer-rollup-metrics:
     #     partitionCount: 16
 
-
 # Storage profile configuration
 # At least one storage profile is required for the LakeRunner to function.
 # Required.
@@ -458,7 +457,7 @@ ingestLogs:
   terminationGracePeriodSeconds: 600
   # Health probe configuration (inherits from global.healthProbes if not specified)
   healthProbes:
-    enabled: null  # null = inherit from global.healthProbes.enabled
+    enabled: null # null = inherit from global.healthProbes.enabled
   labels: {}
   annotations: {}
   nodeSelector: {}
@@ -905,7 +904,6 @@ queryWorker:
   tolerations: []
   affinity: {}
 
-
 # Grafana configuration
 grafana:
   enabled: true
@@ -946,7 +944,7 @@ grafana:
   cardinalPlugin:
     # URL to the CardinalHQ LakeRunner datasource plugin
     # air-gapped deployments should download the plugin and provide a local path
-    url: "https://github.com/cardinalhq/cardinalhq-lakerunner-datasource/releases/download/v1.2.0-rc.14/cardinalhq-lakerunner-datasource.zip;cardinalhq-lakerunner-datasource"
+    url: "https://github.com/cardinalhq/cardinalhq-lakerunner-datasource/releases/download/v1.2.0-rc.18/cardinalhq-lakerunner-datasource.zip;cardinalhq-lakerunner-datasource"
   # Additional optional Grafana plugins (semicolon-separated list)
   # These will be installed in addition to the required CardinalHQ plugin
   additionalPlugins: ""
