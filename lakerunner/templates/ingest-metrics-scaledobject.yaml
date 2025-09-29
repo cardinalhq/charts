@@ -18,5 +18,5 @@ spec:
   - type: external
     metadata:
       scalerAddress: "{{ include "lakerunner.fullname" . }}-monitoring.{{ .Release.Namespace }}.svc.cluster.local:9090"
-      serviceType: "ingest-metrics"
+      serviceType: "worker-ingest-metrics"
 {{- end }}
