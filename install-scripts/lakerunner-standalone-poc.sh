@@ -720,6 +720,11 @@ cloudProvider:
     inject: true
     accessKeyId: "$MINIO_ACCESS_KEY"
     secretAccessKey: "$MINIO_SECRET_KEY"
+    env:
+      - name: AWS_ACCESS_KEY_ID
+        value: "$MINIO_ACCESS_KEY"
+      - name: AWS_SECRET_ACCESS_KEY
+        value: "$MINIO_SECRET_KEY"
   duckdb:
     create: true
     secretName: "duckdb-credentials"
