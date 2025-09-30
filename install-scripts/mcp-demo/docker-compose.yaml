@@ -484,6 +484,23 @@ services:
     logging:
       *logging
 
+  # Flagd UI
+  flagd-ui:
+    image: ghcr.io/open-telemetry/demo:latest-flagd-ui
+    container_name: flagd-ui
+    ports:
+      - "4000"
+    environment:
+      - SECRET_KEY_BASE=yYrECL4qbNwleYInGJYvVnSkwJuSQJ4ijPTx5tirGUXrbznFIBFVJdPl5t6O9ASw
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
+      - OTEL_SERVICE_NAME=flagd-ui
+    volumes:
+      - ./otel-src/flagd:/app/data
+    depends_on:
+      flagd:
+        condition: service_started
+    logging: *logging
+
   # Valkey used by Cart service
   valkey-cart:
     image: valkey/valkey:8.1.3-alpine
