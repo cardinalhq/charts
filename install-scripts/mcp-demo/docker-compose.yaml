@@ -73,6 +73,8 @@ services:
         condition: service_started
     logging: *logging
 
+# (volumes block relocated to end of file)
+
   # Checkout service
   checkout:
     image: ghcr.io/open-telemetry/demo:latest-checkout
@@ -551,20 +553,6 @@ services:
       - LAKERUNNER_CARDINAL_APIKEY=${LAKERUNNER_CARDINAL_APIKEY}
       - GOMEMLIMIT=160MiB
 
-  # Chip MCP, by Cardinal HQ
-  chip-mcp:
-    image: public.ecr.aws/cardinalhq.io/chip-mcp:latest
-    container_name: chip-mcp
-    depends_on:
-      grafana-bootstrap:
-        condition: service_completed_successfully
-    ports:
-      - "3001:3001"
-    volumes:
-      - shared-tokens:/tmp/tokens:ro
-    environment:
-      - GRAFANA_SERVICE_ACCOUNT_TOKEN_FILE=/tmp/tokens/grafana-service-account-token
-      - LAKERUNNER_CARDINAL_APIKEY=${LAKERUNNER_CARDINAL_APIKEY:-}
 
   # Grafana - Following LakeRunner approach
   grafana:
@@ -620,6 +608,80 @@ services:
       - GRAFANA_SA_NAME=chip
       - GRAFANA_TOKEN_NAME=chip-token
     logging: *logging
+
+  # Chip MCP, by Cardinal HQ
+  chip-mcp:
+    image: public.ecr.aws/cardinalhq.io/chip-mcp:latest
+    container_name: chip-mcp
+    depends_on:
+      grafana-bootstrap:
+        condition: service_completed_successfully
+    ports:
+      - "3001:3001"
+    volumes:
+      - shared-tokens:/tmp/tokens:ro
+    environment:
+      - GRAFANA_SERVICE_ACCOUNT_TOKEN_FILE=/tmp/tokens/grafana-service-account-token
+      - LAKERUNNER_CARDINAL_APIKEY=${LAKERUNNER_CARDINAL_APIKEY:-}
+      - GRAFANA_URL=http://grafana:3000
+      - GRAFANA_HOST=grafana
+      - GRAFANA_PORT=3000
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        set -eu
+        FILE="$${GRAFANA_SERVICE_ACCOUNT_TOKEN_FILE:-/tmp/tokens/grafana-service-account-token}"
+        echo "[chip-mcp bootstrap] Waiting for token file: $$FILE" >&2
+        for i in $$(seq 1 60); do
+          if [ -s "$$FILE" ]; then echo "[chip-mcp bootstrap] Token file present after $$i s" >&2; break; fi
+          sleep 1
+        done
+        if [ ! -s "$$FILE" ]; then echo "[chip-mcp bootstrap] ERROR: token file missing after 60s" >&2; ls -l $$(dirname "$$FILE") || true; exit 1; fi
+        export GRAFANA_SERVICE_ACCOUNT_TOKEN="$$(cat "$$FILE")"
+        : "$${GRAFANA_URL:=http://grafana:3000}"
+        : "$${GRAFANA_HOST:=grafana}"
+        : "$${GRAFANA_PORT:=3000}"
+        export GRAFANA_URL GRAFANA_HOST GRAFANA_PORT
+        # Persist token for post-start verification since 'docker exec printenv' won't show runtime-added vars.
+        printf "%s" "$$GRAFANA_SERVICE_ACCOUNT_TOKEN" > /tmp/GRAFANA_SERVICE_ACCOUNT_TOKEN 2>/dev/null || true
+        chmod 600 /tmp/GRAFANA_SERVICE_ACCOUNT_TOKEN 2>/dev/null || true
+        echo "[chip-mcp bootstrap] Token persisted to /tmp/GRAFANA_SERVICE_ACCOUNT_TOKEN (length $${#GRAFANA_SERVICE_ACCOUNT_TOKEN})." >&2
+        echo "[chip-mcp bootstrap] To verify later: docker exec chip-mcp sh -c 'head -c 8 /tmp/GRAFANA_SERVICE_ACCOUNT_TOKEN; echo'" >&2
+        echo "[chip-mcp bootstrap] Or: docker exec chip-mcp sh -c 'tr "\\0" "\\n" < /proc/1/environ | grep GRAFANA_SERVICE_ACCOUNT_TOKEN'" >&2
+        echo "[chip-mcp bootstrap] Token exported (length $${#GRAFANA_SERVICE_ACCOUNT_TOKEN}). Detecting app entrypoint." >&2
+        # 1. If a direct chip-mcp binary exists, use it.
+        if command -v chip-mcp >/dev/null 2>&1; then
+          echo "[chip-mcp bootstrap] Running chip-mcp binary" >&2
+          exec chip-mcp "$${@}"
+        fi
+        if [ -x /app/chip-mcp ]; then
+          echo "[chip-mcp bootstrap] Running /app/chip-mcp" >&2
+          exec /app/chip-mcp "$${@}"
+        fi
+        # 2. Try package.json main field
+        if [ -f package.json ]; then
+          MAIN_FILE=$$(grep -o '"main"[[:space:]]*:[[:space:]]*"[^"]*"' package.json | head -1 | cut -d'"' -f4 || true)
+          if [ -n "$$MAIN_FILE" ] && [ -f "$$MAIN_FILE" ]; then
+            echo "[chip-mcp bootstrap] Starting node $$MAIN_FILE (from package.json main)" >&2
+            exec env GRAFANA_SERVICE_ACCOUNT_TOKEN="$$GRAFANA_SERVICE_ACCOUNT_TOKEN" GRAFANA_URL="$$GRAFANA_URL" GRAFANA_HOST="$$GRAFANA_HOST" GRAFANA_PORT="$$GRAFANA_PORT" node "$$MAIN_FILE" "$${@}"
+          fi
+        fi
+        # 3. Common dist build target
+        if [ -f dist/index.js ]; then
+          echo "[chip-mcp bootstrap] Starting node dist/index.js" >&2
+          exec env GRAFANA_SERVICE_ACCOUNT_TOKEN="$$GRAFANA_SERVICE_ACCOUNT_TOKEN" GRAFANA_URL="$$GRAFANA_URL" GRAFANA_HOST="$$GRAFANA_HOST" GRAFANA_PORT="$$GRAFANA_PORT" node dist/index.js "$${@}"
+        fi
+        # 4. npm start fallback
+        if command -v npm >/dev/null 2>&1 && [ -f package.json ]; then
+          echo "[chip-mcp bootstrap] Running npm start (fallback)" >&2
+          exec env GRAFANA_SERVICE_ACCOUNT_TOKEN="$$GRAFANA_SERVICE_ACCOUNT_TOKEN" GRAFANA_URL="$$GRAFANA_URL" GRAFANA_HOST="$$GRAFANA_HOST" GRAFANA_PORT="$$GRAFANA_PORT" npm start -- "$${@}"
+        fi
+        echo "[chip-mcp bootstrap] ERROR: Could not determine how to start chip-mcp service." >&2
+        echo "[chip-mcp bootstrap] Files in working directory:" >&2
+        ls -al . >&2 || true
+        echo "[chip-mcp bootstrap] Sleeping for debugging." >&2
+        sleep infinity
 
 volumes:
   grafana-storage: {}
