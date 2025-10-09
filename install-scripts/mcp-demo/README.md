@@ -52,18 +52,18 @@ All services and dependencies are defined in [`docker-compose.yaml`](./docker-co
 
 1. **Clone the repository**
 
-  ```bash
-  git clone https://github.com/cardinalhq/charts.git
-  cd charts/install-scripts/mcp-demo
-  ```
+    ```bash
+    git clone https://github.com/cardinalhq/charts.git
+    cd charts/install-scripts/mcp-demo
+    ```
 
 2. **Run the demo**
 
-  The `run.sh` script will check prerequisites, prompt for your Cardinal API key (or use the `LAKERUNNER_CARDINAL_APIKEY` environment variable), and start all services:
+    The `run.sh` script will check prerequisites, prompt for your Cardinal API key (or use the `LAKERUNNER_CARDINAL_APIKEY` environment variable), and start all services:
 
-  ```bash
-  ./run.sh
-  ```
+    ```bash
+    ./run.sh
+    ```
 
 - To skip the prompt, set the API key in your environment:
 
