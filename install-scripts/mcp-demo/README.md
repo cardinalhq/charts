@@ -5,7 +5,7 @@ This demo provides a local, full-stack observability environment using CardinalH
 
 ## Demo Video
 
-<video src="https://framerusercontent.com/assets/aUTaNbHiOMSY84wnisevq6ubVI.mp4" controls width="600"></video>
+[Demo Video (click to watch)](https://framerusercontent.com/assets/aUTaNbHiOMSY84wnisevq6ubVI.mp4)
 
 ## Table of Contents
 
