@@ -1,0 +1,33 @@
+Loki MCP Server has been installed!
+
+1. Get the service endpoint:
+{{- if eq .Values.service.type "ClusterIP" }}
+  export POD_NAME=$(kubectl get pods --namespace {{ .Release.Namespace }} -l "app.kubernetes.io/name={{ include "loki-mcp.name" . }},app.kubernetes.io/instance={{ .Release.Name }}" -o jsonpath="{.items[0].metadata.name}")
+  kubectl --namespace {{ .Release.Namespace }} port-forward $POD_NAME 8080:8080
+
+  The MCP server will be available at: http://localhost:8080
+{{- else if eq .Values.service.type "NodePort" }}
+  export NODE_PORT=$(kubectl get --namespace {{ .Release.Namespace }} -o jsonpath="{.spec.ports[0].nodePort}" services {{ include "loki-mcp.fullname" . }})
+  export NODE_IP=$(kubectl get nodes --namespace {{ .Release.Namespace }} -o jsonpath="{.items[0].status.addresses[0].address}")
+  echo "MCP server available at: http://$NODE_IP:$NODE_PORT"
+{{- else if eq .Values.service.type "LoadBalancer" }}
+  export SERVICE_IP=$(kubectl get svc --namespace {{ .Release.Namespace }} {{ include "loki-mcp.fullname" . }} --template "{{"{{ range (index .status.loadBalancer.ingress 0) }}{{.}}{{ end }}"}}")
+  echo "MCP server available at: http://$SERVICE_IP:{{ .Values.service.port }}"
+{{- end }}
+
+2. Configuration:
+  - Loki Address: {{ .Values.loki.address }}
+  - Use HTTPS: {{ .Values.loki.useHttps }}
+{{- if .Values.lakerunner.apiHost }}
+  - Lakerunner API: {{ .Values.lakerunner.apiHost }}
+{{- end }}
+
+3. MCP Client Configuration (.mcp.json):
+{
+  "mcpServers": {
+    "loki-mcp": {
+      "type": "http",
+      "url": "http://{{ include "loki-mcp.fullname" . }}.{{ .Release.Namespace }}.svc.cluster.local:{{ .Values.service.port }}"
+    }
+  }
+}

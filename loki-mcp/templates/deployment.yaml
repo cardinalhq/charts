@@ -1,0 +1,62 @@
+{{- include "loki-mcp.validateValues" . -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "loki-mcp.fullname" . }}
+  labels:
+    {{- include "loki-mcp.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "loki-mcp.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "loki-mcp.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+      containers:
+      - name: loki-mcp
+        image: {{ include "loki-mcp.image" . }}
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        command: ["/app/loki-mcp"]
+        args:
+          - "--http"
+          - "--host=0.0.0.0"
+          - "--port=8080"
+        ports:
+        - name: http
+          containerPort: 8080
+          protocol: TCP
+        env:
+        - name: LOKI_ADDRESS
+          value: {{ .Values.loki.address | quote }}
+        - name: LOKI_USE_HTTPS
+          value: {{ .Values.loki.useHttps | ternary "true" "false" | quote }}
+        - name: CARDINALHQ_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "loki-mcp.cardinalSecretName" . }}
+              key: CARDINALHQ_API_KEY
+        {{- if .Values.lakerunner.apiHost }}
+        - name: LAKERUNNER_API_HOST
+          value: {{ .Values.lakerunner.apiHost | quote }}
+        {{- end }}
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+              - ALL
+          seccompProfile:
+            type: RuntimeDefault
+        resources:
+          {{- toYaml .Values.resources | nindent 10 }}
