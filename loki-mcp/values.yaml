@@ -17,15 +17,19 @@ service:
 
 # Loki configuration
 # REQUIRED: You must provide the Loki server URL
+# Note: All loki configuration (url and headers) is stored in a Kubernetes Secret
+# and injected into the pod via envFrom for enhanced security
 loki:
   # REQUIRED: Loki server URL (e.g., "http://loki.monitoring:3100" or "https://loki.example.com:3100")
+  # Stored as LOKI_URL in the loki-config secret
   url: ""
   # Optional HTTP headers to send with Loki requests
-  # Headers will be exposed as LOKI_HEADER_<KEY> environment variables
+  # Headers are stored as LOKI_HEADER_<KEY> in the loki-config secret
+  # Header names are converted to uppercase with hyphens replaced by underscores
   # Example:
   #   headers:
-  #     Authorization: "Bearer token123"
-  #     X-Scope-OrgID: "tenant1"
+  #     Authorization: "Bearer token123"        # Becomes LOKI_HEADER_AUTHORIZATION
+  #     X-Scope-OrgID: "tenant1"                # Becomes LOKI_HEADER_X_SCOPE_ORGID
   headers: {}
 
 # CardinalHQ configuration

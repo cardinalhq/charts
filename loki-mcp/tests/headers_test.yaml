@@ -1,20 +1,24 @@
 suite: test loki headers configuration
 templates:
   - deployment.yaml
+  - loki-config-secret.yaml
 tests:
-  - it: should render LOKI_URL environment variable
+  # Secret tests
+  - it: should create loki-config secret with LOKI_URL
+    template: loki-config-secret.yaml
     set:
       loki.url: "http://loki.example.com:3100"
       cardinal.apiKey: "test-key"
     asserts:
       - equal:
-          path: spec.template.spec.containers[0].env[0].name
-          value: LOKI_URL
+          path: metadata.name
+          value: RELEASE-NAME-loki-mcp-loki-config
       - equal:
-          path: spec.template.spec.containers[0].env[0].value
+          path: stringData.LOKI_URL
           value: "http://loki.example.com:3100"
 
-  - it: should render LOKI_HEADER_* environment variables when headers are provided
+  - it: should include headers in loki-config secret
+    template: loki-config-secret.yaml
     set:
       loki.url: "http://loki.example.com:3100"
       loki.headers:
@@ -22,33 +26,18 @@ tests:
         Authorization: "Bearer my-token"
       cardinal.apiKey: "test-key"
     asserts:
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: LOKI_HEADER_X_SCOPE_ORGID
-            value: "tenant-123"
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: LOKI_HEADER_AUTHORIZATION
-            value: "Bearer my-token"
+      - equal:
+          path: stringData.LOKI_URL
+          value: "http://loki.example.com:3100"
+      - equal:
+          path: stringData.LOKI_HEADER_X_SCOPE_ORGID
+          value: "tenant-123"
+      - equal:
+          path: stringData.LOKI_HEADER_AUTHORIZATION
+          value: "Bearer my-token"
 
-  - it: should not render LOKI_HEADER_* variables when headers are empty
-    set:
-      loki.url: "http://loki.example.com:3100"
-      loki.headers: {}
-      cardinal.apiKey: "test-key"
-    asserts:
-      - notContains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: LOKI_HEADER_X_SCOPE_ORGID
-      - notContains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: LOKI_HEADER_AUTHORIZATION
-
-  - it: should convert header names to uppercase with underscores
+  - it: should convert header names to uppercase with underscores in secret
+    template: loki-config-secret.yaml
     set:
       loki.url: "http://loki.example.com:3100"
       loki.headers:
@@ -56,48 +45,73 @@ tests:
         content-type: "application/json"
       cardinal.apiKey: "test-key"
     asserts:
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: LOKI_HEADER_X_CUSTOM_HEADER
-            value: "custom-value"
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: LOKI_HEADER_CONTENT_TYPE
-            value: "application/json"
+      - equal:
+          path: stringData.LOKI_HEADER_X_CUSTOM_HEADER
+          value: "custom-value"
+      - equal:
+          path: stringData.LOKI_HEADER_CONTENT_TYPE
+          value: "application/json"
 
-  - it: should render multiple headers correctly
+  - it: should include lakerunner API host in secret when configured
+    template: loki-config-secret.yaml
+    set:
+      loki.url: "http://loki.example.com:3100"
+      lakerunner.apiHost: "lakerunner:8080"
+      cardinal.apiKey: "test-key"
+    asserts:
+      - equal:
+          path: stringData.LAKERUNNER_API_HOST
+          value: "lakerunner:8080"
+
+  - it: should not include lakerunner API host in secret when not configured
+    template: loki-config-secret.yaml
+    set:
+      loki.url: "http://loki.example.com:3100"
+      cardinal.apiKey: "test-key"
+    asserts:
+      - notExists:
+          path: stringData.LAKERUNNER_API_HOST
+
+  # Deployment tests
+  - it: should use envFrom to load loki-config secret
+    template: deployment.yaml
+    set:
+      loki.url: "http://loki.example.com:3100"
+      cardinal.apiKey: "test-key"
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].envFrom[0].secretRef.name
+          value: RELEASE-NAME-loki-mcp-loki-config
+
+  - it: should still load CARDINALHQ_API_KEY from separate secret
+    template: deployment.yaml
+    set:
+      loki.url: "http://loki.example.com:3100"
+      cardinal.apiKey: "test-key"
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].env[0].name
+          value: CARDINALHQ_API_KEY
+      - equal:
+          path: spec.template.spec.containers[0].env[0].valueFrom.secretKeyRef.name
+          value: RELEASE-NAME-loki-mcp-cardinal-api-key
+      - equal:
+          path: spec.template.spec.containers[0].env[0].valueFrom.secretKeyRef.key
+          value: CARDINALHQ_API_KEY
+
+  - it: should not have individual LOKI_* env variables in deployment
+    template: deployment.yaml
     set:
       loki.url: "http://loki.example.com:3100"
       loki.headers:
-        X-Scope-OrgID: "tenant-456"
-        Authorization: "Bearer token-xyz"
-        X-Custom-Field: "value123"
-      cardinal.apiKey: "test-key"
-    asserts:
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: LOKI_HEADER_X_SCOPE_ORGID
-            value: "tenant-456"
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: LOKI_HEADER_AUTHORIZATION
-            value: "Bearer token-xyz"
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: LOKI_HEADER_X_CUSTOM_FIELD
-            value: "value123"
-
-  - it: should not render LOKI_USE_HTTPS environment variable
-    set:
-      loki.url: "https://loki.example.com:3100"
+        X-Scope-OrgID: "tenant-123"
       cardinal.apiKey: "test-key"
     asserts:
       - notContains:
           path: spec.template.spec.containers[0].env
           content:
-            name: LOKI_USE_HTTPS
+            name: LOKI_URL
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: LOKI_HEADER_X_SCOPE_ORGID
