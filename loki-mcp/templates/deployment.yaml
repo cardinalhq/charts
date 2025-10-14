@@ -38,10 +38,8 @@ spec:
           containerPort: 8080
           protocol: TCP
         env:
-        - name: LOKI_ADDRESS
-          value: {{ .Values.loki.address | quote }}
-        - name: LOKI_USE_HTTPS
-          value: {{ .Values.loki.useHttps | ternary "true" "false" | quote }}
+        - name: LOKI_URL
+          value: {{ .Values.loki.url | quote }}
         - name: CARDINALHQ_API_KEY
           valueFrom:
             secretKeyRef:
@@ -50,6 +48,10 @@ spec:
         {{- if .Values.lakerunner.apiHost }}
         - name: LAKERUNNER_API_HOST
           value: {{ .Values.lakerunner.apiHost | quote }}
+        {{- end }}
+        {{- range $key, $value := .Values.loki.headers }}
+        - name: LOKI_HEADER_{{ $key | upper | replace "-" "_" }}
+          value: {{ $value | quote }}
         {{- end }}
         securityContext:
           allowPrivilegeEscalation: false

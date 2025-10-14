@@ -16,12 +16,17 @@ service:
   port: 8080
 
 # Loki configuration
-# REQUIRED: You must provide the Loki server address
+# REQUIRED: You must provide the Loki server URL
 loki:
-  # REQUIRED: Loki server address (e.g., "loki.monitoring:3100")
-  address: ""
-  # Whether to use HTTPS for Loki connections
-  useHttps: false
+  # REQUIRED: Loki server URL (e.g., "http://loki.monitoring:3100" or "https://loki.example.com:3100")
+  url: ""
+  # Optional HTTP headers to send with Loki requests
+  # Headers will be exposed as LOKI_HEADER_<KEY> environment variables
+  # Example:
+  #   headers:
+  #     Authorization: "Bearer token123"
+  #     X-Scope-OrgID: "tenant1"
+  headers: {}
 
 # CardinalHQ configuration
 # REQUIRED: You must provide a CardinalHQ API key

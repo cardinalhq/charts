@@ -71,8 +71,8 @@ Generate the image name
 Validate required values
 */}}
 {{- define "loki-mcp.validateValues" -}}
-{{- if not .Values.loki.address }}
-{{- fail "loki.address is required. Please provide the Loki server endpoint (e.g., loki.monitoring:3100)" }}
+{{- if not .Values.loki.url }}
+{{- fail "loki.url is required. Please provide the Loki server URL (e.g., http://loki.monitoring:3100)" }}
 {{- end }}
 {{- if not .Values.cardinal.apiKey }}
 {{- fail "cardinal.apiKey is required. Please provide your CardinalHQ API key" }}
