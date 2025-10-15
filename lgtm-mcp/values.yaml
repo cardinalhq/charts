@@ -1,0 +1,96 @@
+# Default values for lgtm-mcp
+# This is a YAML-formatted file.
+
+# Loki MCP Server configuration
+loki:
+  enabled: true
+
+  # Image configuration
+  image:
+    repository: public.ecr.aws/cardinalhq.io/loki-mcp
+    tag: ""
+    pullPolicy: IfNotPresent
+
+  # Image pull secrets for private registries
+  imagePullSecrets: []
+
+  # Service configuration
+  service:
+    type: ClusterIP
+    port: 8080
+
+  # Loki server URL (REQUIRED)
+  # Note: All loki configuration (url and headers) is stored in a Kubernetes Secret
+  # and injected into the pod via envFrom for enhanced security
+  url: ""
+
+  # Optional HTTP headers to send with Loki requests
+  # Headers are stored as LOKI_HEADER_<KEY> in the loki-config secret
+  # Header names are converted to uppercase with hyphens replaced by underscores
+  # Example:
+  #   headers:
+  #     Authorization: "Bearer token123"        # Becomes LOKI_HEADER_AUTHORIZATION
+  #     X-Scope-OrgID: "tenant1"                # Becomes LOKI_HEADER_X_SCOPE_ORGID
+  headers: {}
+
+  # Resource limits and requests
+  resources:
+    requests:
+      cpu: 500m
+      memory: 512Mi
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+
+# Tempo MCP Server configuration
+tempo:
+  enabled: true
+
+  # Image configuration
+  image:
+    repository: public.ecr.aws/cardinalhq.io/tempo-mcp
+    tag: ""
+    pullPolicy: IfNotPresent
+
+  # Image pull secrets for private registries
+  imagePullSecrets: []
+
+  # Service configuration
+  service:
+    type: ClusterIP
+    port: 8080
+
+  # Tempo server URL (REQUIRED)
+  # Note: All tempo configuration (url and headers) is stored in a Kubernetes Secret
+  # and injected into the pod via envFrom for enhanced security
+  url: ""
+
+  # Optional HTTP headers to send with Tempo requests
+  # Headers are stored as TEMPO_HEADER_<KEY> in the tempo-config secret
+  # Header names are converted to uppercase with hyphens replaced by underscores
+  # Example:
+  #   headers:
+  #     X-Scope-OrgID: "prod"                   # Becomes TEMPO_HEADER_X_SCOPE_ORGID
+  headers: {}
+
+  # Resource limits and requests
+  resources:
+    requests:
+      cpu: 500m
+      memory: 512Mi
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+
+# CardinalHQ configuration (shared across all services)
+cardinal:
+  # REQUIRED: CardinalHQ API key for fetching OpenAI and Anthropic keys
+  apiKey: ""
+  secret:
+    name: cardinal-api-key
+    create: true
+
+# Lakerunner configuration (optional, for loki)
+lakerunner:
+  # Lakerunner API host for query validation (optional)
+  apiHost: ""

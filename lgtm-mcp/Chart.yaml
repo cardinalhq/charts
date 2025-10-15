@@ -1,0 +1,23 @@
+apiVersion: v2
+name: lgtm-mcp
+description: Unified Helm chart for LGTM MCP Servers - Loki, Grafana, Tempo, and Mimir integrations via Model Context Protocol
+type: application
+version: 0.1.0
+appVersion: v0.1.0
+keywords:
+  - lgtm-mcp
+  - loki
+  - tempo
+  - grafana
+  - mcp
+  - model-context-protocol
+  - observability
+  - logs
+  - traces
+home: https://github.com/cardinalhq/cardinalhq-mcp
+sources:
+  - https://github.com/cardinalhq/cardinalhq-mcp/tree/main/loki
+  - https://github.com/cardinalhq/cardinalhq-mcp/tree/main/tempo
+maintainers:
+  - name: Cardinal HQ
+    email: support@cardinalhq.com

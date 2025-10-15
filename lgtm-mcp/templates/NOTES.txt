@@ -1,0 +1,21 @@
+LGTM MCP has been installed!
+
+Enabled services:
+{{- if .Values.loki.enabled }}
+- Loki MCP: {{ include "lgtm-mcp.loki.fullname" . }}
+{{- end }}
+{{- if .Values.tempo.enabled }}
+- Tempo MCP: {{ include "lgtm-mcp.tempo.fullname" . }}
+{{- end }}
+
+To access the services:
+{{- if .Values.loki.enabled }}
+
+  Loki MCP:
+    kubectl port-forward svc/{{ include "lgtm-mcp.loki.fullname" . }} 8080:8080
+{{- end }}
+{{- if .Values.tempo.enabled }}
+
+  Tempo MCP:
+    kubectl port-forward svc/{{ include "lgtm-mcp.tempo.fullname" . }} 8080:8080
+{{- end }}

@@ -1,0 +1,59 @@
+{{- if .Values.loki.enabled }}
+{{- include "lgtm-mcp.validateValues" . -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "lgtm-mcp.loki.fullname" . }}
+  labels:
+    {{- include "lgtm-mcp.loki.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "lgtm-mcp.loki.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "lgtm-mcp.loki.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.loki.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+      containers:
+      - name: loki-mcp
+        image: {{ include "lgtm-mcp.loki.image" . }}
+        imagePullPolicy: {{ .Values.loki.image.pullPolicy }}
+        command: ["/app/loki-mcp"]
+        args:
+          - "--http"
+          - "--host=0.0.0.0"
+          - "--port=8080"
+        ports:
+        - name: http
+          containerPort: 8080
+          protocol: TCP
+        envFrom:
+        - secretRef:
+            name: {{ include "lgtm-mcp.loki.fullname" . }}-config
+        env:
+        - name: CARDINALHQ_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "lgtm-mcp.cardinalSecretName" . }}
+              key: CARDINALHQ_API_KEY
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+              - ALL
+          seccompProfile:
+            type: RuntimeDefault
+        resources:
+          {{- toYaml .Values.loki.resources | nindent 10 }}
+{{- end }}
