@@ -1,5 +1,9 @@
 # Loki MCP Helm Chart
 
+> **DEPRECATION NOTICE**: This chart is deprecated in favor of the unified [lgtm-mcp](../lgtm-mcp) chart.
+> The unified chart supports multiple MCP servers (Loki, Tempo, Mimir) with conditional deployment.
+> Please migrate to `lgtm-mcp` for new deployments.
+
 Helm chart for deploying Loki MCP Server to Kubernetes.
 
 ## Installation
