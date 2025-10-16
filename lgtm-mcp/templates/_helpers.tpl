@@ -126,7 +126,7 @@ Validate required values
 {{- if and .Values.tempo.enabled (not .Values.tempo.url) }}
 {{- fail "tempo.url is required when tempo.enabled is true. Please provide the Tempo server URL (e.g., http://tempo.tempo:3200)" }}
 {{- end }}
-{{- if not .Values.cardinal.apiKey }}
-{{- fail "cardinal.apiKey is required. Please provide your CardinalHQ API key" }}
+{{- if and .Values.cardinal.secret.create (not .Values.cardinal.apiKey) }}
+{{- fail "cardinal.apiKey is required when cardinal.secret.create is true. Please provide your CardinalHQ API key" }}
 {{- end }}
 {{- end }}

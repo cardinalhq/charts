@@ -32,8 +32,8 @@ publish:
 	@echo "Packaging Helm chart..."
 	@helm package .
 	@echo "Pushing chart to OCI registry..."
-	@helm push lgtm-mcp-$(TAG).tgz oci://public.ecr.aws/cardinalhq.io/lgtm-charts
+	@helm push lgtm-mcp-$(TAG).tgz oci://public.ecr.aws/cardinalhq.io
 	@echo "Chart published successfully:"
-	@echo "  - oci://public.ecr.aws/cardinalhq.io/lgtm-charts/lgtm-mcp:$(TAG)"
+	@echo "  - oci://public.ecr.aws/cardinalhq.io/lgtm-mcp:$(TAG)"
 
 .DEFAULT_GOAL := help
