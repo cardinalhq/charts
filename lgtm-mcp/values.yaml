@@ -31,13 +31,13 @@ loki:
   #
   # Examples:
   #
-  # Single tenant (no auth):
+  # Single tenant (no auth_enabled):
   #   tenants:
   #     default: {}
   #
-  # Single tenant (with auth):
+  # Single tenant (with auth_enabled):
   #   tenants:
-  #     default:
+  #     my-org:
   #       X-Scope-OrgID: "my-org"
   #
   # Multi-tenant:

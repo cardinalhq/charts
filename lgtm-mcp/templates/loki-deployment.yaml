@@ -56,4 +56,13 @@ spec:
             type: RuntimeDefault
         resources:
           {{- toYaml .Values.loki.resources | nindent 10 }}
+        volumeMounts:
+        - name: tenants-config
+          mountPath: /app/config/tenants.yaml
+          subPath: tenants.yaml
+          readOnly: true
+      volumes:
+      - name: tenants-config
+        configMap:
+          name: {{ include "lgtm-mcp.loki.fullname" . }}-tenants
 {{- end }}

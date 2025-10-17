@@ -1,20 +1,12 @@
 # LGTM MCP Helm Chart
 
-Unified Helm chart for deploying LGTM (Loki, Grafana, Tempo, Mimir) MCP servers to Kubernetes.
+Unified Helm chart for deploying CardinalHQ Loki and Tempo MCP servers to Kubernetes.
 
-## Features
-
-- **Conditional Service Deployment**: Enable/disable individual MCP servers (Loki, Tempo)
-- **Shared Cardinal API Key**: Single API key configuration for all services
-- **Multi-Tenant Support**: Configure single or multiple tenants with custom headers per tenant
-- **Flexible Configuration**: Per-service image, resources, and tenant configuration
-- **Security-First**: Non-root containers, read-only filesystems, dropped capabilities
-- **OCI Registry**: Published to `public.ecr.aws/cardinalhq.io/lgtm-charts`
 
 ## Prerequisites
 
-- Kubernetes 1.19+
-- Helm 3.0+
+- Kubernetes 
+- Helm
 - CardinalHQ API key
 
 ## Installation
@@ -36,7 +28,7 @@ helm install lgtm . -f /path/to/values.yaml
 
 ### Loki MCP Server
 
-#### Single-Tenant Configuration
+**Note:** If you don't specify `loki.tenants`, a default single-tenant configuration with no headers is automatically created (suitable for Loki with `auth_enabled: false`).
 
 For single-tenant Loki deployments (with `auth_enabled: false`):
 
@@ -52,19 +44,17 @@ loki:
 ```
 
 For single-tenant Loki with multi tenancy (with `auth_enabled: true`):
-
+  
 ```yaml
 loki:
   enabled: true
   url: "http://loki.monitoring:3100"
   tenants:
-    default:
+    my-org:
       X-Scope-OrgID: "my-org"
 ```
 
-#### Multi-Tenant Configuration
-
-For multi-tenant Loki deployments, configure multiple tenants with their respective headers:
+For multi-tenant Loki deployments:
 
 ```yaml
 loki:

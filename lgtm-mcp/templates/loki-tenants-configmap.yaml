@@ -1,0 +1,16 @@
+{{- if .Values.loki.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "lgtm-mcp.loki.fullname" . }}-tenants
+  labels:
+    {{- include "lgtm-mcp.loki.labels" . | nindent 4 }}
+data:
+  tenants.yaml: |
+    tenants:
+{{- if .Values.loki.tenants }}
+{{ .Values.loki.tenants | toYaml | indent 6 }}
+{{- else }}
+      default: {}
+{{- end }}
+{{- end }}
