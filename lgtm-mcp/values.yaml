@@ -20,18 +20,36 @@ loki:
     port: 8080
 
   # Loki server URL (REQUIRED)
-  # Note: All loki configuration (url and headers) is stored in a Kubernetes Secret
+  # Note: All loki configuration (url and tenants) is stored in a Kubernetes Secret
   # and injected into the pod via envFrom for enhanced security
   url: ""
 
-  # Optional HTTP headers to send with Loki requests
-  # Headers are stored as LOKI_HEADER_<KEY> in the loki-config secret
-  # Header names are converted to uppercase with hyphens replaced by underscores
-  # Example:
-  #   headers:
-  #     Authorization: "Bearer token123"        # Becomes LOKI_HEADER_AUTHORIZATION
-  #     X-Scope-OrgID: "tenant1"                # Becomes LOKI_HEADER_X_SCOPE_ORGID
-  headers: {}
+  # Tenant configuration
+  # Structure: map of tenant names to HTTP headers
+  # For single-tenant Loki (auth_enabled: false), use a single tenant with empty headers
+  # For multi-tenant Loki (auth_enabled: true), configure multiple tenants with X-Scope-OrgID
+  #
+  # Examples:
+  #
+  # Single tenant (no auth):
+  #   tenants:
+  #     default: {}
+  #
+  # Single tenant (with auth):
+  #   tenants:
+  #     default:
+  #       X-Scope-OrgID: "my-org"
+  #
+  # Multi-tenant:
+  #   tenants:
+  #     prod:
+  #       X-Scope-OrgID: "prod"
+  #     staging:
+  #       X-Scope-OrgID: "staging"
+  #       Authorization: "Bearer token123"
+  #
+  tenants:
+    default: {}
 
   # Resource limits and requests
   resources:
