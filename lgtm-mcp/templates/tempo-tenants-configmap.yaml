@@ -1,0 +1,16 @@
+{{- if .Values.tempo.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "lgtm-mcp.tempo.fullname" . }}-tenants
+  labels:
+    {{- include "lgtm-mcp.tempo.labels" . | nindent 4 }}
+data:
+  tenants.yaml: |
+    tenants:
+{{- if .Values.tempo.tenants }}
+{{ .Values.tempo.tenants | toYaml | indent 6 }}
+{{- else }}
+      default: {}
+{{- end }}
+{{- end }}

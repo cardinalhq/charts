@@ -79,17 +79,32 @@ tempo:
     port: 8080
 
   # Tempo server URL (REQUIRED)
-  # Note: All tempo configuration (url and headers) is stored in a Kubernetes Secret
-  # and injected into the pod via envFrom for enhanced security
   url: ""
 
-  # Optional HTTP headers to send with Tempo requests
-  # Headers are stored as TEMPO_HEADER_<KEY> in the tempo-config secret
-  # Header names are converted to uppercase with hyphens replaced by underscores
-  # Example:
-  #   headers:
-  #     X-Scope-OrgID: "prod"                   # Becomes TEMPO_HEADER_X_SCOPE_ORGID
-  headers: {}
+  # Tenant configuration
+  # Structure: map of tenant names to HTTP headers
+  # For single-tenant Tempo (multi_tenancy: false), use a single tenant with empty headers
+  # For multi-tenant Tempo (multi_tenancy: true), configure multiple tenants with X-Scope-OrgID
+  #
+  # Examples:
+  #
+  # Single tenant (no multi_tenancy):
+  #   tenants: {}
+  #
+  # Single tenant (with multi_tenancy):
+  #   tenants:
+  #     my-org:
+  #       X-Scope-OrgID: "my-org"
+  #
+  # Multi-tenant:
+  #   tenants:
+  #     prod:
+  #       X-Scope-OrgID: "prod"
+  #     staging:
+  #       X-Scope-OrgID: "staging"
+  #       Authorization: "Bearer token123"
+  #
+  tenants: {}
 
   # Resource limits and requests
   resources:

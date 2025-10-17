@@ -74,16 +74,49 @@ Each tenant can have arbitrary HTTP headers. The MCP server will query all confi
 
 ### Tempo MCP Server
 
+**Note:** If you don't specify `tempo.tenants`, a default single-tenant configuration with no headers is automatically created (suitable for Tempo with `multi_tenancy: false`).
+
+For single-tenant Tempo deployments (with `multi_tenancy: false`):
+
 ```yaml
 tempo:
   enabled: true
   image:
     repository: public.ecr.aws/cardinalhq.io/tempo-mcp
-    tag: "v0.1.0"
+    tag: "v0.2.0"
   url: "http://tempo.tempo:3200"
-  headers:
-    X-Scope-OrgID: "prod"
+  tenants:
+    my-org: {}  # No headers needed for multi_tenancy: false
 ```
+
+For single-tenant Tempo with multi tenancy (with `multi_tenancy: true`):
+
+```yaml
+tempo:
+  enabled: true
+  url: "http://tempo.tempo:3200"
+  tenants:
+    my-org:
+      X-Scope-OrgID: "my-org"
+```
+
+For multi-tenant Tempo deployments:
+
+```yaml
+tempo:
+  enabled: true
+  url: "http://tempo.tempo:3200"
+  tenants:
+    prod:
+      X-Scope-OrgID: "prod"
+    staging:
+      X-Scope-OrgID: "staging"
+    dev:
+      X-Scope-OrgID: "dev"
+      Authorization: "Bearer custom-token"  # Arbitrary headers supported
+```
+
+Each tenant can have arbitrary HTTP headers. The MCP server will query all configured tenants in parallel and aggregate results.
 
 ### Cardinal API Key
 
