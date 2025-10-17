@@ -48,8 +48,8 @@ loki:
   #       X-Scope-OrgID: "staging"
   #       Authorization: "Bearer token123"
   #
-  tenants:
-    default: {}
+  # If not specified, a default single-tenant configuration is used
+  tenants: {}
 
   # Resource limits and requests
   resources:
