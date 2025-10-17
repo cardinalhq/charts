@@ -22,21 +22,14 @@ Unified Helm chart for deploying LGTM (Loki, Grafana, Tempo, Mimir) MCP servers 
 ### From OCI Registry
 
 ```bash
-helm install lgtm oci://public.ecr.aws/cardinalhq.io/lgtm-charts/lgtm-mcp \
-  --version 0.1.0 \
-  --set cardinal.apiKey=<your-api-key> \
-  --set loki.url=http://loki.monitoring:3100 \
-  --set tempo.url=http://tempo.tempo:3200
+helm install lgtm oci://public.ecr.aws/cardinalhq.io/lgtm-charts/lgtm-mcp --version 1.1.0 -f /path/to/values.yaml
 ```
 
 ### From Source
 
 ```bash
 cd charts/lgtm-mcp
-helm install lgtm . \
-  --set cardinal.apiKey=<your-api-key> \
-  --set loki.url=http://loki.monitoring:3100 \
-  --set tempo.url=http://tempo.tempo:3200
+helm install lgtm . -f /path/to/values.yaml
 ```
 
 ## Configuration
@@ -52,17 +45,13 @@ loki:
   enabled: true
   image:
     repository: public.ecr.aws/cardinalhq.io/loki-mcp
-    tag: "v0.2.0"
+    tag: "v1.3.0"
   url: "http://loki.monitoring:3100"
   tenants:
     default: {}  # No headers needed for auth_enabled: false
-  resources:
-    requests:
-      cpu: 500m
-      memory: 512Mi
 ```
 
-For single-tenant Loki with authentication (with `auth_enabled: true`):
+For single-tenant Loki with multi tenancy (with `auth_enabled: true`):
 
 ```yaml
 loki:
@@ -89,10 +78,6 @@ loki:
     dev:
       X-Scope-OrgID: "dev"
       Authorization: "Bearer custom-token"  # Arbitrary headers supported
-  resources:
-    requests:
-      cpu: 500m
-      memory: 512Mi
 ```
 
 Each tenant can have arbitrary HTTP headers. The MCP server will query all configured tenants in parallel and aggregate results.
@@ -108,10 +93,6 @@ tempo:
   url: "http://tempo.tempo:3200"
   headers:
     X-Scope-OrgID: "prod"
-  resources:
-    requests:
-      cpu: 500m
-      memory: 512Mi
 ```
 
 ### Cardinal API Key
