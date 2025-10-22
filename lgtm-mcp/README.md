@@ -14,7 +14,7 @@ Unified Helm chart for deploying CardinalHQ Loki and Tempo MCP servers to Kubern
 ### From OCI Registry
 
 ```bash
-helm install lgtm oci://public.ecr.aws/cardinalhq.io/lgtm-charts/lgtm-mcp --version 1.1.0 -f /path/to/values.yaml
+helm install lgtm oci://public.ecr.aws/cardinalhq.io/lgtm-mcp --version 1.6.0 -f /path/to/values.yaml
 ```
 
 ### From Source
