@@ -3,3 +3,4 @@ packages
 .claude/settings.local.json
 install-scripts/generated
 **/.DS_Store
+*.tgz

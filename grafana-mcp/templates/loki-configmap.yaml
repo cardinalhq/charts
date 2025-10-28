@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "grafana-mcp.fullname" . }}-loki
+  labels:
+    {{- include "grafana-mcp.labels" . | nindent 4 }}
+data:
+  tenants.yaml: |
+    tenants:
+{{- range $tenantName, $headers := .Values.loki.tenants }}
+      {{ $tenantName }}:
+{{- range $headerKey, $headerValue := $headers }}
+        {{ $headerKey }}: {{ $headerValue | quote }}
+{{- end }}
+{{- end }}

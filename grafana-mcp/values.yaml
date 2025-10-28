@@ -1,0 +1,54 @@
+# Default values for grafana-mcp
+image:
+  repository: public.ecr.aws/cardinalhq.io/grafana-mcp
+  tag: ""  # defaults to Chart.appVersion
+  pullPolicy: IfNotPresent
+
+replicaCount: 1
+
+service:
+  type: ClusterIP
+  port: 8080
+
+# Loki configuration
+loki:
+  url: "http://loki:3100"
+  # Tenant configuration: map of tenant names to HTTP headers
+  # Example:
+  #   tenants:
+  #     prod:
+  #       X-Scope-OrgID: "prod"
+  #     staging:
+  #       X-Scope-OrgID: "staging"
+  #       Authorization: "Bearer token"
+  tenants:
+    default:
+      X-Scope-OrgID: "default"
+
+# Tempo configuration
+tempo:
+  url: "http://tempo:3200"
+  # Tenant configuration: map of tenant names to HTTP headers
+  tenants:
+    default:
+      X-Scope-OrgID: "default"
+
+# CardinalHQ API key secret (must exist)
+cardinalHqApiKeySecret:
+  name: cardinalhq-secrets
+  key: api-key
+
+# Extra environment variables
+extraEnv: []
+  # - name: GRAFANA_URL
+  #   value: "https://grafana.example.com"
+  # - name: GRAFANA_TOKEN
+  #   value: "token"
+
+resources:
+  requests:
+    cpu: 250m
+    memory: 512Mi
+  limits:
+    cpu: 1000m
+    memory: 1Gi

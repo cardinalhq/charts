@@ -1,0 +1,20 @@
+apiVersion: v2
+name: lgtm-mcp
+description: Helm chart for Grafana MCP Server (Loki + Tempo integration)
+type: application
+version: 2.2.0
+appVersion: "2.2.0"
+keywords:
+  - grafana
+  - loki
+  - tempo
+  - observability
+  - mcp
+  - model-context-protocol
+home: https://github.com/cardinalhq/cardinalhq-mcp
+sources:
+  - https://github.com/cardinalhq/cardinalhq-mcp/tree/main/grafana-mcp
+maintainers:
+  - name: CardinalHQ
+    email: engineering@cardinalhq.io
+dependencies: []

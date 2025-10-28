@@ -1,0 +1,84 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "grafana-mcp.fullname" . }}
+  labels:
+    {{- include "grafana-mcp.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "grafana-mcp.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        checksum/loki-config: {{ include (print $.Template.BasePath "/loki-configmap.yaml") . | sha256sum }}
+        checksum/tempo-config: {{ include (print $.Template.BasePath "/tempo-configmap.yaml") . | sha256sum }}
+      labels:
+        {{- include "grafana-mcp.selectorLabels" . | nindent 8 }}
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+      containers:
+      - name: grafana-mcp
+        image: {{ include "grafana-mcp.image" . }}
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        command: ["/app/grafana-mcp"]
+        args:
+          - "--http"
+          - "--host=0.0.0.0"
+          - "--port=8080"
+        ports:
+        - name: http
+          containerPort: 8080
+          protocol: TCP
+        env:
+        - name: CARDINALHQ_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.cardinalHqApiKeySecret.name }}
+              key: {{ .Values.cardinalHqApiKeySecret.key }}
+        - name: LOKI_URL
+          value: {{ .Values.loki.url | quote }}
+        - name: LOKI_TENANTS_CONFIG
+          value: "/etc/config/loki-tenants.yaml"
+        - name: TEMPO_URL
+          value: {{ .Values.tempo.url | quote }}
+        - name: TEMPO_TENANTS_CONFIG
+          value: "/etc/config/tempo-tenants.yaml"
+        - name: DOCSTORE_DB_PATH
+          value: "/app/docstore/docstore.db"
+        {{- with .Values.extraEnv }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+              - ALL
+        resources:
+          {{- toYaml .Values.resources | nindent 10 }}
+        volumeMounts:
+        - name: tmp
+          mountPath: /tmp
+        - name: loki-config
+          mountPath: /etc/config/loki-tenants.yaml
+          subPath: tenants.yaml
+          readOnly: true
+        - name: tempo-config
+          mountPath: /etc/config/tempo-tenants.yaml
+          subPath: tenants.yaml
+          readOnly: true
+      volumes:
+      - name: tmp
+        emptyDir: {}
+      - name: loki-config
+        configMap:
+          name: {{ include "grafana-mcp.fullname" . }}-loki
+      - name: tempo-config
+        configMap:
+          name: {{ include "grafana-mcp.fullname" . }}-tempo

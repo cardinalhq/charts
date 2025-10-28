@@ -1,0 +1,20 @@
+Thank you for installing {{ .Chart.Name }}!
+
+Your release is named {{ .Release.Name }}.
+
+To get the service endpoint:
+  kubectl get svc --namespace {{ .Release.Namespace }} {{ include "grafana-mcp.fullname" . }}
+
+To port-forward and test locally:
+  kubectl port-forward -n {{ .Release.Namespace }} svc/{{ include "grafana-mcp.fullname" . }} 8080:8080
+
+To view logs:
+  kubectl logs -n {{ .Release.Namespace }} -l app.kubernetes.io/name={{ include "grafana-mcp.name" . }} -f
+
+To verify tenant configuration:
+  kubectl logs -n {{ .Release.Namespace }} -l app.kubernetes.io/name={{ include "grafana-mcp.name" . }} | grep -i tenant
+
+Exposed MCP Tools:
+  Loki: find_query_paths, generate_query_context, validate_query, execute_query, consult_docs, current_time
+  Tempo: list_services, list_spans_for_service, get_service_graph, get_paths_containing, get_trace, search_traces
+  + Optional Grafana tools if GRAFANA_URL/GRAFANA_TOKEN configured
