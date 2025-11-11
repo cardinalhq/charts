@@ -1,0 +1,165 @@
+# Default values for chq-k8s-watcher
+# This is a YAML-formatted file.
+
+# -- Number of replicas (should typically be 1 to avoid duplicate events)
+replicaCount: 1
+
+# Image configuration
+image:
+  # -- Image repository
+  repository: public.ecr.aws/cardinalhq.io/chip-release-watcher
+  # -- Image pull policy
+  pullPolicy: Always
+  # -- Image tag (defaults to latest if not specified)
+  tag: "latest"
+
+# -- Image pull secrets for private registries
+imagePullSecrets: []
+
+# -- Override the name of the chart
+nameOverride: ""
+
+# -- Override the full name of the release
+fullnameOverride: ""
+
+# Service account configuration
+serviceAccount:
+  # -- Specifies whether a service account should be created
+  create: true
+  # -- Annotations to add to the service account
+  annotations: {}
+  # -- The name of the service account to use (if not set and create is true, a name is generated)
+  name: ""
+
+# RBAC configuration
+rbac:
+  # -- Specifies whether RBAC resources should be created
+  create: true
+
+# Cardinal HQ configuration
+cardinal:
+  # -- Cardinal HQ API key (REQUIRED)
+  # Can be set via --set cardinal.apiKey=<key> or using existingSecret
+  apiKey: ""
+
+  # -- Kubernetes cluster name identifier (REQUIRED)
+  # This identifies the cluster in Cardinal HQ platform
+  clusterName: ""
+
+  # -- Use an existing secret for Cardinal API key
+  # If set, cardinal.apiKey is ignored
+  existingSecret: ""
+
+  # -- Key name in the existing secret for the API key
+  existingSecretKey: "CARDINALHQ_API_KEY"
+
+# Service configuration
+service:
+  # -- Service type
+  type: ClusterIP
+  # -- Service port
+  port: 4000
+  # -- Annotations to add to the service
+  annotations: {}
+
+# Resource limits and requests
+resources:
+  limits:
+    cpu: 250m
+    memory: 500Mi
+  requests:
+    cpu: 250m
+    memory: 500Mi
+
+# Liveness probe configuration
+livenessProbe:
+  httpGet:
+    path: /healthz
+    port: 4000
+  initialDelaySeconds: 5
+  periodSeconds: 30
+  timeoutSeconds: 30
+  failureThreshold: 5
+  successThreshold: 1
+
+# Readiness probe configuration
+readinessProbe:
+  httpGet:
+    path: /healthz
+    port: 4000
+  initialDelaySeconds: 5
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+  successThreshold: 1
+
+# -- Additional environment variables
+extraEnv: []
+# Example:
+# - name: LOG_LEVEL
+#   value: "debug"
+
+# -- Additional environment variables from ConfigMaps or Secrets
+extraEnvFrom: []
+# Example:
+# - configMapRef:
+#     name: my-config
+
+# -- Node labels for pod assignment
+nodeSelector: {}
+
+# -- Tolerations for pod assignment
+tolerations: []
+
+# -- Affinity for pod assignment
+affinity: {}
+
+# -- Pod annotations
+podAnnotations: {}
+
+# -- Pod labels
+podLabels: {}
+
+# -- Security context for the pod
+podSecurityContext: {}
+  # fsGroup: 2000
+
+# -- Security context for the container
+securityContext: {}
+  # capabilities:
+  #   drop:
+  #   - ALL
+  # readOnlyRootFilesystem: true
+  # runAsNonRoot: true
+  # runAsUser: 1000
+
+# Deployment strategy
+strategy:
+  type: RollingUpdate
+  rollingUpdate:
+    maxSurge: 1
+    maxUnavailable: 0
+
+# -- Revision history limit
+revisionHistoryLimit: 2
+
+# Ingress configuration (optional)
+ingress:
+  # -- Enable ingress
+  enabled: false
+  # -- Ingress class name
+  className: ""
+  # -- Ingress annotations
+  annotations: {}
+    # cert-manager.io/cluster-issuer: letsencrypt-prod
+  # -- Ingress hosts configuration
+  hosts:
+    - host: chip-release-watcher.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  # -- Ingress TLS configuration
+  tls: []
+  #  - secretName: chip-release-watcher-tls
+  #    hosts:
+  #      - chip-release-watcher.example.com

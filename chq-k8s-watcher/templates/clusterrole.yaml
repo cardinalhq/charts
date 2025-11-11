@@ -1,0 +1,29 @@
+{{- if .Values.rbac.create -}}
+apiVersion: {{ include "chq-k8s-watcher.rbac.apiVersion" . }}
+kind: ClusterRole
+metadata:
+  name: {{ include "chq-k8s-watcher.fullname" . }}
+  labels:
+    {{- include "chq-k8s-watcher.labels" . | nindent 4 }}
+rules:
+  # Read-only access to pods for image digest tracking
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch"]
+
+  # Read-only access to workload controllers
+  - apiGroups: ["apps"]
+    resources:
+      - deployments
+      - replicasets
+      - statefulsets
+      - daemonsets
+    verbs: ["get", "list", "watch"]
+
+  # Read-only access to batch workloads
+  - apiGroups: ["batch"]
+    resources:
+      - jobs
+      - cronjobs
+    verbs: ["get", "list", "watch"]
+{{- end }}

@@ -1,0 +1,16 @@
+apiVersion: v2
+name: chq-k8s-watcher
+description: Cardinal Release Watcher - Kubernetes workload and image digest monitoring service
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+keywords:
+  - cardinalhq
+  - kubernetes
+  - monitoring
+  - release-tracking
+  - observability
+home: https://github.com/cardinalhq/chq-release-agent-k8s-poller
+maintainers:
+  - name: CardinalHQ
+    email: support@cardinalhq.io

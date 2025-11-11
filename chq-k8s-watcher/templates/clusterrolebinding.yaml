@@ -1,0 +1,16 @@
+{{- if .Values.rbac.create -}}
+apiVersion: {{ include "chq-k8s-watcher.rbac.apiVersion" . }}
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "chq-k8s-watcher.fullname" . }}
+  labels:
+    {{- include "chq-k8s-watcher.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "chq-k8s-watcher.fullname" . }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "chq-k8s-watcher.serviceAccountName" . }}
+    namespace: {{ .Release.Namespace }}
+{{- end }}
