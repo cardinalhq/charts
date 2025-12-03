@@ -102,7 +102,7 @@ tests:
           value: "external"
       - equal:
           path: spec.triggers[0].metadata.serviceType
-          value: "ingest-logs"
+          value: "worker-ingest-logs"
 
   - it: should not create ScaledObject when disabled mode is set
     set:
@@ -226,7 +226,7 @@ tests:
           value: "external"
       - equal:
           path: spec.triggers[0].metadata.serviceType
-          value: "ingest-traces"
+          value: "worker-ingest-traces"
 
   - it: should not create ScaledObject for traces when disabled mode is set
     set:
