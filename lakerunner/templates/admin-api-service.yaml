@@ -1,0 +1,20 @@
+{{- if .Values.adminApi.enabled -}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "lakerunner.fullname" . }}-admin-api
+  labels:
+    {{- include "lakerunner.labels" . | nindent 4 }}
+    app.kubernetes.io/component: admin-api
+  {{ include "lakerunner.annotations" . | nindent 2 }}
+spec:
+  type: {{ .Values.adminApi.service.type }}
+  ports:
+    - port: {{ .Values.adminApi.grpcPort }}
+      targetPort: grpc
+      protocol: TCP
+      name: grpc
+  selector:
+    {{- include "lakerunner.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: admin-api
+{{- end }}

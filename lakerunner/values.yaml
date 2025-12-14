@@ -759,6 +759,31 @@ monitoring:
   tolerations: []
   affinity: {}
 
+# Admin API configuration
+adminApi:
+  enabled: true
+  replicas: 1
+  grpcPort: 9091
+  service:
+    type: ClusterIP
+  image:
+    repository: public.ecr.aws/cardinalhq.io/lakerunner
+    tag: ""
+    pullPolicy: ""
+  resources:
+    requests:
+      cpu: 250m
+      memory: 200Mi
+    limits:
+      cpu: 250m
+      memory: 200Mi
+  terminationGracePeriodSeconds: 30
+  labels: {}
+  annotations: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
 # PubSub configuration
 pubsub:
   HTTP:
@@ -890,11 +915,11 @@ queryWorker:
     pullPolicy: ""
   resources:
     requests:
-      cpu: 4200m
-      memory: 6Gi
+      cpu: 2200m
+      memory: 4Gi
     limits:
-      cpu: 4200m
-      memory: 6Gi
+      cpu: 2200m
+      memory: 4Gi
   service:
     type: ClusterIP
   temporaryStorage:
