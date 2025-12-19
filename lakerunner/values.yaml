@@ -451,8 +451,8 @@ ingestLogs:
     keda:
       pollingInterval: 30 # How often to check the queue (seconds)
       cooldownPeriod: 300 # Wait time before scaling down (seconds)
-      targetQueueDepth: 100 # Scale up when queue depth exceeds this (logs process quickly)
-      activationQueueDepth: 10 # Start scaling when queue depth reaches this
+      targetQueueDepth: 100 # DEPRECATED: not used - controlled by monitor (external scaler)
+      activationQueueDepth: 10 # DEPRECATED: not used - controlled by monitor (external scaler)
   terminationGracePeriodSeconds: 600
   # Health probe configuration (inherits from global.healthProbes if not specified)
   healthProbes:
@@ -488,8 +488,8 @@ ingestMetrics:
     keda:
       pollingInterval: 30 # How often to check the queue (seconds)
       cooldownPeriod: 300 # Wait time before scaling down (seconds)
-      targetQueueDepth: 150 # Higher threshold for metrics (more resource intensive)
-      activationQueueDepth: 20 # Start scaling when queue depth reaches this
+      targetQueueDepth: 150 # DEPRECATED: not used - controlled by monitor (external scaler)
+      activationQueueDepth: 20 # DEPRECATED: not used - controlled by monitor (external scaler)
   terminationGracePeriodSeconds: 600
   labels: {}
   annotations: {}
@@ -522,8 +522,8 @@ ingestTraces:
     keda:
       pollingInterval: 30 # How often to check the queue (seconds)
       cooldownPeriod: 300 # Wait time before scaling down (seconds)
-      targetQueueDepth: 120 # Scale up when queue depth exceeds this (traces process moderately)
-      activationQueueDepth: 15 # Start scaling when queue depth reaches this
+      targetQueueDepth: 120 # DEPRECATED: not used - controlled by monitor (external scaler)
+      activationQueueDepth: 15 # DEPRECATED: not used - controlled by monitor (external scaler)
   terminationGracePeriodSeconds: 600
   labels: {}
   annotations: {}
@@ -556,8 +556,8 @@ compactLogs:
     keda:
       pollingInterval: 60 # Longer interval for batch work
       cooldownPeriod: 600 # 10-minute cooldown for compaction
-      targetQueueDepth: 10 # Scale up when pending jobs exceed this
-      activationQueueDepth: 1 # Start scaling when any jobs are pending
+      targetQueueDepth: 10 # DEPRECATED: not used - controlled by monitor (external scaler)
+      activationQueueDepth: 1 # DEPRECATED: not used - controlled by monitor (external scaler)
   terminationGracePeriodSeconds: 300
   labels: {}
   annotations: {}
@@ -590,8 +590,8 @@ compactMetrics:
     keda:
       pollingInterval: 60 # Longer interval for batch work
       cooldownPeriod: 600 # 10-minute cooldown for compaction
-      targetQueueDepth: 10 # Scale up when pending jobs exceed this
-      activationQueueDepth: 1 # Start scaling when any jobs are pending
+      targetQueueDepth: 10 # DEPRECATED: not used - controlled by monitor (external scaler)
+      activationQueueDepth: 1 # DEPRECATED: not used - controlled by monitor (external scaler)
   terminationGracePeriodSeconds: 300
   labels: {}
   annotations: {}
@@ -624,8 +624,8 @@ compactTraces:
     keda:
       pollingInterval: 60 # Longer interval for batch work
       cooldownPeriod: 600 # 10-minute cooldown for compaction
-      targetQueueDepth: 10 # Scale up when pending jobs exceed this
-      activationQueueDepth: 1 # Start scaling when any jobs are pending
+      targetQueueDepth: 10 # DEPRECATED: not used - controlled by monitor (external scaler)
+      activationQueueDepth: 1 # DEPRECATED: not used - controlled by monitor (external scaler)
   terminationGracePeriodSeconds: 300
   labels: {}
   annotations: {}
@@ -658,8 +658,8 @@ rollupMetrics:
     keda:
       pollingInterval: 60 # Longer interval for batch work
       cooldownPeriod: 600 # 10-minute cooldown for rollup processing
-      targetQueueDepth: 15 # Scale up when pending jobs exceed this
-      activationQueueDepth: 2 # Start scaling when jobs are pending
+      targetQueueDepth: 15 # DEPRECATED: not used - controlled by monitor (external scaler)
+      activationQueueDepth: 2 # DEPRECATED: not used - controlled by monitor (external scaler)
   terminationGracePeriodSeconds: 300
   labels: {}
   annotations: {}
@@ -691,8 +691,8 @@ boxers:
     keda:
       pollingInterval: 60 # Longer interval for batch work
       cooldownPeriod: 600 # 10-minute cooldown for processing
-      targetQueueDepth: 15 # Scale up when pending jobs exceed this
-      activationQueueDepth: 2 # Start scaling when jobs are pending
+      targetQueueDepth: 15 # DEPRECATED: not used - controlled by monitor (external scaler)
+      activationQueueDepth: 2 # DEPRECATED: not used - controlled by monitor (external scaler)
   terminationGracePeriodSeconds: 300
   labels: {}
   annotations: {}
