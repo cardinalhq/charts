@@ -189,7 +189,7 @@ Common environment variables
 Inject common + component-specific env vars.
 Takes two args:
   0: the root chart context (so we can call commonEnv with it)
-  1: the component’s values block (must have .env as a list)
+  1: the component's values block (must have .env as a list)
 Usage:
   {{ include "lakerunner.injectEnv" (list . .Values.queryWorker) | nindent 10 }}
 */}}
@@ -197,6 +197,29 @@ Usage:
 {{- $root := index . 0 -}}
 {{- $comp := index . 1 -}}
 {{- include "lakerunner.commonEnv" $root | nindent 2 -}}
+{{- include "lakerunner.goRuntimeEnv" (list $root $comp $comp.env) | nindent 2 -}}
+{{- with $root.Values.global.env -}}
+{{ toYaml . | nindent 2 -}}
+{{- end -}}
+{{- with $comp.env -}}
+{{ toYaml . | nindent 2 -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Inject common + component-specific env vars for DuckDB services (ingest/compact/rollup).
+These services use DuckDB internally and need specific memory tuning.
+Takes two args:
+  0: the root chart context (so we can call commonEnv with it)
+  1: the component's values block (must have .env as a list)
+Usage:
+  {{ include "lakerunner.injectEnvDuckdb" (list . .Values.ingestLogs) | nindent 10 }}
+*/}}
+{{- define "lakerunner.injectEnvDuckdb" -}}
+{{- $root := index . 0 -}}
+{{- $comp := index . 1 -}}
+{{- include "lakerunner.commonEnv" $root | nindent 2 -}}
+{{- include "lakerunner.duckdbRuntimeEnv" (list $root $comp $comp.env) | nindent 2 -}}
 {{- with $root.Values.global.env -}}
 {{ toYaml . | nindent 2 -}}
 {{- end -}}
@@ -729,5 +752,267 @@ readinessProbe:
   periodSeconds: 5
   timeoutSeconds: 3
   failureThreshold: 3
+{{- end -}}
+{{- end -}}
+
+{{/*
+Parse Kubernetes memory value to bytes.
+Supports: Ki, Mi, Gi, Ti, K, M, G, T (binary and decimal)
+Usage: {{ include "lakerunner.parseMemoryToBytes" "1Gi" }}
+*/}}
+{{- define "lakerunner.parseMemoryToBytes" -}}
+{{- $mem := . | toString -}}
+{{- $value := 0 -}}
+{{- $multiplier := 1 -}}
+{{- if hasSuffix "Ki" $mem -}}
+  {{- $value = trimSuffix "Ki" $mem | float64 -}}
+  {{- $multiplier = 1024 -}}
+{{- else if hasSuffix "Mi" $mem -}}
+  {{- $value = trimSuffix "Mi" $mem | float64 -}}
+  {{- $multiplier = 1048576 -}}
+{{- else if hasSuffix "Gi" $mem -}}
+  {{- $value = trimSuffix "Gi" $mem | float64 -}}
+  {{- $multiplier = 1073741824 -}}
+{{- else if hasSuffix "Ti" $mem -}}
+  {{- $value = trimSuffix "Ti" $mem | float64 -}}
+  {{- $multiplier = 1099511627776 -}}
+{{- else if hasSuffix "K" $mem -}}
+  {{- $value = trimSuffix "K" $mem | float64 -}}
+  {{- $multiplier = 1000 -}}
+{{- else if hasSuffix "M" $mem -}}
+  {{- $value = trimSuffix "M" $mem | float64 -}}
+  {{- $multiplier = 1000000 -}}
+{{- else if hasSuffix "G" $mem -}}
+  {{- $value = trimSuffix "G" $mem | float64 -}}
+  {{- $multiplier = 1000000000 -}}
+{{- else if hasSuffix "T" $mem -}}
+  {{- $value = trimSuffix "T" $mem | float64 -}}
+  {{- $multiplier = 1000000000000 -}}
+{{- else -}}
+  {{- $value = $mem | float64 -}}
+{{- end -}}
+{{- mulf $value $multiplier | int64 -}}
+{{- end -}}
+
+{{/*
+Calculate GOMEMLIMIT based on memory limit.
+Rules:
+  - If memory > 1GiB: GOMEMLIMIT = total memory - 250MiB
+  - If memory <= 1GiB: GOMEMLIMIT = 75% of memory
+Returns value in MiB format (e.g., "3840MiB").
+Usage: {{ include "lakerunner.calculateGomemlimit" "2Gi" }}
+*/}}
+{{- define "lakerunner.calculateGomemlimit" -}}
+{{- $bytes := include "lakerunner.parseMemoryToBytes" . | int64 -}}
+{{- $oneGiB := 1073741824 -}}
+{{- $reserveMiB := 250 -}}
+{{- $oneMiB := 1048576 -}}
+{{- $totalMiB := divf $bytes $oneMiB | int64 -}}
+{{- if gt $bytes $oneGiB -}}
+  {{- $resultMiB := sub $totalMiB $reserveMiB -}}
+  {{- printf "%dMiB" $resultMiB -}}
+{{- else -}}
+  {{- $resultMiB := mulf $totalMiB 0.75 | int64 -}}
+  {{- printf "%dMiB" $resultMiB -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Calculate GOGC based on memory limit.
+Rules:
+  - If memory <= 1GiB: GOGC = 50
+  - If 1GiB < memory <= 2GiB: GOGC = 100
+  - If memory > 2GiB: GOGC = 200
+Usage: {{ include "lakerunner.calculateGogc" "2Gi" }}
+*/}}
+{{- define "lakerunner.calculateGogc" -}}
+{{- $bytes := include "lakerunner.parseMemoryToBytes" . | int64 -}}
+{{- $oneGiB := 1073741824 -}}
+{{- $twoGiB := 2147483648 -}}
+{{- if le $bytes $oneGiB -}}
+50
+{{- else if le $bytes $twoGiB -}}
+100
+{{- else -}}
+200
+{{- end -}}
+{{- end -}}
+
+{{/*
+Check if GOMEMLIMIT is already set in env list.
+Usage: {{ include "lakerunner.hasEnvVar" (list $envList "GOMEMLIMIT") }}
+*/}}
+{{- define "lakerunner.hasEnvVar" -}}
+{{- $envList := index . 0 | default list -}}
+{{- $varName := index . 1 -}}
+{{- $found := false -}}
+{{- range $envList -}}
+  {{- if eq .name $varName -}}
+    {{- $found = true -}}
+  {{- end -}}
+{{- end -}}
+{{- $found -}}
+{{- end -}}
+
+{{/*
+Generate Go runtime environment variables (GOMEMLIMIT, GOGC) based on resource limits.
+Only sets values if not already provided by user in global.env or component.env.
+Takes three args:
+  0: the root chart context
+  1: the component's values block (must have .resources.limits.memory)
+  2: optional component env list
+Usage: {{ include "lakerunner.goRuntimeEnv" (list . .Values.componentName .Values.componentName.env) }}
+*/}}
+{{- define "lakerunner.goRuntimeEnv" -}}
+{{- $root := index . 0 -}}
+{{- $comp := index . 1 -}}
+{{- $compEnv := index . 2 | default list -}}
+{{- $globalEnv := $root.Values.global.env | default list -}}
+{{- $memLimit := "" -}}
+{{- if and $comp.resources $comp.resources.limits $comp.resources.limits.memory -}}
+  {{- $memLimit = $comp.resources.limits.memory -}}
+{{- end -}}
+{{- if $memLimit -}}
+  {{- $hasGomemlimit := or (eq (include "lakerunner.hasEnvVar" (list $globalEnv "GOMEMLIMIT")) "true") (eq (include "lakerunner.hasEnvVar" (list $compEnv "GOMEMLIMIT")) "true") -}}
+  {{- $hasGogc := or (eq (include "lakerunner.hasEnvVar" (list $globalEnv "GOGC")) "true") (eq (include "lakerunner.hasEnvVar" (list $compEnv "GOGC")) "true") -}}
+  {{- if not $hasGomemlimit }}
+- name: GOMEMLIMIT
+  value: {{ include "lakerunner.calculateGomemlimit" $memLimit | quote }}
+  {{- end }}
+  {{- if not $hasGogc }}
+- name: GOGC
+  value: {{ include "lakerunner.calculateGogc" $memLimit | quote }}
+  {{- end }}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Generate DuckDB-specific runtime environment variables for ingest/compact/rollup services.
+These services use DuckDB internally and need specific memory tuning.
+Settings:
+  - GOMEMLIMIT = 750MiB (fixed, leaves room for DuckDB)
+  - GOGC = 100 (fixed)
+  - LAKERUNNER_DUCKDB_MEMORY_LIMIT = scaled based on container memory
+  - LAKERUNNER_DUCKDB_TEMP_DIRECTORY = /scratch
+Takes three args:
+  0: the root chart context
+  1: the component's values block (must have .resources.limits.memory)
+  2: optional component env list
+Usage: {{ include "lakerunner.duckdbRuntimeEnv" (list . .Values.componentName .Values.componentName.env) }}
+*/}}
+{{- define "lakerunner.duckdbRuntimeEnv" -}}
+{{- $root := index . 0 -}}
+{{- $comp := index . 1 -}}
+{{- $compEnv := index . 2 | default list -}}
+{{- $globalEnv := $root.Values.global.env | default list -}}
+{{- $memLimit := "" -}}
+{{- if and $comp.resources $comp.resources.limits $comp.resources.limits.memory -}}
+  {{- $memLimit = $comp.resources.limits.memory -}}
+{{- end -}}
+{{- if $memLimit -}}
+  {{- $bytes := include "lakerunner.parseMemoryToBytes" $memLimit | int64 -}}
+  {{- $hasGomemlimit := or (eq (include "lakerunner.hasEnvVar" (list $globalEnv "GOMEMLIMIT")) "true") (eq (include "lakerunner.hasEnvVar" (list $compEnv "GOMEMLIMIT")) "true") -}}
+  {{- $hasGogc := or (eq (include "lakerunner.hasEnvVar" (list $globalEnv "GOGC")) "true") (eq (include "lakerunner.hasEnvVar" (list $compEnv "GOGC")) "true") -}}
+  {{- $hasDuckdbMemLimit := or (eq (include "lakerunner.hasEnvVar" (list $globalEnv "LAKERUNNER_DUCKDB_MEMORY_LIMIT")) "true") (eq (include "lakerunner.hasEnvVar" (list $compEnv "LAKERUNNER_DUCKDB_MEMORY_LIMIT")) "true") -}}
+  {{- $hasDuckdbTempDir := or (eq (include "lakerunner.hasEnvVar" (list $globalEnv "LAKERUNNER_DUCKDB_TEMP_DIRECTORY")) "true") (eq (include "lakerunner.hasEnvVar" (list $compEnv "LAKERUNNER_DUCKDB_TEMP_DIRECTORY")) "true") -}}
+{{- if not $hasGomemlimit }}
+- name: GOMEMLIMIT
+  value: "750MiB"
+{{- end }}
+{{- if not $hasGogc }}
+- name: GOGC
+  value: "100"
+{{- end }}
+{{- if not $hasDuckdbMemLimit }}
+{{- /* Calculate DuckDB memory: total - 1GiB for Go/OS, in MB */}}
+{{- $oneGiB := 1073741824 -}}
+{{- $duckdbBytes := sub $bytes $oneGiB -}}
+{{- if lt $duckdbBytes 536870912 -}}
+{{- $duckdbBytes = 536870912 -}}
+{{- end -}}
+{{- $duckdbMB := divf $duckdbBytes 1048576 | int64 }}
+- name: LAKERUNNER_DUCKDB_MEMORY_LIMIT
+  value: {{ $duckdbMB | quote }}
+{{- end }}
+{{- if not $hasDuckdbTempDir }}
+- name: LAKERUNNER_DUCKDB_TEMP_DIRECTORY
+  value: "/scratch"
+{{- end }}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Generate query-worker-specific runtime environment variables.
+Settings:
+  - LAKERUNNER_DUCKDB_MEMORY_LIMIT = 50% of container memory (in MB)
+  - GOMEMLIMIT = 75% of the remaining 50% (37.5% of total)
+  - GOGC = calculated based on total memory
+  - LAKERUNNER_DUCKDB_TEMP_DIRECTORY = /scratch
+Takes three args:
+  0: the root chart context
+  1: the component's values block (must have .resources.limits.memory)
+  2: optional component env list
+Usage: {{ include "lakerunner.queryWorkerRuntimeEnv" (list . .Values.queryWorker .Values.queryWorker.env) }}
+*/}}
+{{- define "lakerunner.queryWorkerRuntimeEnv" -}}
+{{- $root := index . 0 -}}
+{{- $comp := index . 1 -}}
+{{- $compEnv := index . 2 | default list -}}
+{{- $globalEnv := $root.Values.global.env | default list -}}
+{{- $memLimit := "" -}}
+{{- if and $comp.resources $comp.resources.limits $comp.resources.limits.memory -}}
+  {{- $memLimit = $comp.resources.limits.memory -}}
+{{- end -}}
+{{- if $memLimit -}}
+  {{- $bytes := include "lakerunner.parseMemoryToBytes" $memLimit | int64 -}}
+  {{- $oneMiB := 1048576 -}}
+  {{- $totalMiB := divf $bytes $oneMiB | int64 -}}
+  {{- $hasGomemlimit := or (eq (include "lakerunner.hasEnvVar" (list $globalEnv "GOMEMLIMIT")) "true") (eq (include "lakerunner.hasEnvVar" (list $compEnv "GOMEMLIMIT")) "true") -}}
+  {{- $hasGogc := or (eq (include "lakerunner.hasEnvVar" (list $globalEnv "GOGC")) "true") (eq (include "lakerunner.hasEnvVar" (list $compEnv "GOGC")) "true") -}}
+  {{- $hasDuckdbMemLimit := or (eq (include "lakerunner.hasEnvVar" (list $globalEnv "LAKERUNNER_DUCKDB_MEMORY_LIMIT")) "true") (eq (include "lakerunner.hasEnvVar" (list $compEnv "LAKERUNNER_DUCKDB_MEMORY_LIMIT")) "true") -}}
+  {{- $hasDuckdbTempDir := or (eq (include "lakerunner.hasEnvVar" (list $globalEnv "LAKERUNNER_DUCKDB_TEMP_DIRECTORY")) "true") (eq (include "lakerunner.hasEnvVar" (list $compEnv "LAKERUNNER_DUCKDB_TEMP_DIRECTORY")) "true") -}}
+{{- if not $hasGomemlimit }}
+{{- /* GOMEMLIMIT = 75% of half the memory = 37.5% of total */}}
+{{- $halfMiB := divf $totalMiB 2 | int64 -}}
+{{- $gomemlimitMiB := mulf $halfMiB 0.75 | int64 }}
+- name: GOMEMLIMIT
+  value: {{ printf "%dMiB" $gomemlimitMiB | quote }}
+{{- end }}
+{{- if not $hasGogc }}
+- name: GOGC
+  value: {{ include "lakerunner.calculateGogc" $memLimit | quote }}
+{{- end }}
+{{- if not $hasDuckdbMemLimit }}
+{{- /* DuckDB memory = 50% of total, in MB */}}
+{{- $duckdbMB := divf $totalMiB 2 | int64 }}
+- name: LAKERUNNER_DUCKDB_MEMORY_LIMIT
+  value: {{ $duckdbMB | quote }}
+{{- end }}
+{{- if not $hasDuckdbTempDir }}
+- name: LAKERUNNER_DUCKDB_TEMP_DIRECTORY
+  value: "/scratch"
+{{- end }}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Inject common + component-specific env vars for query-worker.
+Query-worker uses DuckDB for queries with specific memory tuning.
+Takes two args:
+  0: the root chart context (so we can call commonEnv with it)
+  1: the component's values block (must have .env as a list)
+Usage:
+  {{ include "lakerunner.injectEnvQueryWorker" (list . .Values.queryWorker) | nindent 10 }}
+*/}}
+{{- define "lakerunner.injectEnvQueryWorker" -}}
+{{- $root := index . 0 -}}
+{{- $comp := index . 1 -}}
+{{- include "lakerunner.commonEnv" $root | nindent 2 -}}
+{{- include "lakerunner.queryWorkerRuntimeEnv" (list $root $comp $comp.env) | nindent 2 -}}
+{{- with $root.Values.global.env -}}
+{{ toYaml . | nindent 2 -}}
+{{- end -}}
+{{- with $comp.env -}}
+{{ toYaml . | nindent 2 -}}
 {{- end -}}
 {{- end -}}

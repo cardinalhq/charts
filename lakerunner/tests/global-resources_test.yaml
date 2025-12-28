@@ -36,21 +36,21 @@ tests:
           path: spec.template.spec.containers[0].resources
           value:
             requests:
-              cpu: 1200m
-              memory: 1Gi
+              cpu: "2"
+              memory: 4Gi
             limits:
-              cpu: 1200m
-              memory: 1Gi
+              cpu: "2"
+              memory: 4Gi
       - template: query-api-v2-deployment.yaml
         equal:
           path: spec.template.spec.containers[0].resources
           value:
             requests:
-              cpu: 1200m
-              memory: 1Gi
+              cpu: "1"
+              memory: 512Mi
             limits:
-              cpu: 1200m
-              memory: 1Gi
+              cpu: "1"
+              memory: 512Mi
       - template: grafana-deployment.yaml
         equal:
           path: spec.template.spec.containers[0].resources
@@ -105,11 +105,11 @@ tests:
           path: spec.template.spec.containers[0].resources
           value:
             requests:
-              cpu: 1200m
-              memory: 1Gi
+              cpu: "2"
+              memory: 4Gi
             limits:
-              cpu: 1200m
-              memory: 1Gi
+              cpu: "2"
+              memory: 4Gi
       - template: sweeper-deployment.yaml
         equal:
           path: spec.template.spec.containers[0].resources
@@ -143,11 +143,11 @@ tests:
           path: spec.template.spec.containers[0].resources
           value:
             requests:
-              cpu: 200m
-              memory: 200Mi
+              cpu: 500m
+              memory: 256Mi
             limits:
-              cpu: 200m
-              memory: 200Mi
+              cpu: 500m
+              memory: 256Mi
 
   - it: should omit resources from pubsub components when disabled
     set:

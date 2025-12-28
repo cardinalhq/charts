@@ -39,9 +39,9 @@ spec:
         runAsGroup: 65532
         fsGroup: 65532
       {{- include "lakerunner.imagePullSecrets" $ | nindent 6 }}
-        {{- include "lakerunner.sched.nodeSelector" (list $.Values.global.nodeSelector $.Values.boxers.nodeSelector) | nindent 6 }}
-        {{- include "lakerunner.sched.tolerations"  (list $.Values.global.tolerations  $.Values.boxers.tolerations)  | nindent 6 }}
-        {{- include "lakerunner.sched.affinity"     (list $.Values.global.affinity     $.Values.boxers.affinity)     | nindent 6 }}
+      {{- include "lakerunner.sched.nodeSelector" (list $.Values.global.nodeSelector $.Values.boxers.nodeSelector) | nindent 6 }}
+      {{- include "lakerunner.sched.tolerations"  (list $.Values.global.tolerations  $.Values.boxers.tolerations)  | nindent 6 }}
+      {{- include "lakerunner.sched.affinity"     (list $.Values.global.affinity     $.Values.boxers.affinity)     | nindent 6 }}
       containers:
       - name: boxer-{{ $instance.name }}
         securityContext:

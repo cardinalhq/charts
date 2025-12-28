@@ -281,27 +281,19 @@ kafkaTopics:
     # Worker overrides by service type will configure the
     # topic that feeds these services.  See the docs for more details.
     # workers:
-    #   ingest-logs:
+    #   objstore.ingest.logs:
     #     partitionCount: 16
-    #   ingest-metrics:
+    #   objstore.ingest.metrics:
     #     partitionCount: 16
-    #   ingest-traces:
+    #   objstore.ingest.traces:
     #     partitionCount: 16
-    #   compact-logs:
+    #   boxer.logs.compact:
     #     partitionCount: 16
-    #   compact-metrics:
+    #   boxer.metrics.compact:
     #     partitionCount: 16
-    #   compact-traces:
+    #   boxer.traces.compact:
     #     partitionCount: 16
-    #   rollup-metrics:
-    #     partitionCount: 16
-    #   boxer-compact-logs:
-    #     partitionCount: 16
-    #   boxer-compact-metrics:
-    #     partitionCount: 16
-    #   boxer-compact-traces:
-    #     partitionCount: 16
-    #   boxer-rollup-metrics:
+    #   boxer.metrics.rollup:
     #     partitionCount: 16
 
 # Storage profile configuration
@@ -437,11 +429,11 @@ ingestLogs:
     pullPolicy: ""
   resources:
     requests:
-      cpu: 1200m
-      memory: 1Gi
+      cpu: "2"
+      memory: 4Gi
     limits:
-      cpu: 1200m
-      memory: 1Gi
+      cpu: "2"
+      memory: 4Gi
   temporaryStorage:
     size: "10Gi"
   autoscaling:
@@ -474,11 +466,11 @@ ingestMetrics:
     pullPolicy: ""
   resources:
     requests:
-      cpu: 1200m
-      memory: 1Gi
+      cpu: "1"
+      memory: 4Gi
     limits:
-      cpu: 1200m
-      memory: 1Gi
+      cpu: "1"
+      memory: 4Gi
   temporaryStorage:
     size: "10Gi"
   autoscaling:
@@ -508,11 +500,11 @@ ingestTraces:
     pullPolicy: ""
   resources:
     requests:
-      cpu: 1200m
-      memory: 1Gi
+      cpu: "2"
+      memory: 4Gi
     limits:
-      cpu: 1200m
-      memory: 1Gi
+      cpu: "2"
+      memory: 4Gi
   temporaryStorage:
     size: "10Gi"
   autoscaling:
@@ -542,11 +534,11 @@ compactLogs:
     pullPolicy: ""
   resources:
     requests:
-      cpu: 1200m
-      memory: 2Gi
+      cpu: "2"
+      memory: 4Gi
     limits:
-      cpu: 1200m
-      memory: 2Gi
+      cpu: "2"
+      memory: 4Gi
   temporaryStorage:
     size: "10Gi"
   autoscaling:
@@ -576,11 +568,11 @@ compactMetrics:
     pullPolicy: ""
   resources:
     requests:
-      cpu: 1200m
-      memory: 500Mi
+      cpu: "2"
+      memory: 5Gi
     limits:
-      cpu: 1200m
-      memory: 500Mi
+      cpu: "2"
+      memory: 5Gi
   temporaryStorage:
     size: "10Gi"
   autoscaling:
@@ -610,11 +602,11 @@ compactTraces:
     pullPolicy: ""
   resources:
     requests:
-      cpu: 1200m
-      memory: 500Mi
+      cpu: "2"
+      memory: 4Gi
     limits:
-      cpu: 1200m
-      memory: 500Mi
+      cpu: "2"
+      memory: 4Gi
   temporaryStorage:
     size: "10Gi"
   autoscaling:
@@ -644,11 +636,11 @@ rollupMetrics:
     pullPolicy: ""
   resources:
     requests:
-      cpu: 1200m
-      memory: 500Mi
+      cpu: "4"
+      memory: 8Gi
     limits:
-      cpu: 1200m
-      memory: 500Mi
+      cpu: "4"
+      memory: 8Gi
   temporaryStorage:
     size: "10Gi"
   autoscaling:
@@ -788,7 +780,7 @@ adminApi:
 pubsub:
   HTTP:
     enabled: false
-    replicas: 1 # recommend at least 2 in production
+    replicas: 2 # recommend at least 2 in production
     service:
       type: ClusterIP
     image:
@@ -808,7 +800,7 @@ pubsub:
     affinity: {}
   SQS:
     enabled: false
-    replicas: 1
+    replicas: 2
     # REQUIRED when enabled: Your SQS queue URL
     # Example: "https://sqs.us-east-2.amazonaws.com/123456789012/my-queue"
     queueURL: ""
@@ -822,11 +814,11 @@ pubsub:
       pullPolicy: ""
     resources:
       requests:
-        cpu: 200m
-        memory: 200Mi
+        cpu: 500m
+        memory: 256Mi
       limits:
-        cpu: 200m
-        memory: 200Mi
+        cpu: 500m
+        memory: 256Mi
     terminationGracePeriodSeconds: 120
     nodeSelector: {}
     tolerations: []
@@ -885,7 +877,7 @@ pubsub:
 # Query API configuration
 queryApi:
   enabled: true
-  replicas: 1
+  replicas: 2
   service:
     type: ClusterIP
   image:
@@ -894,11 +886,11 @@ queryApi:
     pullPolicy: ""
   resources:
     requests:
-      cpu: 1200m
-      memory: 1Gi
+      cpu: "1"
+      memory: 512Mi
     limits:
-      cpu: 1200m
-      memory: 1Gi
+      cpu: "1"
+      memory: 512Mi
   terminationGracePeriodSeconds: 120
   nodeSelector: {}
   tolerations: []
@@ -908,22 +900,22 @@ queryApi:
 # Query Worker configuration
 queryWorker:
   enabled: true
-  replicas: 1
+  replicas: 2
   image:
     repository: public.ecr.aws/cardinalhq.io/lakerunner
     tag: ""
     pullPolicy: ""
   resources:
     requests:
-      cpu: 2200m
+      cpu: "2"
       memory: 4Gi
     limits:
-      cpu: 2200m
+      cpu: "2"
       memory: 4Gi
   service:
     type: ClusterIP
   temporaryStorage:
-    size: "32Gi"
+    size: "100Gi"
   terminationGracePeriodSeconds: 120
   labels: {}
   annotations: {}

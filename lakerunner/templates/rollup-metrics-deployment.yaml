@@ -35,9 +35,9 @@ spec:
         runAsGroup: 65532
         fsGroup: 65532
       {{- include "lakerunner.imagePullSecrets" . | nindent 6 }}
-        {{- include "lakerunner.sched.nodeSelector" (list .Values.global.nodeSelector .Values.rollupMetrics.nodeSelector) | nindent 6 }}
-        {{- include "lakerunner.sched.tolerations"  (list .Values.global.tolerations  .Values.rollupMetrics.tolerations)  | nindent 6 }}
-        {{- include "lakerunner.sched.affinity"     (list .Values.global.affinity     .Values.rollupMetrics.affinity)     | nindent 6 }}
+      {{- include "lakerunner.sched.nodeSelector" (list .Values.global.nodeSelector .Values.rollupMetrics.nodeSelector) | nindent 6 }}
+      {{- include "lakerunner.sched.tolerations"  (list .Values.global.tolerations  .Values.rollupMetrics.tolerations)  | nindent 6 }}
+      {{- include "lakerunner.sched.affinity"     (list .Values.global.affinity     .Values.rollupMetrics.affinity)     | nindent 6 }}
       containers:
       - name: rollup-metrics
         securityContext:
@@ -75,7 +75,7 @@ spec:
           - name: AZURE_AUTH_TYPE
             value: {{ .Values.cloudProvider.azure.authType | quote }}
           {{- end }}
-          {{- include "lakerunner.injectEnv" (list . .Values.rollupMetrics) | nindent 8 }}
+          {{- include "lakerunner.injectEnvDuckdb" (list . .Values.rollupMetrics) | nindent 8 }}
           {{- include "lakerunner.cardinalTelemetryEnv" . | nindent 10 }}
           {{- include "lakerunner.kafkaEnv" . | nindent 10 }}
         {{- if eq (include "lakerunner.injectCloudProviderCredentials" .) "true" }}
