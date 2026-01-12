@@ -6,15 +6,28 @@ metadata:
   labels:
     {{- include "lakerunner.labels" . | nindent 4 }}
     app.kubernetes.io/component: grafana
-  {{ include "lakerunner.annotations" . | nindent 2 }}
+  {{- if .Values.grafana.service.annotations }}
+  annotations:
+    {{- toYaml .Values.grafana.service.annotations | nindent 4 }}
+  {{- end }}
 spec:
   type: {{ .Values.grafana.service.type }}
+  {{- if and (eq .Values.grafana.service.type "LoadBalancer") .Values.grafana.service.loadBalancerIP }}
+  loadBalancerIP: {{ .Values.grafana.service.loadBalancerIP }}
+  {{- end }}
+  {{- if and (eq .Values.grafana.service.type "LoadBalancer") .Values.grafana.service.loadBalancerSourceRanges }}
+  loadBalancerSourceRanges:
+    {{- toYaml .Values.grafana.service.loadBalancerSourceRanges | nindent 4 }}
+  {{- end }}
   ports:
     - port: {{ .Values.grafana.service.port }}
       targetPort: http
       protocol: TCP
       name: http
+      {{- if and (eq .Values.grafana.service.type "NodePort") .Values.grafana.service.nodePort }}
+      nodePort: {{ .Values.grafana.service.nodePort }}
+      {{- end }}
   selector:
     {{- include "lakerunner.selectorLabels" . | nindent 4 }}
     app.kubernetes.io/component: grafana
-{{- end }} 
+{{- end }}

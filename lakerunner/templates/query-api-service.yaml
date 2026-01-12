@@ -7,14 +7,27 @@ metadata:
     {{- include "lakerunner.labels" . | nindent 4 }}
     app.kubernetes.io/component: query-api
     lakerunner.cardinalhq.io/component: query-api
-  {{ include "lakerunner.annotations" . | nindent 2 }}
+  {{- if .Values.queryApi.service.annotations }}
+  annotations:
+    {{- toYaml .Values.queryApi.service.annotations | nindent 4 }}
+  {{- end }}
 spec:
   type: {{ .Values.queryApi.service.type }}
+  {{- if and (eq .Values.queryApi.service.type "LoadBalancer") .Values.queryApi.service.loadBalancerIP }}
+  loadBalancerIP: {{ .Values.queryApi.service.loadBalancerIP }}
+  {{- end }}
+  {{- if and (eq .Values.queryApi.service.type "LoadBalancer") .Values.queryApi.service.loadBalancerSourceRanges }}
+  loadBalancerSourceRanges:
+    {{- toYaml .Values.queryApi.service.loadBalancerSourceRanges | nindent 4 }}
+  {{- end }}
   ports:
-    - port: 7101
+    - port: {{ .Values.queryApi.service.port }}
       targetPort: http
       protocol: TCP
       name: http
+      {{- if and (eq .Values.queryApi.service.type "NodePort") .Values.queryApi.service.nodePort }}
+      nodePort: {{ .Values.queryApi.service.nodePort }}
+      {{- end }}
   selector:
     {{- include "lakerunner.selectorLabels" . | nindent 4 }}
     app.kubernetes.io/component: query-api

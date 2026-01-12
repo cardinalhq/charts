@@ -7,14 +7,27 @@ metadata:
     {{- include "lakerunner.labels" . | nindent 4 }}
     app.kubernetes.io/component: query-worker
     lakerunner.cardinalhq.io/component: query-worker
-  {{ include "lakerunner.annotations" . | nindent 2 }}
+  {{- if .Values.queryWorker.service.annotations }}
+  annotations:
+    {{- toYaml .Values.queryWorker.service.annotations | nindent 4 }}
+  {{- end }}
 spec:
   type: {{ .Values.queryWorker.service.type }}
+  {{- if and (eq .Values.queryWorker.service.type "LoadBalancer") .Values.queryWorker.service.loadBalancerIP }}
+  loadBalancerIP: {{ .Values.queryWorker.service.loadBalancerIP }}
+  {{- end }}
+  {{- if and (eq .Values.queryWorker.service.type "LoadBalancer") .Values.queryWorker.service.loadBalancerSourceRanges }}
+  loadBalancerSourceRanges:
+    {{- toYaml .Values.queryWorker.service.loadBalancerSourceRanges | nindent 4 }}
+  {{- end }}
   ports:
-    - port: 7101
+    - port: {{ .Values.queryWorker.service.port }}
       targetPort: http
       protocol: TCP
       name: http
+      {{- if and (eq .Values.queryWorker.service.type "NodePort") .Values.queryWorker.service.nodePort }}
+      nodePort: {{ .Values.queryWorker.service.nodePort }}
+      {{- end }}
   selector:
     {{- include "lakerunner.selectorLabels" . | nindent 4 }}
     app.kubernetes.io/component: query-worker

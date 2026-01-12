@@ -6,14 +6,27 @@ metadata:
   labels:
     {{- include "lakerunner.labels" . | nindent 4 }}
     app.kubernetes.io/component: pubsub-http
-  {{ include "lakerunner.annotations" . | nindent 2 }}
+  {{- if .Values.pubsub.HTTP.service.annotations }}
+  annotations:
+    {{- toYaml .Values.pubsub.HTTP.service.annotations | nindent 4 }}
+  {{- end }}
 spec:
   type: {{ .Values.pubsub.HTTP.service.type }}
+  {{- if and (eq .Values.pubsub.HTTP.service.type "LoadBalancer") .Values.pubsub.HTTP.service.loadBalancerIP }}
+  loadBalancerIP: {{ .Values.pubsub.HTTP.service.loadBalancerIP }}
+  {{- end }}
+  {{- if and (eq .Values.pubsub.HTTP.service.type "LoadBalancer") .Values.pubsub.HTTP.service.loadBalancerSourceRanges }}
+  loadBalancerSourceRanges:
+    {{- toYaml .Values.pubsub.HTTP.service.loadBalancerSourceRanges | nindent 4 }}
+  {{- end }}
   ports:
-    - port: 8080
+    - port: {{ .Values.pubsub.HTTP.service.port }}
       targetPort: http
       protocol: TCP
       name: http
+      {{- if and (eq .Values.pubsub.HTTP.service.type "NodePort") .Values.pubsub.HTTP.service.nodePort }}
+      nodePort: {{ .Values.pubsub.HTTP.service.nodePort }}
+      {{- end }}
   selector:
     {{- include "lakerunner.selectorLabels" . | nindent 4 }}
     app.kubernetes.io/component: pubsub-http

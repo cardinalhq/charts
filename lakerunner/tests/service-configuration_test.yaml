@@ -1,0 +1,587 @@
+suite: test service configuration
+values:
+  - ../values.yaml
+set:
+  cloudProvider.aws.region: us-west-2
+
+tests:
+  # =============================================================================
+  # Monitoring Service Tests
+  # =============================================================================
+  - it: should use ClusterIP by default for monitoring service
+    templates:
+      - monitoring-service.yaml
+    set:
+      monitoring.enabled: true
+    asserts:
+      - equal:
+          path: spec.type
+          value: ClusterIP
+
+  - it: should allow LoadBalancer type for monitoring service
+    templates:
+      - monitoring-service.yaml
+    set:
+      monitoring.enabled: true
+      monitoring.service.type: LoadBalancer
+    asserts:
+      - equal:
+          path: spec.type
+          value: LoadBalancer
+
+  - it: should set loadBalancerIP for monitoring service when type is LoadBalancer
+    templates:
+      - monitoring-service.yaml
+    set:
+      monitoring.enabled: true
+      monitoring.service.type: LoadBalancer
+      monitoring.service.loadBalancerIP: "10.0.0.100"
+    asserts:
+      - equal:
+          path: spec.loadBalancerIP
+          value: "10.0.0.100"
+
+  - it: should set loadBalancerSourceRanges for monitoring service
+    templates:
+      - monitoring-service.yaml
+    set:
+      monitoring.enabled: true
+      monitoring.service.type: LoadBalancer
+      monitoring.service.loadBalancerSourceRanges:
+        - "10.0.0.0/8"
+        - "192.168.0.0/16"
+    asserts:
+      - equal:
+          path: spec.loadBalancerSourceRanges
+          value:
+            - "10.0.0.0/8"
+            - "192.168.0.0/16"
+
+  - it: should set nodePort for monitoring service when type is NodePort
+    templates:
+      - monitoring-service.yaml
+    set:
+      monitoring.enabled: true
+      monitoring.service.type: NodePort
+      monitoring.service.nodePort: 30090
+    asserts:
+      - equal:
+          path: spec.type
+          value: NodePort
+      - equal:
+          path: spec.ports[0].nodePort
+          value: 30090
+
+  - it: should set service annotations for monitoring service
+    templates:
+      - monitoring-service.yaml
+    set:
+      monitoring.enabled: true
+      monitoring.service.annotations:
+        service.beta.kubernetes.io/aws-load-balancer-type: nlb
+        external-dns.alpha.kubernetes.io/hostname: monitoring.example.com
+    asserts:
+      - equal:
+          path: metadata.annotations["service.beta.kubernetes.io/aws-load-balancer-type"]
+          value: nlb
+      - equal:
+          path: metadata.annotations["external-dns.alpha.kubernetes.io/hostname"]
+          value: monitoring.example.com
+
+  # =============================================================================
+  # Admin API Service Tests
+  # =============================================================================
+  - it: should use ClusterIP by default for admin-api service
+    templates:
+      - admin-api-service.yaml
+    set:
+      adminApi.enabled: true
+    asserts:
+      - equal:
+          path: spec.type
+          value: ClusterIP
+
+  - it: should allow LoadBalancer type for admin-api service
+    templates:
+      - admin-api-service.yaml
+    set:
+      adminApi.enabled: true
+      adminApi.service.type: LoadBalancer
+    asserts:
+      - equal:
+          path: spec.type
+          value: LoadBalancer
+
+  - it: should set loadBalancerIP for admin-api service when type is LoadBalancer
+    templates:
+      - admin-api-service.yaml
+    set:
+      adminApi.enabled: true
+      adminApi.service.type: LoadBalancer
+      adminApi.service.loadBalancerIP: "10.0.0.101"
+    asserts:
+      - equal:
+          path: spec.loadBalancerIP
+          value: "10.0.0.101"
+
+  - it: should set loadBalancerSourceRanges for admin-api service
+    templates:
+      - admin-api-service.yaml
+    set:
+      adminApi.enabled: true
+      adminApi.service.type: LoadBalancer
+      adminApi.service.loadBalancerSourceRanges:
+        - "10.0.0.0/8"
+    asserts:
+      - equal:
+          path: spec.loadBalancerSourceRanges
+          value:
+            - "10.0.0.0/8"
+
+  - it: should set nodePort for admin-api service when type is NodePort
+    templates:
+      - admin-api-service.yaml
+    set:
+      adminApi.enabled: true
+      adminApi.service.type: NodePort
+      adminApi.service.nodePort: 30091
+    asserts:
+      - equal:
+          path: spec.type
+          value: NodePort
+      - equal:
+          path: spec.ports[0].nodePort
+          value: 30091
+
+  - it: should set service annotations for admin-api service
+    templates:
+      - admin-api-service.yaml
+    set:
+      adminApi.enabled: true
+      adminApi.service.annotations:
+        service.beta.kubernetes.io/aws-load-balancer-internal: "true"
+    asserts:
+      - equal:
+          path: metadata.annotations["service.beta.kubernetes.io/aws-load-balancer-internal"]
+          value: "true"
+
+  # =============================================================================
+  # PubSub HTTP Service Tests
+  # =============================================================================
+  - it: should use ClusterIP by default for pubsub-http service
+    templates:
+      - pubsub-http-service.yaml
+    set:
+      pubsub.HTTP.enabled: true
+    asserts:
+      - equal:
+          path: spec.type
+          value: ClusterIP
+
+  - it: should use configurable port for pubsub-http service
+    templates:
+      - pubsub-http-service.yaml
+    set:
+      pubsub.HTTP.enabled: true
+      pubsub.HTTP.service.port: 9080
+    asserts:
+      - equal:
+          path: spec.ports[0].port
+          value: 9080
+
+  - it: should allow LoadBalancer type for pubsub-http service
+    templates:
+      - pubsub-http-service.yaml
+    set:
+      pubsub.HTTP.enabled: true
+      pubsub.HTTP.service.type: LoadBalancer
+    asserts:
+      - equal:
+          path: spec.type
+          value: LoadBalancer
+
+  - it: should set loadBalancerIP for pubsub-http service when type is LoadBalancer
+    templates:
+      - pubsub-http-service.yaml
+    set:
+      pubsub.HTTP.enabled: true
+      pubsub.HTTP.service.type: LoadBalancer
+      pubsub.HTTP.service.loadBalancerIP: "10.0.0.102"
+    asserts:
+      - equal:
+          path: spec.loadBalancerIP
+          value: "10.0.0.102"
+
+  - it: should set loadBalancerSourceRanges for pubsub-http service
+    templates:
+      - pubsub-http-service.yaml
+    set:
+      pubsub.HTTP.enabled: true
+      pubsub.HTTP.service.type: LoadBalancer
+      pubsub.HTTP.service.loadBalancerSourceRanges:
+        - "0.0.0.0/0"
+    asserts:
+      - equal:
+          path: spec.loadBalancerSourceRanges
+          value:
+            - "0.0.0.0/0"
+
+  - it: should set nodePort for pubsub-http service when type is NodePort
+    templates:
+      - pubsub-http-service.yaml
+    set:
+      pubsub.HTTP.enabled: true
+      pubsub.HTTP.service.type: NodePort
+      pubsub.HTTP.service.nodePort: 30080
+    asserts:
+      - equal:
+          path: spec.type
+          value: NodePort
+      - equal:
+          path: spec.ports[0].nodePort
+          value: 30080
+
+  - it: should set service annotations for pubsub-http service
+    templates:
+      - pubsub-http-service.yaml
+    set:
+      pubsub.HTTP.enabled: true
+      pubsub.HTTP.service.annotations:
+        service.beta.kubernetes.io/aws-load-balancer-type: nlb
+    asserts:
+      - equal:
+          path: metadata.annotations["service.beta.kubernetes.io/aws-load-balancer-type"]
+          value: nlb
+
+  # =============================================================================
+  # Query API Service Tests
+  # =============================================================================
+  - it: should use ClusterIP by default for query-api service
+    templates:
+      - query-api-service.yaml
+    set:
+      queryApi.enabled: true
+    asserts:
+      - equal:
+          path: spec.type
+          value: ClusterIP
+
+  - it: should use configurable port for query-api service
+    templates:
+      - query-api-service.yaml
+    set:
+      queryApi.enabled: true
+      queryApi.service.port: 8080
+    asserts:
+      - equal:
+          path: spec.ports[0].port
+          value: 8080
+
+  - it: should allow LoadBalancer type for query-api service
+    templates:
+      - query-api-service.yaml
+    set:
+      queryApi.enabled: true
+      queryApi.service.type: LoadBalancer
+    asserts:
+      - equal:
+          path: spec.type
+          value: LoadBalancer
+
+  - it: should set loadBalancerIP for query-api service when type is LoadBalancer
+    templates:
+      - query-api-service.yaml
+    set:
+      queryApi.enabled: true
+      queryApi.service.type: LoadBalancer
+      queryApi.service.loadBalancerIP: "10.0.0.103"
+    asserts:
+      - equal:
+          path: spec.loadBalancerIP
+          value: "10.0.0.103"
+
+  - it: should set loadBalancerSourceRanges for query-api service
+    templates:
+      - query-api-service.yaml
+    set:
+      queryApi.enabled: true
+      queryApi.service.type: LoadBalancer
+      queryApi.service.loadBalancerSourceRanges:
+        - "10.0.0.0/8"
+        - "172.16.0.0/12"
+    asserts:
+      - equal:
+          path: spec.loadBalancerSourceRanges
+          value:
+            - "10.0.0.0/8"
+            - "172.16.0.0/12"
+
+  - it: should set nodePort for query-api service when type is NodePort
+    templates:
+      - query-api-service.yaml
+    set:
+      queryApi.enabled: true
+      queryApi.service.type: NodePort
+      queryApi.service.nodePort: 30101
+    asserts:
+      - equal:
+          path: spec.type
+          value: NodePort
+      - equal:
+          path: spec.ports[0].nodePort
+          value: 30101
+
+  - it: should set service annotations for query-api service
+    templates:
+      - query-api-service.yaml
+    set:
+      queryApi.enabled: true
+      queryApi.service.annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "7101"
+    asserts:
+      - equal:
+          path: metadata.annotations["prometheus.io/scrape"]
+          value: "true"
+      - equal:
+          path: metadata.annotations["prometheus.io/port"]
+          value: "7101"
+
+  # =============================================================================
+  # Query Worker Service Tests
+  # =============================================================================
+  - it: should use ClusterIP by default for query-worker service
+    templates:
+      - query-worker-service.yaml
+    set:
+      queryWorker.enabled: true
+    asserts:
+      - equal:
+          path: spec.type
+          value: ClusterIP
+
+  - it: should use configurable port for query-worker service
+    templates:
+      - query-worker-service.yaml
+    set:
+      queryWorker.enabled: true
+      queryWorker.service.port: 8080
+    asserts:
+      - equal:
+          path: spec.ports[0].port
+          value: 8080
+
+  - it: should allow LoadBalancer type for query-worker service
+    templates:
+      - query-worker-service.yaml
+    set:
+      queryWorker.enabled: true
+      queryWorker.service.type: LoadBalancer
+    asserts:
+      - equal:
+          path: spec.type
+          value: LoadBalancer
+
+  - it: should set loadBalancerIP for query-worker service when type is LoadBalancer
+    templates:
+      - query-worker-service.yaml
+    set:
+      queryWorker.enabled: true
+      queryWorker.service.type: LoadBalancer
+      queryWorker.service.loadBalancerIP: "10.0.0.104"
+    asserts:
+      - equal:
+          path: spec.loadBalancerIP
+          value: "10.0.0.104"
+
+  - it: should set loadBalancerSourceRanges for query-worker service
+    templates:
+      - query-worker-service.yaml
+    set:
+      queryWorker.enabled: true
+      queryWorker.service.type: LoadBalancer
+      queryWorker.service.loadBalancerSourceRanges:
+        - "10.0.0.0/8"
+    asserts:
+      - equal:
+          path: spec.loadBalancerSourceRanges
+          value:
+            - "10.0.0.0/8"
+
+  - it: should set nodePort for query-worker service when type is NodePort
+    templates:
+      - query-worker-service.yaml
+    set:
+      queryWorker.enabled: true
+      queryWorker.service.type: NodePort
+      queryWorker.service.nodePort: 30102
+    asserts:
+      - equal:
+          path: spec.type
+          value: NodePort
+      - equal:
+          path: spec.ports[0].nodePort
+          value: 30102
+
+  - it: should set service annotations for query-worker service
+    templates:
+      - query-worker-service.yaml
+    set:
+      queryWorker.enabled: true
+      queryWorker.service.annotations:
+        service.beta.kubernetes.io/aws-load-balancer-scheme: internal
+    asserts:
+      - equal:
+          path: metadata.annotations["service.beta.kubernetes.io/aws-load-balancer-scheme"]
+          value: internal
+
+  # =============================================================================
+  # Grafana Service Tests
+  # =============================================================================
+  - it: should use ClusterIP by default for grafana service
+    templates:
+      - grafana-service.yaml
+    set:
+      grafana.enabled: true
+    asserts:
+      - equal:
+          path: spec.type
+          value: ClusterIP
+
+  - it: should use default port 3000 for grafana service
+    templates:
+      - grafana-service.yaml
+    set:
+      grafana.enabled: true
+    asserts:
+      - equal:
+          path: spec.ports[0].port
+          value: 3000
+
+  - it: should use configurable port for grafana service
+    templates:
+      - grafana-service.yaml
+    set:
+      grafana.enabled: true
+      grafana.service.port: 8080
+    asserts:
+      - equal:
+          path: spec.ports[0].port
+          value: 8080
+
+  - it: should allow LoadBalancer type for grafana service
+    templates:
+      - grafana-service.yaml
+    set:
+      grafana.enabled: true
+      grafana.service.type: LoadBalancer
+    asserts:
+      - equal:
+          path: spec.type
+          value: LoadBalancer
+
+  - it: should set loadBalancerIP for grafana service when type is LoadBalancer
+    templates:
+      - grafana-service.yaml
+    set:
+      grafana.enabled: true
+      grafana.service.type: LoadBalancer
+      grafana.service.loadBalancerIP: "10.0.0.105"
+    asserts:
+      - equal:
+          path: spec.loadBalancerIP
+          value: "10.0.0.105"
+
+  - it: should set loadBalancerSourceRanges for grafana service
+    templates:
+      - grafana-service.yaml
+    set:
+      grafana.enabled: true
+      grafana.service.type: LoadBalancer
+      grafana.service.loadBalancerSourceRanges:
+        - "10.0.0.0/8"
+        - "192.168.1.0/24"
+    asserts:
+      - equal:
+          path: spec.loadBalancerSourceRanges
+          value:
+            - "10.0.0.0/8"
+            - "192.168.1.0/24"
+
+  - it: should set nodePort for grafana service when type is NodePort
+    templates:
+      - grafana-service.yaml
+    set:
+      grafana.enabled: true
+      grafana.service.type: NodePort
+      grafana.service.nodePort: 30300
+    asserts:
+      - equal:
+          path: spec.type
+          value: NodePort
+      - equal:
+          path: spec.ports[0].nodePort
+          value: 30300
+
+  - it: should set service annotations for grafana service
+    templates:
+      - grafana-service.yaml
+    set:
+      grafana.enabled: true
+      grafana.service.annotations:
+        service.beta.kubernetes.io/aws-load-balancer-type: nlb
+        service.beta.kubernetes.io/aws-load-balancer-ssl-cert: arn:aws:acm:us-east-1:123456789012:certificate/abc123
+    asserts:
+      - equal:
+          path: metadata.annotations["service.beta.kubernetes.io/aws-load-balancer-type"]
+          value: nlb
+      - equal:
+          path: metadata.annotations["service.beta.kubernetes.io/aws-load-balancer-ssl-cert"]
+          value: arn:aws:acm:us-east-1:123456789012:certificate/abc123
+
+  # =============================================================================
+  # Edge Cases and Negative Tests
+  # =============================================================================
+  - it: should not render loadBalancerIP when type is ClusterIP
+    templates:
+      - grafana-service.yaml
+    set:
+      grafana.enabled: true
+      grafana.service.type: ClusterIP
+      grafana.service.loadBalancerIP: "10.0.0.100"
+    asserts:
+      - isNull:
+          path: spec.loadBalancerIP
+
+  - it: should not render loadBalancerSourceRanges when type is ClusterIP
+    templates:
+      - grafana-service.yaml
+    set:
+      grafana.enabled: true
+      grafana.service.type: ClusterIP
+      grafana.service.loadBalancerSourceRanges:
+        - "10.0.0.0/8"
+    asserts:
+      - isNull:
+          path: spec.loadBalancerSourceRanges
+
+  - it: should not render nodePort when type is ClusterIP
+    templates:
+      - grafana-service.yaml
+    set:
+      grafana.enabled: true
+      grafana.service.type: ClusterIP
+      grafana.service.nodePort: 30300
+    asserts:
+      - isNull:
+          path: spec.ports[0].nodePort
+
+  - it: should not render annotations block when annotations are empty
+    templates:
+      - grafana-service.yaml
+    set:
+      grafana.enabled: true
+      grafana.service.annotations: {}
+    asserts:
+      - isNull:
+          path: metadata.annotations

@@ -733,6 +733,10 @@ monitoring:
   grpcPort: 9090
   service:
     type: ClusterIP
+    annotations: {}
+    nodePort: null
+    loadBalancerIP: ""
+    loadBalancerSourceRanges: []
   image:
     repository: public.ecr.aws/cardinalhq.io/lakerunner
     tag: ""
@@ -758,6 +762,10 @@ adminApi:
   grpcPort: 9091
   service:
     type: ClusterIP
+    annotations: {}
+    nodePort: null
+    loadBalancerIP: ""
+    loadBalancerSourceRanges: []
   image:
     repository: public.ecr.aws/cardinalhq.io/lakerunner
     tag: ""
@@ -783,6 +791,11 @@ pubsub:
     replicas: 2 # recommend at least 2 in production
     service:
       type: ClusterIP
+      port: 8080
+      annotations: {}
+      nodePort: null
+      loadBalancerIP: ""
+      loadBalancerSourceRanges: []
     image:
       repository: public.ecr.aws/cardinalhq.io/lakerunner
       tag: ""
@@ -880,6 +893,11 @@ queryApi:
   replicas: 2
   service:
     type: ClusterIP
+    port: 7101
+    annotations: {}
+    nodePort: null
+    loadBalancerIP: ""
+    loadBalancerSourceRanges: []
   image:
     repository: public.ecr.aws/cardinalhq.io/lakerunner
     tag: ""
@@ -914,6 +932,11 @@ queryWorker:
       memory: 4Gi
   service:
     type: ClusterIP
+    port: 7101
+    annotations: {}
+    nodePort: null
+    loadBalancerIP: ""
+    loadBalancerSourceRanges: []
   temporaryStorage:
     size: "100Gi"
   terminationGracePeriodSeconds: 120
@@ -958,6 +981,10 @@ grafana:
   service:
     type: ClusterIP
     port: 3000
+    annotations: {}
+    nodePort: null
+    loadBalancerIP: ""
+    loadBalancerSourceRanges: []
   # CardinalHQ LakeRunner datasource plugin configuration
   # This plugin is REQUIRED for LakeRunner to function properly
   cardinalPlugin:

@@ -6,14 +6,27 @@ metadata:
   labels:
     {{- include "lakerunner.labels" . | nindent 4 }}
     app.kubernetes.io/component: admin-api
-  {{ include "lakerunner.annotations" . | nindent 2 }}
+  {{- if .Values.adminApi.service.annotations }}
+  annotations:
+    {{- toYaml .Values.adminApi.service.annotations | nindent 4 }}
+  {{- end }}
 spec:
   type: {{ .Values.adminApi.service.type }}
+  {{- if and (eq .Values.adminApi.service.type "LoadBalancer") .Values.adminApi.service.loadBalancerIP }}
+  loadBalancerIP: {{ .Values.adminApi.service.loadBalancerIP }}
+  {{- end }}
+  {{- if and (eq .Values.adminApi.service.type "LoadBalancer") .Values.adminApi.service.loadBalancerSourceRanges }}
+  loadBalancerSourceRanges:
+    {{- toYaml .Values.adminApi.service.loadBalancerSourceRanges | nindent 4 }}
+  {{- end }}
   ports:
     - port: {{ .Values.adminApi.grpcPort }}
       targetPort: grpc
       protocol: TCP
       name: grpc
+      {{- if and (eq .Values.adminApi.service.type "NodePort") .Values.adminApi.service.nodePort }}
+      nodePort: {{ .Values.adminApi.service.nodePort }}
+      {{- end }}
   selector:
     {{- include "lakerunner.selectorLabels" . | nindent 4 }}
     app.kubernetes.io/component: admin-api
