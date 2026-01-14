@@ -93,7 +93,7 @@ tests:
           pattern: "type: cardinalhq-lakerunner-datasource"
       - matchRegex:
           path: data["lakerunner.yaml"]
-          pattern: "customPath: http://RELEASE-NAME-lakerunner-query-api-v2:8080"
+          pattern: "customPath: http://RELEASE-NAME-lakerunner-query-api:8080"
       - matchRegex:
           path: data["lakerunner.yaml"]
           pattern: "isDefault: true"

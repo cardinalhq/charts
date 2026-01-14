@@ -211,7 +211,7 @@ cloudProvider:
     accessKeyId: ""
     secretAccessKey: ""
 
-  # DuckDB configuration (used by query-worker-v2 for S3 access)
+  # DuckDB configuration (used by query-worker for S3 access)
   # DuckDB always requires explicit S3 credentials
   duckdb:
     # Name of the Kubernetes secret that contains DuckDB S3 credentials
@@ -893,7 +893,7 @@ queryApi:
   replicas: 2
   service:
     type: ClusterIP
-    port: 7101
+    port: 8080
     annotations: {}
     nodePort: null
     loadBalancerIP: ""
@@ -932,7 +932,7 @@ queryWorker:
       memory: 4Gi
   service:
     type: ClusterIP
-    port: 7101
+    port: 8081
     annotations: {}
     nodePort: null
     loadBalancerIP: ""

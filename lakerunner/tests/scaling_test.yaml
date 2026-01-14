@@ -1,6 +1,6 @@
 suite: test scaling configuration
 templates:
-  - query-api-v2-deployment.yaml
+  - query-api-deployment.yaml
   - ingest-logs-deployment.yaml
   - ingest-logs-scaledobject.yaml
   - ingest-traces-deployment.yaml
@@ -21,7 +21,7 @@ tests:
       queryApi.enabled: true
       queryApi.replicas: 3
     templates:
-      - query-api-v2-deployment.yaml
+      - query-api-deployment.yaml
     asserts:
       - equal:
           path: spec.replicas

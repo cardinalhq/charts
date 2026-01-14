@@ -26,8 +26,8 @@ TEMPLATES=(
   "pubsub-sqs-deployment.yaml"
   "pubsub-gcp-deployment.yaml"
   "pubsub-azure-deployment.yaml"
-  "query-api-v2-deployment.yaml"
-  "query-worker-v2-deployment.yaml"
+  "query-api-deployment.yaml"
+  "query-worker-deployment.yaml"
   "grafana-deployment.yaml"
   "setup-job.yaml"
 )

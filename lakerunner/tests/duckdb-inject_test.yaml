@@ -5,7 +5,7 @@ set:
   cloudProvider.aws.region: us-west-2
   queryWorker.enabled: true
 templates:
-  - query-worker-v2-deployment.yaml
+  - query-worker-deployment.yaml
   - duckdb-credentials-secret.yaml
 tests:
   # Test DuckDB credentials injection enabled (default behavior)
@@ -14,7 +14,7 @@ tests:
       cloudProvider.duckdb.secretName: "test-duckdb-secret"
       cloudProvider.duckdb.inject: true
     templates:
-      - query-worker-v2-deployment.yaml
+      - query-worker-deployment.yaml
     asserts:
       - contains:
           path: spec.template.spec.containers[0].envFrom
@@ -28,7 +28,7 @@ tests:
       cloudProvider.duckdb.secretName: "test-duckdb-secret"
       cloudProvider.duckdb.inject: false
     templates:
-      - query-worker-v2-deployment.yaml
+      - query-worker-deployment.yaml
     asserts:
       - notContains:
           path: spec.template.spec.containers[0].envFrom
@@ -42,7 +42,7 @@ tests:
       cloudProvider.duckdb.secretName: "test-duckdb-secret"
       # inject defaults to true in values.yaml
     templates:
-      - query-worker-v2-deployment.yaml
+      - query-worker-deployment.yaml
     asserts:
       - contains:
           path: spec.template.spec.containers[0].envFrom
@@ -55,7 +55,7 @@ tests:
     set:
       cloudProvider.duckdb: null
     templates:
-      - query-worker-v2-deployment.yaml
+      - query-worker-deployment.yaml
     asserts:
       - notContains:
           path: spec.template.spec.containers[0].envFrom
@@ -68,7 +68,7 @@ tests:
     set:
       cloudProvider.duckdb: {}
     templates:
-      - query-worker-v2-deployment.yaml
+      - query-worker-deployment.yaml
     asserts:
       - notContains:
           path: spec.template.spec.containers[0].envFrom
@@ -106,7 +106,7 @@ tests:
       cloudProvider.duckdb.inject: false
       cloudProvider.duckdb.secretName: "existing-duckdb-secret"
     templates:
-      - query-worker-v2-deployment.yaml
+      - query-worker-deployment.yaml
     asserts:
       - notContains:
           path: spec.template.spec.containers[0].envFrom
@@ -121,7 +121,7 @@ tests:
       cloudProvider.duckdb.inject: true
       cloudProvider.duckdb.secretName: "existing-duckdb-secret"
     templates:
-      - query-worker-v2-deployment.yaml
+      - query-worker-deployment.yaml
     asserts:
       - contains:
           path: spec.template.spec.containers[0].envFrom
@@ -137,7 +137,7 @@ tests:
       cloudProvider.duckdb.inject: true
       cloudProvider.duckdb.secretName: "test-duckdb-secret"
     templates:
-      - query-worker-v2-deployment.yaml
+      - query-worker-deployment.yaml
     asserts:
       - contains:
           path: spec.template.spec.containers[0].envFrom
@@ -158,7 +158,7 @@ tests:
       cloudProvider.duckdb.inject: true
       cloudProvider.duckdb.secretName: "test-duckdb-secret"
     templates:
-      - query-worker-v2-deployment.yaml
+      - query-worker-deployment.yaml
     asserts:
       - notContains:
           path: spec.template.spec.containers[0].envFrom

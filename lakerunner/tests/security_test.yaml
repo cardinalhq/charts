@@ -21,8 +21,8 @@ templates:
   - pubsub-sqs-deployment.yaml
   - pubsub-gcp-deployment.yaml
   # Query components (different images)
-  - query-api-v2-deployment.yaml
-  - query-worker-v2-deployment.yaml
+  - query-api-deployment.yaml
+  - query-worker-deployment.yaml
   # Other components
   - grafana-deployment.yaml
   # RBAC components
@@ -131,8 +131,8 @@ tests:
   # Test query components (different images)
   - it: should set security context for query components
     templates:
-      - query-api-v2-deployment.yaml
-      - query-worker-v2-deployment.yaml
+      - query-api-deployment.yaml
+      - query-worker-deployment.yaml
     set:
       queryApi.enabled: true
       queryWorker.enabled: true

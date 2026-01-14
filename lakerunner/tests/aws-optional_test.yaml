@@ -2,8 +2,8 @@ suite: test AWS region optionality
 values:
   - ../values.yaml
 templates:
-  - query-api-v2-deployment.yaml
-  - query-worker-v2-deployment.yaml
+  - query-api-deployment.yaml
+  - query-worker-deployment.yaml
   - pubsub-gcp-deployment.yaml
   - pubsub-sqs-deployment.yaml
 tests:
@@ -43,16 +43,16 @@ tests:
       pubsub.GCP.subscriptionID: "test-subscription"
       cloudProvider.aws.region: ""
     templates:
-      - query-api-v2-deployment.yaml
-      - query-worker-v2-deployment.yaml
+      - query-api-deployment.yaml
+      - query-worker-deployment.yaml
       - pubsub-sqs-deployment.yaml
       - pubsub-gcp-deployment.yaml
     asserts:
       # Should only render GCP pubsub, others should be empty
-      - template: query-api-v2-deployment.yaml
+      - template: query-api-deployment.yaml
         hasDocuments:
           count: 0
-      - template: query-worker-v2-deployment.yaml
+      - template: query-worker-deployment.yaml
         hasDocuments:
           count: 0
       - template: pubsub-sqs-deployment.yaml
@@ -71,14 +71,14 @@ tests:
       pubsub.SQS.queueURL: "https://sqs.us-east-2.amazonaws.com/123456789012/test-queue"
       cloudProvider.aws.region: "us-east-2"
     templates:
-      - query-api-v2-deployment.yaml
-      - query-worker-v2-deployment.yaml
+      - query-api-deployment.yaml
+      - query-worker-deployment.yaml
       - pubsub-sqs-deployment.yaml
     asserts:
-      - template: query-api-v2-deployment.yaml
+      - template: query-api-deployment.yaml
         isKind:
           of: Deployment
-      - template: query-worker-v2-deployment.yaml
+      - template: query-worker-deployment.yaml
         isKind:
           of: Deployment
       - template: pubsub-sqs-deployment.yaml
@@ -96,11 +96,11 @@ tests:
       pubsub.GCP.subscriptionID: "test-subscription"
       cloudProvider.aws.region: "us-east-2"
     templates:
-      - query-api-v2-deployment.yaml
+      - query-api-deployment.yaml
       - pubsub-sqs-deployment.yaml
       - pubsub-gcp-deployment.yaml
     asserts:
-      - template: query-api-v2-deployment.yaml
+      - template: query-api-deployment.yaml
         isKind:
           of: Deployment
       - template: pubsub-sqs-deployment.yaml

@@ -12,8 +12,8 @@ templates:
   - compact-traces-deployment.yaml
   - rollup-metrics-deployment.yaml
   - sweeper-deployment.yaml
-  - query-api-v2-deployment.yaml
-  - query-worker-v2-deployment.yaml
+  - query-api-deployment.yaml
+  - query-worker-deployment.yaml
   - grafana-deployment.yaml
   - pubsub-http-deployment.yaml
   - pubsub-sqs-deployment.yaml
@@ -32,7 +32,7 @@ tests:
     templates:
       - ingest-logs-deployment.yaml
       - compact-logs-deployment.yaml
-      - query-api-v2-deployment.yaml
+      - query-api-deployment.yaml
       - monitoring-deployment.yaml
     asserts:
       - isNull:
@@ -46,7 +46,7 @@ tests:
     templates:
       - ingest-logs-deployment.yaml
       - compact-logs-deployment.yaml
-      - query-api-v2-deployment.yaml
+      - query-api-deployment.yaml
     asserts:
       - equal:
           path: spec.template.spec.containers[0].livenessProbe.httpGet.path
@@ -96,7 +96,7 @@ tests:
     templates:
       - ingest-logs-deployment.yaml
       - compact-logs-deployment.yaml
-      - query-api-v2-deployment.yaml
+      - query-api-deployment.yaml
     asserts:
       - contains:
           path: spec.template.spec.containers[0].ports

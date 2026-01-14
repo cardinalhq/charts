@@ -5,8 +5,8 @@ set:
   cloudProvider.aws.region: us-west-2
 templates:
   - setup-job.yaml
-  - query-api-v2-deployment.yaml
-  - query-worker-v2-deployment.yaml
+  - query-api-deployment.yaml
+  - query-worker-deployment.yaml
   - grafana-deployment.yaml
   - ingest-logs-deployment.yaml
   - ingest-metrics-deployment.yaml
@@ -41,7 +41,7 @@ tests:
             limits:
               cpu: "2"
               memory: 4Gi
-      - template: query-api-v2-deployment.yaml
+      - template: query-api-deployment.yaml
         equal:
           path: spec.template.spec.containers[0].resources
           value:
@@ -80,7 +80,7 @@ tests:
       - template: ingest-logs-deployment.yaml
         notExists:
           path: spec.template.spec.containers[0].resources
-      - template: query-api-v2-deployment.yaml
+      - template: query-api-deployment.yaml
         notExists:
           path: spec.template.spec.containers[0].resources
       - template: grafana-deployment.yaml

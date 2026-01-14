@@ -5,7 +5,7 @@ set:
   cloudProvider.aws.region: us-west-2
 templates:
   - ingest-logs-deployment.yaml
-  - query-api-v2-deployment.yaml
+  - query-api-deployment.yaml
   - grafana-deployment.yaml
   - setup-job.yaml
 tests:
@@ -41,7 +41,7 @@ tests:
       global.labels:
         environment: "staging"
     templates:
-      - query-api-v2-deployment.yaml
+      - query-api-deployment.yaml
     asserts:
       - equal:
           path: metadata.labels.environment

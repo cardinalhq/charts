@@ -2,22 +2,22 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "lakerunner.fullname" . }}-query-worker-v2
+  name: {{ include "lakerunner.fullname" . }}-query-worker
   labels:
     {{- include "lakerunner.labels" . | nindent 4 }}
-    app.kubernetes.io/component: query-worker-v2
+    app.kubernetes.io/component: query-worker
   {{ include "lakerunner.annotations" . | nindent 2 }}
 spec:
   replicas: {{ .Values.queryWorker.replicas }}
   selector:
     matchLabels:
       {{- include "lakerunner.selectorLabels" . | nindent 6 }}
-      app.kubernetes.io/component: query-worker-v2
+      app.kubernetes.io/component: query-worker
   template:
     metadata:
       labels:
         {{- include "lakerunner.labels" . | nindent 8 }}
-        app.kubernetes.io/component: query-worker-v2
+        app.kubernetes.io/component: query-worker
         {{- if eq .Values.cloudProvider.azure.authType "workload_identity" }}
         azure.workload.identity/use: "true"
         {{- end }}
@@ -32,7 +32,7 @@ spec:
         fsGroup: 65532
       {{- include "lakerunner.imagePullSecrets" . | nindent 6 }}
       containers:
-      - name: query-worker-v2
+      - name: query-worker
         securityContext:
           allowPrivilegeEscalation: false
           capabilities:
@@ -63,7 +63,7 @@ spec:
               fieldRef:
                 fieldPath: status.podIP
           - name: OTEL_SERVICE_NAME
-            value: {{ include "lakerunner.fullname" . }}-query-worker-v2
+            value: {{ include "lakerunner.fullname" . }}-query-worker
           - name: TMPDIR
             value: /scratch
           {{- if eq .Values.cloudProvider.provider "azure" }}
