@@ -77,10 +77,6 @@ spec:
           - secretRef:
               name: {{ include "lakerunner.cloudProviderSecretName" . }}
         {{- end }}
-        {{- if eq (include "lakerunner.injectDuckdbCredentials" .) "true" }}
-          - secretRef:
-              name: {{ include "lakerunner.duckdbSecretName" . }}
-        {{- end }}
         {{- include "lakerunner.healthProbes" (list . .Values.queryWorker) | nindent 8 }}
         {{- if .Values.global.resources.enabled }}
         resources:
