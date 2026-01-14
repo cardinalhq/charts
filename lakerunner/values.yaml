@@ -211,22 +211,6 @@ cloudProvider:
     accessKeyId: ""
     secretAccessKey: ""
 
-  # DuckDB configuration (used by query-worker-v2 for S3 access)
-  # DuckDB always requires explicit S3 credentials
-  duckdb:
-    # Name of the Kubernetes secret that contains DuckDB S3 credentials
-    # Secret should contain: S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY
-    secretName: "duckdb-credentials"
-    # Whether to create the DuckDB credentials secret
-    create: false
-    # Whether to inject DuckDB credentials into pods
-    # Set to false if using alternative credential methods or when DuckDB access is not needed
-    inject: true
-    # S3 credentials for DuckDB (only used if create: true)
-    # These can be the same as your cloud provider credentials or separate read-only keys
-    accessKeyId: ""
-    secretAccessKey: ""
-
 # Kafka connection settings
 kafka:
   # Name of the Kubernetes secret containing Kafka credentials
@@ -893,7 +877,7 @@ queryApi:
   replicas: 2
   service:
     type: ClusterIP
-    port: 7101
+    port: 8080
     annotations: {}
     nodePort: null
     loadBalancerIP: ""
@@ -932,7 +916,7 @@ queryWorker:
       memory: 4Gi
   service:
     type: ClusterIP
-    port: 7101
+    port: 8081
     annotations: {}
     nodePort: null
     loadBalancerIP: ""
@@ -990,7 +974,7 @@ grafana:
   cardinalPlugin:
     # URL to the CardinalHQ LakeRunner datasource plugin
     # air-gapped deployments should download the plugin and provide a local path
-    url: "https://github.com/cardinalhq/cardinalhq-lakerunner-datasource/releases/download/v1.2.0/cardinalhq-lakerunner-datasource.zip;cardinalhq-lakerunner-datasource"
+    url: "https://github.com/cardinalhq/cardinalhq-lakerunner-datasource/releases/download/v1.7.1/cardinalhq-lakerunner-datasource.zip;cardinalhq-lakerunner-datasource"
   # Additional optional Grafana plugins (semicolon-separated list)
   # These will be installed in addition to the required CardinalHQ plugin
   additionalPlugins: ""

@@ -11,7 +11,7 @@ templates:
   - compact-metrics-deployment.yaml
   - compact-traces-deployment.yaml
   - rollup-metrics-deployment.yaml
-  - query-worker-v2-deployment.yaml
+  - query-worker-deployment.yaml
   - grafana-deployment.yaml
 tests:
   # Test emptyDir storage type (default)
@@ -43,7 +43,7 @@ tests:
       - ingest-metrics-deployment.yaml
       - compact-logs-deployment.yaml
       - rollup-metrics-deployment.yaml
-      - query-worker-v2-deployment.yaml
+      - query-worker-deployment.yaml
     asserts:
       # All components should have a size limit set
       - template: ingest-logs-deployment.yaml
@@ -58,7 +58,7 @@ tests:
       - template: rollup-metrics-deployment.yaml
         isNotNull:
           path: spec.template.spec.volumes[0].emptyDir.sizeLimit
-      - template: query-worker-v2-deployment.yaml
+      - template: query-worker-deployment.yaml
         isNotNull:
           path: spec.template.spec.volumes[0].emptyDir.sizeLimit
 
@@ -105,7 +105,7 @@ tests:
       - compact-metrics-deployment.yaml
       - compact-traces-deployment.yaml
       - rollup-metrics-deployment.yaml
-      - query-worker-v2-deployment.yaml
+      - query-worker-deployment.yaml
     asserts:
       # All components should have storage size set
       - template: ingest-logs-deployment.yaml
@@ -129,7 +129,7 @@ tests:
       - template: rollup-metrics-deployment.yaml
         isNotNull:
           path: spec.template.spec.volumes[0].ephemeral.volumeClaimTemplate.spec.resources.requests.storage
-      - template: query-worker-v2-deployment.yaml
+      - template: query-worker-deployment.yaml
         isNotNull:
           path: spec.template.spec.volumes[0].ephemeral.volumeClaimTemplate.spec.resources.requests.storage
 
@@ -288,10 +288,10 @@ tests:
       queryWorker.temporaryStorage.size: "32Gi"
     templates:
       - ingest-logs-deployment.yaml
-      - query-worker-v2-deployment.yaml
+      - query-worker-deployment.yaml
     asserts:
       # query-worker should use the new custom size (volume index 2)
-      - template: query-worker-v2-deployment.yaml
+      - template: query-worker-deployment.yaml
         equal:
           path: spec.template.spec.volumes[0].emptyDir.sizeLimit
           value: "32Gi"

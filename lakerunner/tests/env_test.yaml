@@ -15,8 +15,8 @@ templates:
   - boxer-compact-metrics-deployment.yaml
   - boxer-compact-logs-deployment.yaml
   - boxer-compact-traces-deployment.yaml
-  - query-api-v2-deployment.yaml
-  - query-worker-v2-deployment.yaml
+  - query-api-deployment.yaml
+  - query-worker-deployment.yaml
   - grafana-deployment.yaml
   - monitoring-deployment.yaml
   - setup-job.yaml
@@ -114,7 +114,7 @@ tests:
           value: "true"
     templates:
       - ingest-logs-deployment.yaml
-      - query-api-v2-deployment.yaml
+      - query-api-deployment.yaml
       - grafana-deployment.yaml
     asserts:
       - template: ingest-logs-deployment.yaml
@@ -129,7 +129,7 @@ tests:
           content:
             name: GLOBAL_FEATURE_FLAG
             value: "true"
-      - template: query-api-v2-deployment.yaml
+      - template: query-api-deployment.yaml
         contains:
           path: spec.template.spec.containers[0].env
           content:
@@ -177,7 +177,7 @@ tests:
               name: config-map
               key: config
     templates:
-      - query-api-v2-deployment.yaml
+      - query-api-deployment.yaml
     asserts:
       - contains:
           path: spec.template.spec.containers[0].env
@@ -293,7 +293,7 @@ tests:
   - it: should render service-specific environment variables
     templates:
       - ingest-logs-deployment.yaml
-      - query-api-v2-deployment.yaml
+      - query-api-deployment.yaml
       - setup-job.yaml
     asserts:
       - template: ingest-logs-deployment.yaml
@@ -302,12 +302,12 @@ tests:
           content:
             name: OTEL_SERVICE_NAME
             value: RELEASE-NAME-lakerunner-ingest-logs
-      - template: query-api-v2-deployment.yaml
+      - template: query-api-deployment.yaml
         contains:
           path: spec.template.spec.containers[0].env
           content:
             name: OTEL_SERVICE_NAME
-            value: RELEASE-NAME-lakerunner-query-api-v2
+            value: RELEASE-NAME-lakerunner-query-api
       - template: setup-job.yaml
         contains:
           path: spec.template.spec.containers[0].env

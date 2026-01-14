@@ -1,0 +1,34 @@
+{{/*
+Deprecation warnings for removed or changed features.
+This template doesn't produce any resources, it only validates configuration.
+*/}}
+
+{{- if .Values.cloudProvider.duckdb }}
+{{- fail `
+================================================================================
+DEPRECATION WARNING: cloudProvider.duckdb has been removed
+
+The cloudProvider.duckdb configuration section has been removed because the
+injected S3_ACCESS_KEY_ID and S3_SECRET_ACCESS_KEY environment variables were
+not actually used by the application.
+
+LakeRunner uses the standard AWS SDK credential chain for S3 access:
+  - IAM roles (recommended for Kubernetes)
+  - AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY environment variables
+  - ~/.aws/credentials file
+
+To fix this error:
+  1. Remove the cloudProvider.duckdb section from your values.yaml
+  2. If you need explicit S3 credentials, use cloudProvider.aws instead:
+
+     cloudProvider:
+       provider: aws
+       aws:
+         inject: true
+         create: true
+         accessKeyId: "your-access-key"
+         secretAccessKey: "your-secret-key"
+
+================================================================================
+` }}
+{{- end }}

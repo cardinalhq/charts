@@ -23,8 +23,8 @@ templates:
   - pubsub-azure-deployment.yaml
   - setup-job.yaml
   - kafka-credentials-secret.yaml
-  - query-api-v2-deployment.yaml
-  - query-worker-v2-deployment.yaml
+  - query-api-deployment.yaml
+  - query-worker-deployment.yaml
 tests:
   # Test secret creation when enabled
   - it: should create kafka credentials secret when create is true
@@ -274,15 +274,15 @@ tests:
       queryApi.enabled: true
       queryWorker.enabled: true
     templates:
-      - query-api-v2-deployment.yaml
-      - query-worker-v2-deployment.yaml
+      - query-api-deployment.yaml
+      - query-worker-deployment.yaml
     asserts:
-      - template: query-api-v2-deployment.yaml
+      - template: query-api-deployment.yaml
         notContains:
           path: spec.template.spec.containers[0].env
           content:
             name: LAKERUNNER_KAFKA_BROKERS
-      - template: query-worker-v2-deployment.yaml
+      - template: query-worker-deployment.yaml
         notContains:
           path: spec.template.spec.containers[0].env
           content:

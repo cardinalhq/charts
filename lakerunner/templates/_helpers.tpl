@@ -381,17 +381,6 @@ Return the secret name for cloud provider credentials based on the configured pr
 {{- end }}
 
 {{/*
-Return the secret name for DuckDB credentials.
-*/}}
-{{- define "lakerunner.duckdbSecretName" -}}
-{{- if .Values.cloudProvider.duckdb.create }}
-{{- printf "%s-%s" (include "lakerunner.fullname" .) .Values.cloudProvider.duckdb.secretName | trunc 63 | trimSuffix "-" }}
-{{- else }}
-{{- .Values.cloudProvider.duckdb.secretName | trunc 63 | trimSuffix "-" }}
-{{- end }}
-{{- end }}
-
-{{/*
 Return whether cloud provider credentials should be injected into pods.
 */}}
 {{- define "lakerunner.injectCloudProviderCredentials" -}}
@@ -600,17 +589,6 @@ Usage: {{ include "lakerunner.ephemeralVolumeBasic" (list "storage" .) }}
   emptyDir: {}
 {{- end -}}
 {{- end -}}
-
-{{/*
-Return whether DuckDB credentials should be injected into pods.
-*/}}
-{{- define "lakerunner.injectDuckdbCredentials" -}}
-{{- if and .Values.cloudProvider.duckdb .Values.cloudProvider.duckdb.inject -}}
-{{- "true" -}}
-{{- else -}}
-{{- "false" -}}
-{{- end -}}
-{{- end }}
 
 {{/*
 Return the secret name for the Kafka credentials. If we have create true, we will prefix it with the release name.

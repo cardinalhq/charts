@@ -5,8 +5,8 @@ set:
   cloudProvider.aws.region: us-west-2
 templates:
   - setup-job.yaml
-  - query-api-v2-deployment.yaml
-  - query-worker-v2-deployment.yaml
+  - query-api-deployment.yaml
+  - query-worker-deployment.yaml
   - grafana-deployment.yaml
   - ingest-logs-deployment.yaml
   - ingest-metrics-deployment.yaml
@@ -41,7 +41,7 @@ tests:
     set:
       queryApi.enabled: true
     templates:
-      - query-api-v2-deployment.yaml
+      - query-api-deployment.yaml
     asserts:
       - isKind:
           of: Deployment
@@ -50,7 +50,7 @@ tests:
     set:
       queryApi.enabled: false
     templates:
-      - query-api-v2-deployment.yaml
+      - query-api-deployment.yaml
     asserts:
       - hasDocuments:
           count: 0
@@ -59,7 +59,7 @@ tests:
     set:
       queryWorker.enabled: true
     templates:
-      - query-worker-v2-deployment.yaml
+      - query-worker-deployment.yaml
     asserts:
       - isKind:
           of: Deployment
@@ -68,7 +68,7 @@ tests:
     set:
       queryWorker.enabled: false
     templates:
-      - query-worker-v2-deployment.yaml
+      - query-worker-deployment.yaml
     asserts:
       - hasDocuments:
           count: 0

@@ -3,8 +3,8 @@ values:
   - ./test-values.yaml
 templates:
   - setup-job.yaml
-  - query-api-v2-deployment.yaml
-  - query-worker-v2-deployment.yaml
+  - query-api-deployment.yaml
+  - query-worker-deployment.yaml
   - grafana-deployment.yaml
   - ingest-logs-deployment.yaml
   - compact-logs-deployment.yaml
@@ -42,7 +42,7 @@ tests:
 
   - it: should use correct repository paths for different components
     templates:
-      - query-api-v2-deployment.yaml
+      - query-api-deployment.yaml
     set:
       queryApi.enabled: true
     asserts:
@@ -52,17 +52,17 @@ tests:
 
   - it: should use versioned tags for query components
     templates:
-      - query-api-v2-deployment.yaml
-      - query-worker-v2-deployment.yaml
+      - query-api-deployment.yaml
+      - query-worker-deployment.yaml
     set:
       queryApi.enabled: true
       queryWorker.enabled: true
     asserts:
-      - template: query-api-v2-deployment.yaml
+      - template: query-api-deployment.yaml
         matchRegex:
           path: spec.template.spec.containers[0].image
           pattern: ":v[0-9]+\.[0-9]+\.[0-9]+.*$"
-      - template: query-worker-v2-deployment.yaml
+      - template: query-worker-deployment.yaml
         matchRegex:
           path: spec.template.spec.containers[0].image
           pattern: ":v[0-9]+\.[0-9]+\.[0-9]+.*$"
