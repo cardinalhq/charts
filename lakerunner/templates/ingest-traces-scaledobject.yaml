@@ -19,4 +19,10 @@ spec:
     metadata:
       scalerAddress: "{{ include "lakerunner.fullname" . }}-monitoring.{{ .Release.Namespace }}.svc.cluster.local:9090"
       serviceType: "worker-ingest-traces"
+  {{- if .Values.ingestTraces.autoscaling.keda.cpuTrigger.enabled }}
+  - type: cpu
+    metricType: Utilization
+    metadata:
+      value: "{{ .Values.ingestTraces.autoscaling.keda.cpuTrigger.targetUtilization }}"
+  {{- end }}
 {{- end }}

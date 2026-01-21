@@ -429,6 +429,9 @@ ingestLogs:
       cooldownPeriod: 300 # Wait time before scaling down (seconds)
       targetQueueDepth: 100 # DEPRECATED: not used - controlled by monitor (external scaler)
       activationQueueDepth: 10 # DEPRECATED: not used - controlled by monitor (external scaler)
+      cpuTrigger:
+        enabled: true # Enable CPU-based scaling alongside queue depth
+        targetUtilization: 80 # Target average CPU utilization percentage
   terminationGracePeriodSeconds: 600
   # Health probe configuration (inherits from global.healthProbes if not specified)
   healthProbes:
@@ -466,6 +469,9 @@ ingestMetrics:
       cooldownPeriod: 300 # Wait time before scaling down (seconds)
       targetQueueDepth: 150 # DEPRECATED: not used - controlled by monitor (external scaler)
       activationQueueDepth: 20 # DEPRECATED: not used - controlled by monitor (external scaler)
+      cpuTrigger:
+        enabled: true # Enable CPU-based scaling alongside queue depth
+        targetUtilization: 80 # Target average CPU utilization percentage
   terminationGracePeriodSeconds: 600
   labels: {}
   annotations: {}
@@ -500,6 +506,9 @@ ingestTraces:
       cooldownPeriod: 300 # Wait time before scaling down (seconds)
       targetQueueDepth: 120 # DEPRECATED: not used - controlled by monitor (external scaler)
       activationQueueDepth: 15 # DEPRECATED: not used - controlled by monitor (external scaler)
+      cpuTrigger:
+        enabled: true # Enable CPU-based scaling alongside queue depth
+        targetUtilization: 80 # Target average CPU utilization percentage
   terminationGracePeriodSeconds: 600
   labels: {}
   annotations: {}
@@ -534,6 +543,9 @@ compactLogs:
       cooldownPeriod: 600 # 10-minute cooldown for compaction
       targetQueueDepth: 10 # DEPRECATED: not used - controlled by monitor (external scaler)
       activationQueueDepth: 1 # DEPRECATED: not used - controlled by monitor (external scaler)
+      cpuTrigger:
+        enabled: true # Enable CPU-based scaling alongside queue depth
+        targetUtilization: 80 # Target average CPU utilization percentage
   terminationGracePeriodSeconds: 300
   labels: {}
   annotations: {}
@@ -568,6 +580,9 @@ compactMetrics:
       cooldownPeriod: 600 # 10-minute cooldown for compaction
       targetQueueDepth: 10 # DEPRECATED: not used - controlled by monitor (external scaler)
       activationQueueDepth: 1 # DEPRECATED: not used - controlled by monitor (external scaler)
+      cpuTrigger:
+        enabled: true # Enable CPU-based scaling alongside queue depth
+        targetUtilization: 80 # Target average CPU utilization percentage
   terminationGracePeriodSeconds: 300
   labels: {}
   annotations: {}
@@ -602,6 +617,9 @@ compactTraces:
       cooldownPeriod: 600 # 10-minute cooldown for compaction
       targetQueueDepth: 10 # DEPRECATED: not used - controlled by monitor (external scaler)
       activationQueueDepth: 1 # DEPRECATED: not used - controlled by monitor (external scaler)
+      cpuTrigger:
+        enabled: true # Enable CPU-based scaling alongside queue depth
+        targetUtilization: 80 # Target average CPU utilization percentage
   terminationGracePeriodSeconds: 300
   labels: {}
   annotations: {}
@@ -636,6 +654,9 @@ rollupMetrics:
       cooldownPeriod: 600 # 10-minute cooldown for rollup processing
       targetQueueDepth: 15 # DEPRECATED: not used - controlled by monitor (external scaler)
       activationQueueDepth: 2 # DEPRECATED: not used - controlled by monitor (external scaler)
+      cpuTrigger:
+        enabled: true # Enable CPU-based scaling alongside queue depth
+        targetUtilization: 80 # Target average CPU utilization percentage
   terminationGracePeriodSeconds: 300
   labels: {}
   annotations: {}
@@ -669,6 +690,9 @@ boxers:
       cooldownPeriod: 600 # 10-minute cooldown for processing
       targetQueueDepth: 15 # DEPRECATED: not used - controlled by monitor (external scaler)
       activationQueueDepth: 2 # DEPRECATED: not used - controlled by monitor (external scaler)
+      cpuTrigger:
+        enabled: true # Enable CPU-based scaling alongside queue depth
+        targetUtilization: 80 # Target average CPU utilization percentage
   terminationGracePeriodSeconds: 300
   labels: {}
   annotations: {}

@@ -24,6 +24,12 @@ spec:
       scalerAddress: "{{ include "lakerunner.fullname" $ }}-monitoring.{{ $.Release.Namespace }}.svc.cluster.local:9090"
       serviceType: "boxer"
       boxerTasks: "{{ join "," $instance.tasks }}"
+  {{- if $.Values.boxers.autoscaling.keda.cpuTrigger.enabled }}
+  - type: cpu
+    metricType: Utilization
+    metadata:
+      value: "{{ $.Values.boxers.autoscaling.keda.cpuTrigger.targetUtilization }}"
+  {{- end }}
 {{- end }}
 {{- end }}
 {{- end }}
