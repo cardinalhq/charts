@@ -72,7 +72,7 @@ spec:
           - name: AZURE_AUTH_TYPE
             value: {{ .Values.cloudProvider.azure.authType | quote }}
           {{- end }}
-          {{- include "lakerunner.injectEnv" (list . .Values.ingestLogs) | nindent 8 }}
+          {{- include "lakerunner.injectEnvDuckdb" (list . .Values.ingestLogs) | nindent 8 }}
           {{- include "lakerunner.cardinalTelemetryEnv" . | nindent 10 }}
           {{- include "lakerunner.kafkaEnv" . | nindent 10 }}
         {{- if eq (include "lakerunner.injectCloudProviderCredentials" .) "true" }}
