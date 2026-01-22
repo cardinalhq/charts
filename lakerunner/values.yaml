@@ -382,7 +382,7 @@ setup:
   enabled: true
   replicas: 1
   image:
-    repository: public.ecr.aws/cardinalhq.io/lakerunner
+    repository: ghcr.io/cardinalhq/lakerunner
     tag: ""
     pullPolicy: ""
   resources:
@@ -408,7 +408,7 @@ ingestLogs:
   # The number of replicas to run.  This is not used if autoscaling is enabled.
   replicas: 1
   image:
-    repository: public.ecr.aws/cardinalhq.io/lakerunner
+    repository: ghcr.io/cardinalhq/lakerunner
     tag: ""
     pullPolicy: ""
   resources:
@@ -448,7 +448,7 @@ ingestMetrics:
   # The number of replicas to run.  This is not used if autoscaling is enabled.
   replicas: 1
   image:
-    repository: public.ecr.aws/cardinalhq.io/lakerunner
+    repository: ghcr.io/cardinalhq/lakerunner
     tag: ""
     pullPolicy: ""
   resources:
@@ -485,7 +485,7 @@ ingestTraces:
   # The number of replicas to run.  This is not used if autoscaling is enabled.
   replicas: 1
   image:
-    repository: public.ecr.aws/cardinalhq.io/lakerunner
+    repository: ghcr.io/cardinalhq/lakerunner
     tag: ""
     pullPolicy: ""
   resources:
@@ -522,7 +522,7 @@ compactLogs:
   # The number of replicas to run.  This is not used if autoscaling is enabled.
   replicas: 1
   image:
-    repository: public.ecr.aws/cardinalhq.io/lakerunner
+    repository: ghcr.io/cardinalhq/lakerunner
     tag: ""
     pullPolicy: ""
   resources:
@@ -559,7 +559,7 @@ compactMetrics:
   # The number of replicas to run.  This is not used if autoscaling is enabled.
   replicas: 1
   image:
-    repository: public.ecr.aws/cardinalhq.io/lakerunner
+    repository: ghcr.io/cardinalhq/lakerunner
     tag: ""
     pullPolicy: ""
   resources:
@@ -596,7 +596,7 @@ compactTraces:
   # The number of replicas to run.  This is not used if autoscaling is enabled.
   replicas: 1
   image:
-    repository: public.ecr.aws/cardinalhq.io/lakerunner
+    repository: ghcr.io/cardinalhq/lakerunner
     tag: ""
     pullPolicy: ""
   resources:
@@ -633,7 +633,7 @@ rollupMetrics:
   # The number of replicas to run.  This is not used if autoscaling is enabled.
   replicas: 1
   image:
-    repository: public.ecr.aws/cardinalhq.io/lakerunner
+    repository: ghcr.io/cardinalhq/lakerunner
     tag: ""
     pullPolicy: ""
   resources:
@@ -671,7 +671,7 @@ boxers:
   # The number of replicas to run. This is not used if autoscaling is enabled.
   replicas: 1
   image:
-    repository: public.ecr.aws/cardinalhq.io/lakerunner
+    repository: ghcr.io/cardinalhq/lakerunner
     tag: ""
     pullPolicy: ""
   resources:
@@ -717,7 +717,7 @@ sweeper:
   enabled: true
   replicas: 1
   image:
-    repository: public.ecr.aws/cardinalhq.io/lakerunner
+    repository: ghcr.io/cardinalhq/lakerunner
     tag: ""
     pullPolicy: ""
   resources:
@@ -746,7 +746,7 @@ monitoring:
     loadBalancerIP: ""
     loadBalancerSourceRanges: []
   image:
-    repository: public.ecr.aws/cardinalhq.io/lakerunner
+    repository: ghcr.io/cardinalhq/lakerunner
     tag: ""
     pullPolicy: ""
   resources:
@@ -775,7 +775,7 @@ adminApi:
     loadBalancerIP: ""
     loadBalancerSourceRanges: []
   image:
-    repository: public.ecr.aws/cardinalhq.io/lakerunner
+    repository: ghcr.io/cardinalhq/lakerunner
     tag: ""
     pullPolicy: ""
   resources:
@@ -805,7 +805,7 @@ pubsub:
       loadBalancerIP: ""
       loadBalancerSourceRanges: []
     image:
-      repository: public.ecr.aws/cardinalhq.io/lakerunner
+      repository: ghcr.io/cardinalhq/lakerunner
       tag: ""
       pullPolicy: ""
     resources:
@@ -830,7 +830,7 @@ pubsub:
     region: ""
     roleARN: ""
     image:
-      repository: public.ecr.aws/cardinalhq.io/lakerunner
+      repository: ghcr.io/cardinalhq/lakerunner
       tag: ""
       pullPolicy: ""
     resources:
@@ -854,7 +854,7 @@ pubsub:
     # Example: "my-subscription"
     subscriptionID: ""
     image:
-      repository: public.ecr.aws/cardinalhq.io/lakerunner
+      repository: ghcr.io/cardinalhq/lakerunner
       tag: ""
       pullPolicy: ""
     resources:
@@ -879,7 +879,7 @@ pubsub:
     # Example: "sqs"
     queueName: ""
     image:
-      repository: public.ecr.aws/cardinalhq.io/lakerunner
+      repository: ghcr.io/cardinalhq/lakerunner
       tag: ""
       pullPolicy: ""
     resources:
@@ -907,7 +907,7 @@ queryApi:
     loadBalancerIP: ""
     loadBalancerSourceRanges: []
   image:
-    repository: public.ecr.aws/cardinalhq.io/lakerunner
+    repository: ghcr.io/cardinalhq/lakerunner
     tag: ""
     pullPolicy: ""
   resources:
@@ -928,7 +928,7 @@ queryWorker:
   enabled: true
   replicas: 2
   image:
-    repository: public.ecr.aws/cardinalhq.io/lakerunner
+    repository: ghcr.io/cardinalhq/lakerunner
     tag: ""
     pullPolicy: ""
   resources:

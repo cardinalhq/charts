@@ -254,7 +254,7 @@ tests:
     asserts:
       - matchRegex:
           path: spec.template.spec.containers[0].image
-          pattern: "^public\\.ecr\\.aws/cardinalhq\\.io/lakerunner:"
+          pattern: "^ghcr\\.io/cardinalhq/lakerunner:"
 
   - it: should allow custom image configuration
     set:
