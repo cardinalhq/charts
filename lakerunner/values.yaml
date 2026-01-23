@@ -202,14 +202,8 @@ cloudProvider:
     inject: true
 
     # GCP credentials (only used if create: true)
-    # Both credential types can be provided simultaneously:
-
-    # Service account JSON for native GCP API access (e.g., Pub/Sub)
+    # Service account JSON for native GCP API access (e.g., Pub/Sub, GCS)
     serviceAccountJson: ""
-
-    # HMAC keys for S3-compatible GCS access (e.g., storage operations)
-    accessKeyId: ""
-    secretAccessKey: ""
 
 # Kafka connection settings
 kafka:
