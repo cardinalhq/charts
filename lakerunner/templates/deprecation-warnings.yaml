@@ -32,3 +32,46 @@ To fix this error:
 ================================================================================
 ` }}
 {{- end }}
+
+{{- if or .Values.cloudProvider.gcp.accessKeyId .Values.cloudProvider.gcp.secretAccessKey }}
+{{- fail `
+================================================================================
+DEPRECATION WARNING: cloudProvider.gcp HMAC credentials have been removed
+
+The cloudProvider.gcp.accessKeyId and cloudProvider.gcp.secretAccessKey fields
+have been removed. GCP no longer requires AWS-style HMAC credentials.
+
+LakeRunner uses native GCP authentication for GCS access:
+  - Workload Identity (recommended for GKE)
+  - Service Account JSON credentials
+
+To fix this error:
+  1. Remove accessKeyId and secretAccessKey from cloudProvider.gcp
+  2. Use one of these authentication methods:
+
+     # Option 1: Workload Identity (recommended)
+     cloudProvider:
+       provider: gcp
+       gcp:
+         inject: false
+         create: false
+
+     # Option 2: Service Account JSON
+     cloudProvider:
+       provider: gcp
+       gcp:
+         inject: true
+         create: true
+         serviceAccountJson: '{"type":"service_account",...}'
+
+     # Option 3: Existing secret with GOOGLE_APPLICATION_CREDENTIALS
+     cloudProvider:
+       provider: gcp
+       gcp:
+         inject: true
+         create: false
+         secretName: "my-gcp-credentials"
+
+================================================================================
+` }}
+{{- end }}
