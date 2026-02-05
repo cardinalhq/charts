@@ -992,7 +992,7 @@ grafana:
   cardinalPlugin:
     # URL to the CardinalHQ LakeRunner datasource plugin
     # air-gapped deployments should download the plugin and provide a local path
-    url: "https://github.com/cardinalhq/cardinalhq-lakerunner-datasource/releases/download/v1.9.0/cardinalhq-lakerunner-datasource.zip;cardinalhq-lakerunner-datasource"
+    url: "https://github.com/cardinalhq/cardinalhq-lakerunner-datasource/releases/download/v1.9.9/cardinalhq-lakerunner-datasource.zip;cardinalhq-lakerunner-datasource"
   # Additional optional Grafana plugins (semicolon-separated list)
   # These will be installed in addition to the required CardinalHQ plugin
   additionalPlugins: ""
