@@ -17,8 +17,8 @@
 # Lakerunner Install Script
 # This script installs Lakerunner with local MinIO and PostgreSQL
 
-# Helm Chart Versions
-LAKERUNNER_VERSION="0.11.5"
+# Grafana plugin version
+GRAFANA_PLUGIN_VERSION="v2.0.3"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -27,19 +27,19 @@ BLUE='\033[0;34m'
 NC='\033[0m'
 
 print_status() {
-    echo -e "${BLUE}[INFO]${NC} $1"
+    printf "${BLUE}[INFO]${NC} %s\n" "$1"
 }
 
 print_success() {
-    echo -e "${GREEN}[SUCCESS]${NC} $1"
+    printf "${GREEN}[SUCCESS]${NC} %s\n" "$1"
 }
 
 print_warning() {
-    echo -e "${YELLOW}[WARNING]${NC} $1"
+    printf "${YELLOW}[WARNING]${NC} %s\n" "$1"
 }
 
 print_error() {
-    echo -e "${RED}[ERROR]${NC} $1"
+    printf "${RED}[ERROR]${NC} %s\n" "$1"
 }
 
 command_exists() {
@@ -233,12 +233,10 @@ check_helm_repositories() {
 
     # Determine which repositories we need based on configuration
     if [ "$INSTALL_MINIO" = true ]; then
-        needed_repos+=("bitnami https://charts.bitnami.com/bitnami")
+        needed_repos+=("minio https://charts.min.io/")
     fi
 
-    if [ "$INSTALL_POSTGRES" = true ] || [ "$INSTALL_KAFKA" = true ]; then
-        needed_repos+=("bitnami https://charts.bitnami.com/bitnami")
-    fi
+    # Kafka uses raw manifests now, no helm repo needed
 
     if [ "$INSTALL_OTEL_DEMO" = true ]; then
         needed_repos+=("open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts")
@@ -518,30 +516,32 @@ install_minio() {
     if [ "$INSTALL_MINIO" = true ]; then
         print_status "Installing MinIO..."
 
-        if helm list | grep -q "minio"; then
+        if helm list -n "$NAMESPACE" -q | grep -q "^minio$"; then
             print_warning "MinIO is already installed. Skipping..."
             return
         fi
 
         if [ "$SKIP_HELM_REPO_UPDATES" != true ]; then
-            helm repo add bitnami https://charts.bitnami.com/bitnami >/dev/null 2>&1 || true
-            helm repo update >/dev/null  2>&1
+            helm repo add minio https://charts.min.io/ >/dev/null 2>&1 || true
+            helm repo update >/dev/null 2>&1
         fi
 
-        helm install minio bitnami/minio \
+        helm install minio minio/minio \
             --namespace "$NAMESPACE" \
-            --set auth.rootUser=minioadmin \
-            --set auth.rootPassword=minioadmin \
             --set mode=standalone \
-            --set replicaCount=1 \
+            --set replicas=1 \
             --set persistence.enabled=true \
             --set persistence.size=10Gi \
-            --set service.type=ClusterIP \
-            --set resources.requests.memory=128Mi \
+            --set rootUser=minioadmin \
+            --set rootPassword=minioadmin \
+            --set "buckets[0].name=lakerunner" \
+            --set "buckets[0].policy=none" \
+            --set resources.requests.memory=512Mi \
             --set resources.requests.cpu=100m \
-            --set defaultBuckets=lakerunner | output_redirect
+            --set consoleService.type=ClusterIP \
+            --set service.type=ClusterIP | output_redirect
 
-        show_progress "Waiting for MinIO to be ready" "kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=minio -n '$NAMESPACE' --timeout=300s"
+        wait_for_pods "Waiting for MinIO to be ready" "app=minio" "$NAMESPACE" 300
 
         print_success "MinIO installed successfully"
     else
@@ -549,32 +549,155 @@ install_minio() {
     fi
 }
 
+generate_postgres_manifests() {
+    print_status "Generating PostgreSQL manifests..."
+
+    mkdir -p generated
+
+    cat > generated/postgres-manifests.yaml << 'EOF'
+---
+# ConfigMap with init script to create databases
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-init
+data:
+  init-db.sql: |
+    -- Create lakerunner database (main operational database)
+    SELECT 'CREATE DATABASE lakerunner' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'lakerunner')\gexec
+    -- Create configdb database (configuration storage)
+    SELECT 'CREATE DATABASE configdb' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'configdb')\gexec
+    -- Create grafana database (Grafana state storage)
+    SELECT 'CREATE DATABASE grafana' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'grafana')\gexec
+---
+# Secret with PostgreSQL credentials
+apiVersion: v1
+kind: Secret
+metadata:
+  name: pg-credentials
+type: Opaque
+stringData:
+  username: lakerunner
+  password: lakerunnerpass
+  postgres-password: lakerunnerpass
+---
+# Service for PostgreSQL
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  labels:
+    app: postgres
+spec:
+  type: ClusterIP
+  ports:
+    - port: 5432
+      targetPort: 5432
+      protocol: TCP
+      name: postgresql
+  selector:
+    app: postgres
+---
+# StatefulSet for PostgreSQL
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  labels:
+    app: postgres
+spec:
+  serviceName: postgres
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          ports:
+            - containerPort: 5432
+              name: postgresql
+          env:
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: pg-credentials
+                  key: username
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: pg-credentials
+                  key: password
+            - name: POSTGRES_DB
+              value: lakerunner
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          volumeMounts:
+            - name: postgres-data
+              mountPath: /var/lib/postgresql/data
+            - name: init-scripts
+              mountPath: /docker-entrypoint-initdb.d
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          livenessProbe:
+            exec:
+              command:
+                - pg_isready
+                - -U
+                - lakerunner
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            exec:
+              command:
+                - pg_isready
+                - -U
+                - lakerunner
+            initialDelaySeconds: 5
+            periodSeconds: 5
+      volumes:
+        - name: init-scripts
+          configMap:
+            name: postgres-init
+  volumeClaimTemplates:
+    - metadata:
+        name: postgres-data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 8Gi
+EOF
+
+    print_success "PostgreSQL manifests generated"
+}
+
 install_postgresql() {
     if [ "$INSTALL_POSTGRES" = true ]; then
         print_status "Installing PostgreSQL..."
 
-        if helm list | grep -q "postgres"; then
+        # Check if PostgreSQL is already installed
+        if kubectl get statefulset postgres -n "$NAMESPACE" >/dev/null 2>&1; then
             print_warning "PostgreSQL is already installed. Skipping..."
             return
         fi
 
-        if [ "$SKIP_HELM_REPO_UPDATES" != true ]; then
-            helm repo add bitnami https://charts.bitnami.com/bitnami 2>/dev/null || true
-            helm repo update >/dev/null  2>&1
-        fi
+        # Generate and apply manifests
+        generate_postgres_manifests
 
-        helm install postgres bitnami/postgresql \
-            --namespace "$NAMESPACE" \
-            --set auth.username=lakerunner \
-            --set auth.password=lakerunnerpass \
-            --set auth.database=lakerunner \
-            --set-string primary.initdb.scripts.create-config-db\\.sql="CREATE DATABASE configdb;" \
-            --set persistence.enabled=true \
-            --set image.repository="bitnamilegacy/postgresql" \
-            --set global.security.allowInsecureImages=true \
-            --set persistence.size=8Gi | output_redirect
+        kubectl apply -f generated/postgres-manifests.yaml -n "$NAMESPACE" | output_redirect
 
-        show_progress "Waiting for PostgreSQL to be ready" "kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=postgresql -n '$NAMESPACE' --timeout=300s"
+        wait_for_pods "Waiting for PostgreSQL to be ready" "app=postgres" "$NAMESPACE" 300
 
         print_success "PostgreSQL installed successfully"
     else
@@ -582,64 +705,185 @@ install_postgresql() {
     fi
 }
 
+generate_redpanda_manifests() {
+    print_status "Generating Redpanda manifests..."
+
+    mkdir -p generated
+
+    cat > generated/redpanda-manifests.yaml << 'EOF'
+---
+# Headless service for StatefulSet DNS (required for pod DNS resolution)
+apiVersion: v1
+kind: Service
+metadata:
+  name: redpanda-headless
+  labels:
+    app: redpanda
+spec:
+  type: ClusterIP
+  clusterIP: None
+  publishNotReadyAddresses: true
+  ports:
+    - port: 9092
+      targetPort: 9092
+      protocol: TCP
+      name: kafka
+    - port: 8081
+      targetPort: 8081
+      protocol: TCP
+      name: schema-registry
+    - port: 8082
+      targetPort: 8082
+      protocol: TCP
+      name: http-proxy
+    - port: 9644
+      targetPort: 9644
+      protocol: TCP
+      name: admin
+    - port: 33145
+      targetPort: 33145
+      protocol: TCP
+      name: rpc
+  selector:
+    app: redpanda
+---
+# ClusterIP service for client access
+apiVersion: v1
+kind: Service
+metadata:
+  name: redpanda
+  labels:
+    app: redpanda
+spec:
+  type: ClusterIP
+  ports:
+    - port: 9092
+      targetPort: 9092
+      protocol: TCP
+      name: kafka
+    - port: 8081
+      targetPort: 8081
+      protocol: TCP
+      name: schema-registry
+    - port: 8082
+      targetPort: 8082
+      protocol: TCP
+      name: http-proxy
+    - port: 9644
+      targetPort: 9644
+      protocol: TCP
+      name: admin
+  selector:
+    app: redpanda
+---
+# StatefulSet for Redpanda (single binary, Kafka-compatible)
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: redpanda
+  labels:
+    app: redpanda
+spec:
+  serviceName: redpanda-headless
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redpanda
+  template:
+    metadata:
+      labels:
+        app: redpanda
+    spec:
+      securityContext:
+        fsGroup: 101
+      containers:
+        - name: redpanda
+          image: docker.redpanda.com/redpandadata/redpanda:v24.2.4
+          args:
+            - redpanda
+            - start
+            - --kafka-addr=internal://0.0.0.0:9092
+            - --advertise-kafka-addr=internal://redpanda-0.redpanda-headless:9092
+            - --pandaproxy-addr=internal://0.0.0.0:8082
+            - --advertise-pandaproxy-addr=internal://redpanda-0.redpanda-headless:8082
+            - --schema-registry-addr=internal://0.0.0.0:8081
+            - --rpc-addr=0.0.0.0:33145
+            - --advertise-rpc-addr=redpanda-0.redpanda-headless:33145
+            - --mode=dev-container
+            - --smp=1
+            - --memory=1G
+            - --overprovisioned
+            - --default-log-level=info
+          ports:
+            - containerPort: 9092
+              name: kafka
+            - containerPort: 8081
+              name: schema-registry
+            - containerPort: 8082
+              name: http-proxy
+            - containerPort: 9644
+              name: admin
+            - containerPort: 33145
+              name: rpc
+          volumeMounts:
+            - name: redpanda-data
+              mountPath: /var/lib/redpanda/data
+          resources:
+            requests:
+              memory: "1Gi"
+              cpu: "500m"
+            limits:
+              memory: "2Gi"
+              cpu: "1"
+          readinessProbe:
+            httpGet:
+              path: /v1/status/ready
+              port: 9644
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /v1/status/ready
+              port: 9644
+            initialDelaySeconds: 30
+            periodSeconds: 15
+  volumeClaimTemplates:
+    - metadata:
+        name: redpanda-data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 8Gi
+EOF
+
+    print_success "Redpanda manifests generated"
+}
+
 install_kafka() {
     if [ "$INSTALL_KAFKA" = true ]; then
-        print_status "Installing Kafka..."
+        print_status "Installing Redpanda (Kafka-compatible)..."
 
-        if helm list | grep -q "kafka"; then
-            print_warning "Kafka is already installed. Skipping..."
+        # Check if Redpanda is already installed
+        if kubectl get statefulset redpanda -n "$NAMESPACE" >/dev/null 2>&1; then
+            print_warning "Redpanda is already installed. Skipping..."
             return
         fi
 
-        if [ "$SKIP_HELM_REPO_UPDATES" != true ]; then
-            helm repo add bitnami https://charts.bitnami.com/bitnami 2>/dev/null || true
-            helm repo update >/dev/null  2>&1
-        fi
+        # Generate and apply manifests
+        generate_redpanda_manifests
 
-        # Create temporary Kafka values file
-        cat > generated/kafka-values.yaml << EOF
-controller:
-  replicaCount: 1
+        kubectl apply -f generated/redpanda-manifests.yaml -n "$NAMESPACE" | output_redirect
 
-broker:
-  replicaCount: 0
+        wait_for_pods "Waiting for Redpanda to be ready" "app=redpanda" "$NAMESPACE" 300
 
-persistence:
-  enabled: true
-  size: 8Gi
+        # Disable auto topic creation so only the setup job creates topics
+        print_status "Configuring Redpanda (disabling auto topic creation)..."
+        kubectl exec -n "$NAMESPACE" redpanda-0 -- rpk cluster config set auto_create_topics_enabled false | output_redirect
 
-auth:
-  clientProtocol: plaintext
-  interBrokerProtocol: plaintext
-
-listeners:
-  client:
-    protocol: PLAINTEXT
-  controller:
-    protocol: PLAINTEXT
-  interbroker:
-    protocol: PLAINTEXT
-  external:
-    protocol: PLAINTEXT
-
-overrideConfiguration: |
-  offsets.topic.replication.factor: 1
-  transaction.state.log.replication.factor: 1
-
-service:
-  ports:
-    client: 9092
-EOF
-
-        helm install kafka bitnami/kafka \
-            --namespace "$NAMESPACE" \
-            --values generated/kafka-values.yaml | output_redirect
-
-        show_progress "Waiting for Kafka to be ready" "kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=kafka -n '$NAMESPACE' --timeout=300s"
-
-        print_success "Kafka installed successfully"
+        print_success "Redpanda installed successfully"
     else
-        print_status "Skipping Kafka installation (using existing Kafka)"
+        print_status "Skipping Kafka/Redpanda installation (using existing Kafka)"
     fi
 }
 
@@ -652,8 +896,8 @@ generate_values_file() {
 
     # After MinIO is installed and before generating lakerunner-values.yaml, set credentials:
     if [ "$INSTALL_MINIO" = true ]; then
-        MINIO_ACCESS_KEY=$(kubectl get secret minio -n "$NAMESPACE" -o jsonpath="{.data.root-user}" 2>/dev/null | base64 --decode 2>/dev/null || echo "minioadmin")
-        MINIO_SECRET_KEY=$(kubectl get secret minio -n "$NAMESPACE" -o jsonpath="{.data.root-password}" 2>/dev/null | base64 --decode 2>/dev/null || echo "minioadmin")
+        MINIO_ACCESS_KEY=$(kubectl get secret minio -n "$NAMESPACE" -o jsonpath="{.data.rootUser}" 2>/dev/null | base64 --decode 2>/dev/null || echo "minioadmin")
+        MINIO_SECRET_KEY=$(kubectl get secret minio -n "$NAMESPACE" -o jsonpath="{.data.rootPassword}" 2>/dev/null | base64 --decode 2>/dev/null || echo "minioadmin")
     else
         MINIO_ACCESS_KEY="$S3_ACCESS_KEY"
         MINIO_SECRET_KEY="$S3_SECRET_KEY"
@@ -668,7 +912,7 @@ database:
   create: true  # Create the secret with credentials
   secretName: "pg-credentials"
   lrdb:
-    host: "$([ "$INSTALL_POSTGRES" = true ] && echo "postgres-postgresql.$NAMESPACE.svc.cluster.local" || echo "$POSTGRES_HOST")"
+    host: "$([ "$INSTALL_POSTGRES" = true ] && echo "postgres.$NAMESPACE.svc.cluster.local" || echo "$POSTGRES_HOST")"
     port: $([ "$INSTALL_POSTGRES" = true ] && echo "5432" || echo "$POSTGRES_PORT")
     name: "$([ "$INSTALL_POSTGRES" = true ] && echo "lakerunner" || echo "$POSTGRES_DB")"
     username: "$([ "$INSTALL_POSTGRES" = true ] && echo "lakerunner" || echo "$POSTGRES_USER")"
@@ -679,7 +923,7 @@ database:
 configdb:
   create: true  # Create the secret with credentials
   lrdb:
-    host: "$([ "$INSTALL_POSTGRES" = true ] && echo "postgres-postgresql.$NAMESPACE.svc.cluster.local" || echo "$POSTGRES_HOST")"
+    host: "$([ "$INSTALL_POSTGRES" = true ] && echo "postgres.$NAMESPACE.svc.cluster.local" || echo "$POSTGRES_HOST")"
     port: $([ "$INSTALL_POSTGRES" = true ] && echo "5432" || echo "$POSTGRES_PORT")
     name: "$([ "$INSTALL_POSTGRES" = true ] && echo "configdb" || echo "$POSTGRES_DB")"
     username: "$([ "$INSTALL_POSTGRES" = true ] && echo "lakerunner" || echo "$POSTGRES_USER")"
@@ -714,20 +958,10 @@ apiKeys:
 cloudProvider:
   provider: "aws"  # Using AWS provider for S3-compatible storage (including MinIO)
   aws:
-    region: "$([ "$INSTALL_MINIO" = true ] && echo "us-east-1" || echo "$S3_REGION")"  # This doesn't matter for MinIO but is required
-    create: true  # Create the secret with credentials
+    region: "$([ "$INSTALL_MINIO" = true ] && echo "us-east-1" || echo "$S3_REGION")"
+    create: true
     secretName: "aws-credentials"
     inject: true
-    accessKeyId: "$MINIO_ACCESS_KEY"
-    secretAccessKey: "$MINIO_SECRET_KEY"
-    env:
-      - name: AWS_ACCESS_KEY_ID
-        value: "$MINIO_ACCESS_KEY"
-      - name: AWS_SECRET_ACCESS_KEY
-        value: "$MINIO_SECRET_KEY"
-  duckdb:
-    create: true
-    secretName: "duckdb-credentials"
     accessKeyId: "$MINIO_ACCESS_KEY"
     secretAccessKey: "$MINIO_SECRET_KEY"
 
@@ -741,8 +975,7 @@ kafkaTopics:
 
 # Kafka configuration
 kafka:
-  enabled: $INSTALL_KAFKA
-$([ "$INSTALL_KAFKA" = true ] && echo "  brokers: \"kafka.$NAMESPACE.svc.cluster.local:9092\"" || echo "  brokers: \"$KAFKA_BOOTSTRAP_SERVERS\"")
+$([ "$INSTALL_KAFKA" = true ] && echo "  brokers: \"redpanda.$NAMESPACE.svc.cluster.local:9092\"" || echo "  brokers: \"$KAFKA_BOOTSTRAP_SERVERS\"")
   sasl:
 $([ -n "$KAFKA_USERNAME" ] && [ -n "$KAFKA_PASSWORD" ] && echo "    enabled: true" || echo "    enabled: false")
 $([ -n "$KAFKA_USERNAME" ] && echo "    username: \"$KAFKA_USERNAME\"" || echo "#   username: \"\"")
@@ -812,9 +1045,12 @@ boxers:
     - name: common
       tasks:
 $([ "$ENABLE_LOGS" = true ] && echo "        - compact-logs" || echo "")
+$([ "$ENABLE_LOGS" = true ] && echo "        - ingest-logs" || echo "")
 $([ "$ENABLE_METRICS" = true ] && echo "        - compact-metrics" || echo "")
-$([ "$ENABLE_TRACES" = true ] && echo "        - compact-traces" || echo "")
+$([ "$ENABLE_METRICS" = true ] && echo "        - ingest-metrics" || echo "")
 $([ "$ENABLE_METRICS" = true ] && echo "        - rollup-metrics" || echo "")
+$([ "$ENABLE_TRACES" = true ] && echo "        - compact-traces" || echo "")
+$([ "$ENABLE_TRACES" = true ] && echo "        - ingest-traces" || echo "")
 
 sweeper:
   enabled: true
@@ -822,17 +1058,38 @@ sweeper:
 queryApi:
   enabled: true
   replicas: 1
-  temporaryStorage:
-    size: "8Gi"  # Reduce for local development
 
 queryWorker:
   enabled: true
+  temporaryStorage:
+    size: "8Gi"  # Reduce for local development
 
 # Grafana configuration
 grafana:
   enabled: true
   cardinal:
     apiKey: "$API_KEY"
+  cardinalPlugin:
+    url: "https://github.com/cardinalhq/cardinalhq-lakerunner-datasource/releases/download/$GRAFANA_PLUGIN_VERSION/cardinalhq-lakerunner-datasource.zip;cardinalhq-lakerunner-datasource"
+$([ "$INSTALL_POSTGRES" = true ] && cat << 'GRAFANA_DB'
+  env:
+    - name: GF_DATABASE_TYPE
+      value: "postgres"
+    - name: GF_DATABASE_HOST
+GRAFANA_DB
+)
+$([ "$INSTALL_POSTGRES" = true ] && echo "      value: \"postgres.$NAMESPACE.svc.cluster.local\"")
+$([ "$INSTALL_POSTGRES" = true ] && cat << 'GRAFANA_DB2'
+    - name: GF_DATABASE_NAME
+      value: "grafana"
+    - name: GF_DATABASE_USER
+      value: "lakerunner"
+    - name: GF_DATABASE_PASSWORD
+      value: "lakerunnerpass"
+    - name: GF_DATABASE_SSL_MODE
+      value: "disable"
+GRAFANA_DB2
+)
 
 # Debug container configuration
 debugger:
@@ -844,14 +1101,23 @@ EOF
 
 # Function to install Lakerunner
 install_lakerunner() {
+    if helm list -n "$NAMESPACE" -q | grep -q "^lakerunner$"; then
+        print_warning "Lakerunner is already installed. Skipping..."
+        return
+    fi
+
     print_status "Installing Lakerunner in namespace: $NAMESPACE"
+
+    # Build helm command with optional version
+    helm_cmd="helm install lakerunner oci://public.ecr.aws/cardinalhq.io/lakerunner"
+    if [ -n "$LAKERUNNER_VERSION" ]; then
+        helm_cmd="$helm_cmd --version $LAKERUNNER_VERSION"
+    fi
+    helm_cmd="$helm_cmd --values generated/lakerunner-values.yaml --namespace $NAMESPACE"
 
     # Run helm install and capture output to temp file
     helm_output_file="/tmp/helm_install_output_$$"
-    helm install lakerunner oci://public.ecr.aws/cardinalhq.io/lakerunner \
-        --version $LAKERUNNER_VERSION \
-        --values generated/lakerunner-values.yaml \
-        --namespace $NAMESPACE > "$helm_output_file" 2>&1
+    eval "$helm_cmd" > "$helm_output_file" 2>&1
     helm_exit_code=$?
     echo EXIT CODE: $helm_exit_code
     helm_output=$(cat "$helm_output_file" 2>/dev/null || echo "Failed to read helm output")
@@ -860,7 +1126,7 @@ install_lakerunner() {
         print_error "Lakerunner installation failed with exit code: $helm_exit_code"
         echo
         echo "Helm command that failed:"
-        echo "helm install lakerunner oci://public.ecr.aws/cardinalhq.io/lakerunner --version $LAKERUNNER_VERSION --values generated/lakerunner-values.yaml --namespace $NAMESPACE"
+        echo "$helm_cmd"
         echo
         echo "Error output:"
         echo "$helm_output"
@@ -890,7 +1156,7 @@ wait_for_services() {
     else
         print_status "Setup job not found (may have already completed or not needed for upgrade)"
     fi
-    wait_for_pods "Waiting for query-api service" "app.kubernetes.io/name=lakerunner,app.kubernetes.io/component=query-api-v2" "$NAMESPACE" 300 || true
+    wait_for_pods "Waiting for query-api service" "app.kubernetes.io/name=lakerunner,app.kubernetes.io/component=query-api" "$NAMESPACE" 300 || true
     wait_for_pods "Waiting for Grafana service" "app.kubernetes.io/name=lakerunner,app.kubernetes.io/component=grafana" "$NAMESPACE" 300 || true
     print_success "All services are ready in namespace: $NAMESPACE"
 }
@@ -922,17 +1188,17 @@ display_connection_info() {
     echo
     echo "Infrastructure:"
     if [ "$INSTALL_POSTGRES" = true ]; then
-        echo "  PostgreSQL: Installed"
+        echo "  PostgreSQL: Installed (demo mode)"
     fi
 
     if [ "$INSTALL_MINIO" = true ]; then
-        echo "  Storage: MinIO Installed"
+        echo "  Storage: MinIO Installed (demo mode)"
     else
         echo "  Storage: External S3 ($S3_BUCKET)"
     fi
 
     if [ "$INSTALL_KAFKA" = true ]; then
-        echo "  Kafka: Installed"
+        echo "  Kafka: Redpanda Installed (demo mode)"
     fi
 
     if [ "$ENABLE_CARDINAL_TELEMETRY" = true ]; then
@@ -963,13 +1229,13 @@ display_connection_info() {
 
     # MinIO Console Access (only if MinIO was installed)
     if [ "$INSTALL_MINIO" = true ]; then
-        # Get MinIO credentials
-        MINIO_ACCESS_KEY=$(kubectl get secret minio -n "$NAMESPACE" -o jsonpath="{.data.root-user}" 2>/dev/null | base64 --decode 2>/dev/null || echo "minioadmin")
-        MINIO_SECRET_KEY=$(kubectl get secret minio -n "$NAMESPACE" -o jsonpath="{.data.root-password}" 2>/dev/null | base64 --decode 2>/dev/null || echo "minioadmin")
+        # Get MinIO credentials (official MinIO chart uses rootUser/rootPassword keys)
+        MINIO_ACCESS_KEY=$(kubectl get secret minio -n "$NAMESPACE" -o jsonpath="{.data.rootUser}" 2>/dev/null | base64 --decode 2>/dev/null || echo "minioadmin")
+        MINIO_SECRET_KEY=$(kubectl get secret minio -n "$NAMESPACE" -o jsonpath="{.data.rootPassword}" 2>/dev/null | base64 --decode 2>/dev/null || echo "minioadmin")
 
         echo "=== MinIO Console Access ==="
         echo "To access MinIO Console:"
-        echo "  kubectl port-forward svc/minio-console 9001:9090 -n $NAMESPACE"
+        echo "  kubectl port-forward svc/minio-console 9001:9001 -n $NAMESPACE"
         echo "  Then visit: http://localhost:9001"
         echo "  Access Key: $MINIO_ACCESS_KEY"
         echo "  Secret Key: $MINIO_SECRET_KEY"
@@ -1015,8 +1281,11 @@ display_connection_info() {
     echo "=== Generated Values Files ==="
     echo "Configuration files have been generated in the ./generated/ directory:"
     echo "  - lakerunner-values.yaml: Main Lakerunner configuration"
+    if [ "$INSTALL_POSTGRES" = true ]; then
+        echo "  - postgres-manifests.yaml: PostgreSQL Kubernetes manifests"
+    fi
     if [ "$INSTALL_KAFKA" = true ]; then
-        echo "  - kafka-values.yaml: Kafka configuration"
+        echo "  - redpanda-manifests.yaml: Redpanda Kubernetes manifests"
     fi
     if [ "$INSTALL_OTEL_DEMO" = true ]; then
         echo "  - otel-demo-values.yaml: OpenTelemetry demo configuration"
@@ -1086,19 +1355,19 @@ display_configuration_summary() {
 
     echo "Infrastructure Configuration:"
     if [ "$INSTALL_POSTGRES" = true ]; then
-        echo "  PostgreSQL: Local installation"
+        echo "  PostgreSQL: Local (demo mode - no redundancy)"
     else
         echo "  PostgreSQL: External ($POSTGRES_HOST:$POSTGRES_PORT/$POSTGRES_DB)"
     fi
 
     if [ "$INSTALL_MINIO" = true ]; then
-        echo "  Storage: Local MinIO"
+        echo "  Storage: Local MinIO (demo mode - no redundancy)"
     else
         echo "  Storage: External S3 ($S3_BUCKET)"
     fi
 
     if [ "$INSTALL_KAFKA" = true ]; then
-        echo "  Kafka: Local installation"
+        echo "  Kafka: Local Redpanda (demo mode - no redundancy)"
     else
         echo "  Kafka: External ($KAFKA_BOOTSTRAP_SERVERS)"
     fi
@@ -1169,9 +1438,9 @@ generate_otel_demo_values() {
 
     # Set credentials based on whether MinIO is installed
     if [ "$INSTALL_MINIO" = true ]; then
-        # Get MinIO credentials
-        ACCESS_KEY=$(kubectl get secret minio -n "$NAMESPACE" -o jsonpath="{.data.root-user}" 2>/dev/null | base64 --decode 2>/dev/null || echo "minioadmin")
-        SECRET_KEY=$(kubectl get secret minio -n "$NAMESPACE" -o jsonpath="{.data.root-password}" 2>/dev/null | base64 --decode 2>/dev/null || echo "minioadmin")
+        # Get MinIO credentials (official MinIO chart uses rootUser/rootPassword keys)
+        ACCESS_KEY=$(kubectl get secret minio -n "$NAMESPACE" -o jsonpath="{.data.rootUser}" 2>/dev/null | base64 --decode 2>/dev/null || echo "minioadmin")
+        SECRET_KEY=$(kubectl get secret minio -n "$NAMESPACE" -o jsonpath="{.data.rootPassword}" 2>/dev/null | base64 --decode 2>/dev/null || echo "minioadmin")
         BUCKET_NAME=${S3_BUCKET:-lakerunner}
     else
         # Use external S3 credentials
@@ -1297,17 +1566,29 @@ setup_minio_webhooks() {
     if [ "$INSTALL_MINIO" = true ]; then
         print_status "Setting up MinIO webhooks for Lakerunner event notifications..."
 
-        # Check if bucket exists - it should already be created by defaultBuckets setting
-        MINIO_ACCESS_KEY=$(kubectl get secret minio -n "$NAMESPACE" -o jsonpath="{.data.root-user}" 2>/dev/null | base64 --decode 2>/dev/null || echo "minioadmin")
-        MINIO_SECRET_KEY=$(kubectl get secret minio -n "$NAMESPACE" -o jsonpath="{.data.root-password}" 2>/dev/null | base64 --decode 2>/dev/null || echo "minioadmin")
+        # Get MinIO credentials from secret (official MinIO chart uses rootUser/rootPassword keys)
+        MINIO_ACCESS_KEY=$(kubectl get secret minio -n "$NAMESPACE" -o jsonpath="{.data.rootUser}" 2>/dev/null | base64 --decode 2>/dev/null || echo "minioadmin")
+        MINIO_SECRET_KEY=$(kubectl get secret minio -n "$NAMESPACE" -o jsonpath="{.data.rootPassword}" 2>/dev/null | base64 --decode 2>/dev/null || echo "minioadmin")
         S3_BUCKET=${S3_BUCKET:-lakerunner}
 
-        kubectl exec -n "$NAMESPACE" deployment/minio -- mc alias set minio http://localhost:9000 $MINIO_ACCESS_KEY $MINIO_SECRET_KEY >/dev/null 2>&1
+        # Get the MinIO pod name (official MinIO chart uses statefulset or deployment)
+        MINIO_POD=$(kubectl get pods -n "$NAMESPACE" -l app=minio -o jsonpath="{.items[0].metadata.name}" 2>/dev/null)
+        if [ -z "$MINIO_POD" ]; then
+            print_warning "Could not find MinIO pod, trying alternative selector..."
+            MINIO_POD=$(kubectl get pods -n "$NAMESPACE" -l app.kubernetes.io/name=minio -o jsonpath="{.items[0].metadata.name}" 2>/dev/null)
+        fi
 
-        if ! kubectl exec -n "$NAMESPACE" deployment/minio -- mc ls minio/$S3_BUCKET >/dev/null 2>&1; then
+        if [ -z "$MINIO_POD" ]; then
+            print_error "Could not find MinIO pod. Skipping webhook setup."
+            return
+        fi
+
+        kubectl exec -n "$NAMESPACE" "$MINIO_POD" -- mc alias set minio http://localhost:9000 $MINIO_ACCESS_KEY $MINIO_SECRET_KEY >/dev/null 2>&1
+
+        if ! kubectl exec -n "$NAMESPACE" "$MINIO_POD" -- mc ls minio/$S3_BUCKET >/dev/null 2>&1; then
             print_warning "$S3_BUCKET bucket does not exist. This should have been created automatically."
             print_status "Attempting to create bucket manually..."
-            if kubectl exec -n "$NAMESPACE" deployment/minio -- mc mb minio/$S3_BUCKET 2>/dev/null; then
+            if kubectl exec -n "$NAMESPACE" "$MINIO_POD" -- mc mb minio/$S3_BUCKET 2>/dev/null; then
                 print_success "$S3_BUCKET bucket created successfully"
             else
                 print_warning "Failed to create bucket manually, but continuing (may already exist)"
@@ -1318,31 +1599,37 @@ setup_minio_webhooks() {
 
         # Configure webhook notifications
         print_status "Configuring MinIO webhook notifications..."
-        if kubectl exec -n "$NAMESPACE" deployment/minio -- mc admin config set minio notify_webhook:create_object endpoint="http://lakerunner-pubsub-http.$NAMESPACE.svc.cluster.local:8080/" 2>/dev/null; then
+        if kubectl exec -n "$NAMESPACE" "$MINIO_POD" -- mc admin config set minio notify_webhook:create_object endpoint="http://lakerunner-pubsub-http.$NAMESPACE.svc.cluster.local:8080/" 2>/dev/null; then
             print_success "Webhook configuration set successfully"
         else
             print_warning "Failed to set webhook configuration, continuing..."
         fi
 
         print_status "Restarting MinIO to apply configuration..."
-        kubectl rollout restart deployment/minio -n "$NAMESPACE" >/dev/null 2>&1
+        # Delete the pod directly to restart (rollout restart doesn't work with ReadWriteOnce PVC)
+        kubectl delete pod "$MINIO_POD" -n "$NAMESPACE" >/dev/null 2>&1
 
-        show_progress "Waiting for MinIO to restart" "kubectl rollout status deployment/minio -n '$NAMESPACE' --timeout=300s"
-
-        # Wait a bit more for MinIO to be fully ready
+        # Wait for new pod to be ready
         sleep 5
+        wait_for_pods "Waiting for MinIO to restart" "app=minio" "$NAMESPACE" 120
         print_success "MinIO restarted successfully"
+
+        # Get the new pod name after restart
+        MINIO_POD=$(kubectl get pods -n "$NAMESPACE" -l app=minio -o jsonpath="{.items[0].metadata.name}" 2>/dev/null)
+        if [ -z "$MINIO_POD" ]; then
+            MINIO_POD=$(kubectl get pods -n "$NAMESPACE" -l app.kubernetes.io/name=minio -o jsonpath="{.items[0].metadata.name}" 2>/dev/null)
+        fi
 
         # Re-setup mc alias after pod restart
         print_status "Re-establishing MinIO connection..."
-        kubectl exec -n "$NAMESPACE" deployment/minio -- mc alias set minio http://localhost:9000 $MINIO_ACCESS_KEY $MINIO_SECRET_KEY >/dev/null 2>&1
+        kubectl exec -n "$NAMESPACE" "$MINIO_POD" -- mc alias set minio http://localhost:9000 $MINIO_ACCESS_KEY $MINIO_SECRET_KEY >/dev/null 2>&1
 
         # Add event notifications for different telemetry types
         print_status "Setting up event notifications..."
-        kubectl exec -n "$NAMESPACE" deployment/minio -- mc event add --event "put" minio/$S3_BUCKET arn:minio:sqs::create_object:webhook --prefix "logs-raw" 2>/dev/null || print_warning "Failed to add logs-raw event notification"
-        kubectl exec -n "$NAMESPACE" deployment/minio -- mc event add --event "put" minio/$S3_BUCKET arn:minio:sqs::create_object:webhook --prefix "metrics-raw" 2>/dev/null || print_warning "Failed to add metrics-raw event notification"
-        kubectl exec -n "$NAMESPACE" deployment/minio -- mc event add --event "put" minio/$S3_BUCKET arn:minio:sqs::create_object:webhook --prefix "traces-raw" 2>/dev/null || print_warning "Failed to add traces-raw event notification"
-        kubectl exec -n "$NAMESPACE" deployment/minio -- mc event add --event "put" minio/$S3_BUCKET arn:minio:sqs::create_object:webhook --prefix "otel-raw" 2>/dev/null || print_warning "Failed to add otel-raw event notification"
+        kubectl exec -n "$NAMESPACE" "$MINIO_POD" -- mc event add --event "put" minio/$S3_BUCKET arn:minio:sqs::create_object:webhook --prefix "logs-raw" 2>/dev/null || print_warning "Failed to add logs-raw event notification"
+        kubectl exec -n "$NAMESPACE" "$MINIO_POD" -- mc event add --event "put" minio/$S3_BUCKET arn:minio:sqs::create_object:webhook --prefix "metrics-raw" 2>/dev/null || print_warning "Failed to add metrics-raw event notification"
+        kubectl exec -n "$NAMESPACE" "$MINIO_POD" -- mc event add --event "put" minio/$S3_BUCKET arn:minio:sqs::create_object:webhook --prefix "traces-raw" 2>/dev/null || print_warning "Failed to add traces-raw event notification"
+        kubectl exec -n "$NAMESPACE" "$MINIO_POD" -- mc event add --event "put" minio/$S3_BUCKET arn:minio:sqs::create_object:webhook --prefix "otel-raw" 2>/dev/null || print_warning "Failed to add otel-raw event notification"
 
         print_success "MinIO webhooks configured successfully for Lakerunner event notifications"
     else
@@ -1357,10 +1644,17 @@ install_otel_demo() {
         # Check if configured bucket exists (required for OTEL demo to work)
         if [ "$INSTALL_MINIO" = true ]; then
             print_status "Checking if $S3_BUCKET bucket exists in MinIO..."
-            MINIO_ACCESS_KEY=$(kubectl get secret minio -n "$NAMESPACE" -o jsonpath="{.data.root-user}" 2>/dev/null | base64 --decode 2>/dev/null || echo "minioadmin")
-            MINIO_SECRET_KEY=$(kubectl get secret minio -n "$NAMESPACE" -o jsonpath="{.data.root-password}" 2>/dev/null | base64 --decode 2>/dev/null || echo "minioadmin")
-            kubectl exec -n "$NAMESPACE" deployment/minio -- mc alias set minio http://localhost:9000 $MINIO_ACCESS_KEY $MINIO_SECRET_KEY >/dev/null 2>&1
-            if ! kubectl exec -n "$NAMESPACE" deployment/minio -- mc ls minio/$S3_BUCKET >/dev/null 2>&1; then
+            MINIO_ACCESS_KEY=$(kubectl get secret minio -n "$NAMESPACE" -o jsonpath="{.data.rootUser}" 2>/dev/null | base64 --decode 2>/dev/null || echo "minioadmin")
+            MINIO_SECRET_KEY=$(kubectl get secret minio -n "$NAMESPACE" -o jsonpath="{.data.rootPassword}" 2>/dev/null | base64 --decode 2>/dev/null || echo "minioadmin")
+
+            # Get the MinIO pod name
+            MINIO_POD=$(kubectl get pods -n "$NAMESPACE" -l app=minio -o jsonpath="{.items[0].metadata.name}" 2>/dev/null)
+            if [ -z "$MINIO_POD" ]; then
+                MINIO_POD=$(kubectl get pods -n "$NAMESPACE" -l app.kubernetes.io/name=minio -o jsonpath="{.items[0].metadata.name}" 2>/dev/null)
+            fi
+
+            kubectl exec -n "$NAMESPACE" "$MINIO_POD" -- mc alias set minio http://localhost:9000 $MINIO_ACCESS_KEY $MINIO_SECRET_KEY >/dev/null 2>&1
+            if ! kubectl exec -n "$NAMESPACE" "$MINIO_POD" -- mc ls minio/$S3_BUCKET >/dev/null 2>&1; then
                 print_error "$S3_BUCKET bucket does not exist. MinIO setup may have failed."
                 exit 1
             fi
@@ -1473,7 +1767,7 @@ show_help() {
     echo "                            By default, helm output is hidden to reduce noise"
     echo "  --debug-psql-pod          Enable PostgreSQL debugging container with psql client"
     echo "                            Deploys a pod with database access for troubleshooting"
-    echo "  --version VERSION         Override the Lakerunner helm chart version"
+    echo "  --version VERSION         Pin a specific Lakerunner helm chart version (default: latest)"
     echo "  --help, -h               Show this help message"
     echo
 }
@@ -1660,7 +1954,17 @@ main() {
     print_status "Starting installation process..."
 
     # Ensure namespace exists before installing anything
-    kubectl get namespace "$NAMESPACE" >/dev/null 2>&1 || kubectl create namespace "$NAMESPACE" >/dev/null 2>&1
+    if ! kubectl get namespace "$NAMESPACE" >/dev/null 2>&1; then
+        kubectl create namespace "$NAMESPACE" >/dev/null 2>&1
+        # Set PodSecurity labels to baseline (allows infrastructure components to run)
+        kubectl label namespace "$NAMESPACE" \
+            pod-security.kubernetes.io/enforce=baseline \
+            pod-security.kubernetes.io/enforce-version=latest \
+            pod-security.kubernetes.io/warn=baseline \
+            pod-security.kubernetes.io/warn-version=latest \
+            --overwrite >/dev/null 2>&1
+        print_status "Created namespace $NAMESPACE with baseline PodSecurity policy"
+    fi
 
     install_minio
     install_postgresql
