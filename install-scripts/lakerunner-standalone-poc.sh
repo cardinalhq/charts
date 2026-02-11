@@ -1274,6 +1274,10 @@ wait_for_services() {
     # Check if setup job exists and wait for it to complete
     if kubectl get job lakerunner-setup -n "$NAMESPACE" >/dev/null 2>&1; then
         show_progress "Waiting for setup job to complete" "kubectl wait --for=condition=complete job/lakerunner-setup -n '$NAMESPACE' --timeout=600s" 600
+        # Restart boxer to pick up Kafka topics created by setup job
+        print_status "Restarting boxer to pick up Kafka topics..."
+        kubectl rollout restart deployment/lakerunner-boxer-common -n "$NAMESPACE" 2>/dev/null || true
+        kubectl rollout status deployment/lakerunner-boxer-common -n "$NAMESPACE" --timeout=120s 2>/dev/null || true
     else
         print_status "Setup job not found (may have already completed or not needed for upgrade)"
     fi
