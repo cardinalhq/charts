@@ -1110,7 +1110,11 @@ global:
     mode: disabled
   env:
     - name: OTEL_EXPORTER_OTLP_ENDPOINT
-      value: "http://otel-collector.$NAMESPACE.svc.cluster.local:4317"
+      value: "http://otel-collector.$NAMESPACE.svc.cluster.local:4318"
+    - name: ENABLE_OTLP_TELEMETRY
+      value: "true"
+    - name: OTEL_METRIC_EXPORT_INTERVAL
+      value: "10000"
 
 # PubSub configuration
 pubsub:
