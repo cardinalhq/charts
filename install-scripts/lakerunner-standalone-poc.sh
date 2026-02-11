@@ -299,7 +299,7 @@ get_input() {
 }
 
 get_namespace() {
-    local default_namespace="lakerunner"
+    local default_namespace="lakerunner-demo"
 
     echo
     echo "=== Namespace Configuration ==="
@@ -439,28 +439,6 @@ get_telemetry_preferences() {
         ENABLE_TRACES=true
     fi
 
-    echo
-    echo "=== Cardinal Telemetry Collection ==="
-    echo "Lakerunner can send <0.1% of telemetry data to Cardinal for automatic intelligent alerts."
-    echo "This helps improve the product and provides proactive monitoring."
-    echo
-
-    if [ -n "$LAKERUNNER_CARDINAL_APIKEY" ]; then
-        ENABLE_CARDINAL_TELEMETRY=true
-        CARDINAL_API_KEY="$LAKERUNNER_CARDINAL_APIKEY"
-        print_status "Cardinal telemetry collection enabled (using LAKERUNNER_CARDINAL_APIKEY)"
-    else
-        get_input "Would you like to enable Cardinal telemetry collection? (y/N)" "N" "ENABLE_CARDINAL_TELEMETRY"
-
-        if [[ "$ENABLE_CARDINAL_TELEMETRY" =~ ^[Yy]$ ]]; then
-            ENABLE_CARDINAL_TELEMETRY=true
-            print_status "Cardinal telemetry collection enabled"
-            get_cardinal_api_key
-        else
-            ENABLE_CARDINAL_TELEMETRY=false
-            print_status "Cardinal telemetry collection disabled"
-        fi
-    fi
 }
 
 get_lakerunner_credentials() {
@@ -473,36 +451,6 @@ get_lakerunner_credentials() {
     get_input "Enter API key (or press Enter for default)" "test-key" "API_KEY"
 }
 
-get_cardinal_api_key() {
-    print_status "To enable Cardinal telemetry, you need to create a Cardinal API key."
-    print_status "Please follow these steps:"
-    echo
-    print_status "1. Open your browser and go to: ${BLUE}https://app.cardinalhq.io${NC}"
-    print_status "2. Sign up or log in to your account"
-    print_status "3. Navigate to the API Keys section"
-    print_status "4. Create a new API key"
-    print_status "5. Copy the API key"
-    echo
-    print_warning "The API key will be stored in lakerunner-values.yaml. Keep it secure!"
-    echo
-
-    while true; do
-        read -s -p "Enter your Cardinal API key: " api_key
-        echo
-
-        if [[ -n "$api_key" ]]; then
-            # Validate API key format (basic check)
-            if [[ "$api_key" =~ ^[a-zA-Z0-9_-]+$ ]]; then
-                CARDINAL_API_KEY="$api_key"
-                break
-            else
-                print_error "Invalid API key format. Please enter a valid API key."
-            fi
-        else
-            print_error "API key cannot be empty. Please enter a valid API key."
-        fi
-    done
-}
 
 generate_random_string() {
     if command -v openssl >/dev/null 2>&1; then
@@ -888,6 +836,177 @@ install_kafka() {
 }
 
 
+generate_collector_manifests() {
+    print_status "Generating OpenTelemetry Collector manifests..."
+
+    mkdir -p generated
+
+    cat > generated/otel-collector-manifests.yaml << EOF
+---
+# ConfigMap for OpenTelemetry Collector configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: otel-collector-config
+  labels:
+    app: otel-collector
+data:
+  config.yaml: |
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
+    processors:
+      batch:
+        timeout: 10s
+    exporters:
+      awss3:
+        marshaler: otlp_proto
+        s3uploader:
+          region: "us-east-1"
+          s3_bucket: "$BUCKET_NAME"
+          s3_prefix: "otel-raw/$ORG_ID/lakerunner"
+          endpoint: "http://minio.$NAMESPACE.svc.cluster.local:9000"
+          s3_force_path_style: true
+          disable_ssl: true
+          compression: gzip
+      debug:
+        verbosity: basic
+    service:
+      pipelines:
+        traces:
+          receivers: [otlp]
+          processors: [batch]
+          exporters: [awss3]
+        metrics:
+          receivers: [otlp]
+          processors: [batch]
+          exporters: [awss3]
+        logs:
+          receivers: [otlp]
+          processors: [batch]
+          exporters: [awss3]
+      telemetry:
+        logs:
+          level: info
+---
+# Secret for S3 credentials
+apiVersion: v1
+kind: Secret
+metadata:
+  name: otel-collector-s3-credentials
+  labels:
+    app: otel-collector
+type: Opaque
+stringData:
+  AWS_ACCESS_KEY_ID: "$ACCESS_KEY"
+  AWS_SECRET_ACCESS_KEY: "$SECRET_KEY"
+---
+# Deployment for OpenTelemetry Collector
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: otel-collector
+  labels:
+    app: otel-collector
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: otel-collector
+  template:
+    metadata:
+      labels:
+        app: otel-collector
+    spec:
+      containers:
+        - name: otel-collector
+          image: otel/opentelemetry-collector-contrib:0.143.0
+          args:
+            - --config=/etc/otelcol/config.yaml
+          ports:
+            - containerPort: 4317
+              name: otlp-grpc
+            - containerPort: 4318
+              name: otlp-http
+          envFrom:
+            - secretRef:
+                name: otel-collector-s3-credentials
+          volumeMounts:
+            - name: config
+              mountPath: /etc/otelcol
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+      volumes:
+        - name: config
+          configMap:
+            name: otel-collector-config
+---
+# Service for OpenTelemetry Collector
+apiVersion: v1
+kind: Service
+metadata:
+  name: otel-collector
+  labels:
+    app: otel-collector
+spec:
+  type: ClusterIP
+  ports:
+    - port: 4317
+      targetPort: 4317
+      protocol: TCP
+      name: otlp-grpc
+    - port: 4318
+      targetPort: 4318
+      protocol: TCP
+      name: otlp-http
+  selector:
+    app: otel-collector
+EOF
+
+    print_success "generated/otel-collector-manifests.yaml generated successfully"
+}
+
+
+install_collector() {
+    print_status "Installing OpenTelemetry Collector (demo mode - no redundancy)..."
+
+    # Check if collector is already installed
+    if kubectl get deployment otel-collector -n "$NAMESPACE" >/dev/null 2>&1; then
+        print_warning "OpenTelemetry Collector is already installed. Skipping..."
+        return
+    fi
+
+    # Get S3/MinIO credentials and bucket name
+    if [ "$INSTALL_MINIO" = true ]; then
+        ACCESS_KEY=$(kubectl get secret minio -n "$NAMESPACE" -o jsonpath="{.data.rootUser}" 2>/dev/null | base64 --decode 2>/dev/null || echo "minioadmin")
+        SECRET_KEY=$(kubectl get secret minio -n "$NAMESPACE" -o jsonpath="{.data.rootPassword}" 2>/dev/null | base64 --decode 2>/dev/null || echo "minioadmin")
+        BUCKET_NAME=${S3_BUCKET:-lakerunner}
+    else
+        ACCESS_KEY="$S3_ACCESS_KEY"
+        SECRET_KEY="$S3_SECRET_KEY"
+        BUCKET_NAME="$S3_BUCKET"
+    fi
+
+    # Generate and apply manifests
+    generate_collector_manifests
+
+    kubectl apply -f generated/otel-collector-manifests.yaml -n "$NAMESPACE" | output_redirect
+
+    wait_for_pods "Waiting for OpenTelemetry Collector to be ready" "app=otel-collector" "$NAMESPACE" 120
+
+    print_success "OpenTelemetry Collector installed successfully"
+}
+
+
 generate_values_file() {
     print_status "Generating lakerunner-values.yaml..."
 
@@ -989,10 +1108,9 @@ global:
     enabled: false # for a POC local install, this allows the components to use whatever they need.
   autoscaling:
     mode: disabled
-$([ "$ENABLE_CARDINAL_TELEMETRY" = true ] && echo "  # Cardinal telemetry configuration" || echo "  # Cardinal telemetry configuration (disabled)")
-$([ "$ENABLE_CARDINAL_TELEMETRY" = true ] && echo "  cardinal:" || echo "  # cardinal:")
-$([ "$ENABLE_CARDINAL_TELEMETRY" = true ] && echo "    apiKey: \"$CARDINAL_API_KEY\"" || echo "  #   apiKey: \"\"")
-$([ "$ENABLE_CARDINAL_TELEMETRY" = true ] && [ -n "$LAKERUNNER_CARDINAL_ENV" ] && echo "    env: \"$LAKERUNNER_CARDINAL_ENV\"" || echo "")
+  env:
+    - name: OTEL_EXPORTER_OTLP_ENDPOINT
+      value: "http://otel-collector.$NAMESPACE.svc.cluster.local:4317"
 
 # PubSub configuration
 pubsub:
@@ -1005,8 +1123,7 @@ pubsub:
     $([ "$USE_SQS" = true ] && echo "region: \"$SQS_REGION\"" || echo "# region: \"\"")
 
 collector:
-  enabled: $([ "$ENABLE_CARDINAL_TELEMETRY" = true ] && echo "true" || echo "false")
-  replicas: 1
+  enabled: false
 #   resources:
 #     requests:
 #       cpu: 2000m
@@ -1200,29 +1317,17 @@ display_connection_info() {
     if [ "$INSTALL_KAFKA" = true ]; then
         echo "  Kafka: Redpanda Installed (demo mode)"
     fi
-
-    if [ "$ENABLE_CARDINAL_TELEMETRY" = true ]; then
-        echo "  Cardinal Telemetry: Enabled"
-        # Check if we're in test mode based on the environment variable
-        if [ -n "$LAKERUNNER_CARDINAL_ENV" ] && [ "$LAKERUNNER_CARDINAL_ENV" = "test" ]; then
-            echo "  Cardinal Dashboard: https://app.test.cardinalhq.io"
-        else
-            echo "  Cardinal Dashboard: https://app.cardinalhq.io"
-        fi
-    else
-        echo "  Cardinal Telemetry: Disabled"
-    fi
     echo
 
     # Demo App Information (only if installed)
     if [ "$INSTALL_OTEL_DEMO" = true ]; then
         echo "=== Demo Applications ==="
-        echo "OpenTelemetry demo applications have been installed in the 'otel-demo' namespace."
+        echo "OpenTelemetry demo applications have been installed in the '$NAMESPACE' namespace."
         echo "These apps generate sample telemetry data for testing Lakerunner functionality."
         echo
         echo "To access the demo applications:"
-        echo "  kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=frontend-proxy -n otel-demo --timeout=300s"
-        echo "  kubectl port-forward svc/frontend-proxy 8080:8080 -n otel-demo"
+        echo "  kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=frontend-proxy -n $NAMESPACE --timeout=300s"
+        echo "  kubectl port-forward svc/frontend-proxy 8080:8080 -n $NAMESPACE"
         echo "  Then visit: http://localhost:8080"
         echo
     fi
@@ -1332,9 +1437,9 @@ ask_install_otel_demo() {
     echo "logs, metrics, and traces to demonstrate Lakerunner in action."
     echo
 
-    get_input "Install OTEL demo apps? (Y/n)" "Y" "INSTALL_OTEL_DEMO"
+    get_input "Install OTEL demo apps? (y/N)" "N" "INSTALL_OTEL_DEMO"
 
-    if [[ "$INSTALL_OTEL_DEMO" =~ ^[Yy]$ ]] || [ -z "$INSTALL_OTEL_DEMO" ]; then
+    if [[ "$INSTALL_OTEL_DEMO" =~ ^[Yy]$ ]]; then
         INSTALL_OTEL_DEMO=true
         print_status "Will install OpenTelemetry demo apps"
     else
@@ -1394,12 +1499,6 @@ display_configuration_summary() {
         echo "  Traces: Enabled"
     else
         echo "  Traces: Disabled"
-    fi
-
-    if [ "$ENABLE_CARDINAL_TELEMETRY" = true ]; then
-        echo "  Cardinal Telemetry: Enabled"
-    else
-        echo "  Cardinal Telemetry: Disabled"
     fi
     echo
 
@@ -1624,11 +1723,8 @@ setup_minio_webhooks() {
         print_status "Re-establishing MinIO connection..."
         kubectl exec -n "$NAMESPACE" "$MINIO_POD" -- mc alias set minio http://localhost:9000 $MINIO_ACCESS_KEY $MINIO_SECRET_KEY >/dev/null 2>&1
 
-        # Add event notifications for different telemetry types
+        # Add event notification for otel-raw prefix
         print_status "Setting up event notifications..."
-        kubectl exec -n "$NAMESPACE" "$MINIO_POD" -- mc event add --event "put" minio/$S3_BUCKET arn:minio:sqs::create_object:webhook --prefix "logs-raw" 2>/dev/null || print_warning "Failed to add logs-raw event notification"
-        kubectl exec -n "$NAMESPACE" "$MINIO_POD" -- mc event add --event "put" minio/$S3_BUCKET arn:minio:sqs::create_object:webhook --prefix "metrics-raw" 2>/dev/null || print_warning "Failed to add metrics-raw event notification"
-        kubectl exec -n "$NAMESPACE" "$MINIO_POD" -- mc event add --event "put" minio/$S3_BUCKET arn:minio:sqs::create_object:webhook --prefix "traces-raw" 2>/dev/null || print_warning "Failed to add traces-raw event notification"
         kubectl exec -n "$NAMESPACE" "$MINIO_POD" -- mc event add --event "put" minio/$S3_BUCKET arn:minio:sqs::create_object:webhook --prefix "otel-raw" 2>/dev/null || print_warning "Failed to add otel-raw event notification"
 
         print_success "MinIO webhooks configured successfully for Lakerunner event notifications"
@@ -1663,22 +1759,28 @@ install_otel_demo() {
             print_warning "The OTEL demo apps will fail if the bucket doesn't exist."
         fi
 
-        kubectl get namespace "otel-demo" >/dev/null 2>&1 || kubectl create namespace "otel-demo" >/dev/null 2>&1
-
         # Add OpenTelemetry Helm repository
         if [ "$SKIP_HELM_REPO_UPDATES" != true ]; then
             helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts 2>/dev/null || true
             helm repo update >/dev/null  2>&1
         fi
 
-        helm upgrade --install otel-demo open-telemetry/opentelemetry-demo \
-            --namespace otel-demo \
-            --values generated/otel-demo-values.yaml | output_redirect
-
-        print_success "OpenTelemetry demo apps installed successfully"
+        local helm_output
+        if helm_output=$(helm upgrade --install otel-demo open-telemetry/opentelemetry-demo \
+            --namespace "$NAMESPACE" \
+            --values generated/otel-demo-values.yaml 2>&1); then
+            [ "$VERBOSE" = true ] && echo "$helm_output"
+            print_success "OpenTelemetry demo apps installed successfully"
+        else
+            print_error "Failed to install OpenTelemetry demo apps"
+            echo "$helm_output"
+            print_warning "This may be due to cluster-scoped resources from a previous installation"
+            print_warning "Try: kubectl delete clusterrole otel-collector && kubectl delete clusterrolebinding otel-collector"
+            return 1
+        fi
         echo
         echo "=== OpenTelemetry Demo Apps ==="
-        echo "Demo applications have been installed in the 'otel-demo' namespace."
+        echo "Demo applications have been installed in the '$NAMESPACE' namespace."
         echo "These apps will generate sample telemetry data that will be:"
         echo "1. Collected by the OpenTelemetry Collector"
         echo "2. Exported to object storage"
@@ -1686,8 +1788,8 @@ install_otel_demo() {
         echo "4. Available in Grafana dashboard"
         echo
         echo "To access the demo applications, run the following:"
-        echo " kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=frontend-proxy -n otel-demo --timeout=300s "
-        echo " kubectl port-forward svc/frontend-proxy 8080:8080 -n otel-demo "
+        echo " kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=frontend-proxy -n $NAMESPACE --timeout=300s "
+        echo " kubectl port-forward svc/frontend-proxy 8080:8080 -n $NAMESPACE "
         echo "Then visit http://localhost:8080"
         echo "The demo apps will continuously generate logs, metrics, and traces"
         echo "that will flow through Lakerunner for processing and analysis."
@@ -1759,7 +1861,7 @@ show_help() {
     echo "  --standalone              Install in standalone mode with minimal interaction"
     echo "                            Automatically enables logs and metrics, installs all"
     echo "                            local infrastructure (PostgreSQL, MinIO, Kafka)"
-    echo "                            Uses default namespace 'lakerunner' and default credentials"
+    echo "                            Uses default namespace 'lakerunner-demo' and default credentials"
     echo "  --skip-helm-repo-updates  Skip running 'helm repo update' commands during installation"
     echo "                            Useful when helm repos are already up to date or when"
     echo "                            working in environments with restricted network access"
@@ -1834,7 +1936,7 @@ configure_standalone() {
     print_status "Configuring standalone installation..."
 
     # Namespace
-    NAMESPACE="lakerunner"
+    NAMESPACE="lakerunner-demo"
 
     # Infrastructure - install everything locally
     INSTALL_POSTGRES=true
@@ -1861,33 +1963,8 @@ configure_standalone() {
     ORG_ID="151f346b-967e-4c94-b97a-581898b5b457"
     API_KEY="test-key"
 
-    # Cardinal telemetry - check environment variable or ask user
-    if [ -n "$LAKERUNNER_CARDINAL_APIKEY" ]; then
-        ENABLE_CARDINAL_TELEMETRY=true
-        CARDINAL_API_KEY="$LAKERUNNER_CARDINAL_APIKEY"
-        print_status "Cardinal telemetry enabled (using LAKERUNNER_CARDINAL_APIKEY)"
-    else
-        # Ask user about Cardinal telemetry even in standalone mode
-        echo
-        echo "=== Cardinal Telemetry Collection ==="
-        echo "Lakerunner can send <0.1% of telemetry data to Cardinal for automatic intelligent alerts."
-        echo "This helps improve the product and provides proactive monitoring."
-        echo
-
-        get_input "Would you like to enable Cardinal telemetry collection? (y/N)" "N" "ENABLE_CARDINAL_TELEMETRY"
-
-        if [[ "$ENABLE_CARDINAL_TELEMETRY" =~ ^[Yy]$ ]]; then
-            ENABLE_CARDINAL_TELEMETRY=true
-            print_status "Cardinal telemetry collection enabled"
-            get_cardinal_api_key
-        else
-            ENABLE_CARDINAL_TELEMETRY=false
-            print_status "Cardinal telemetry collection disabled"
-        fi
-    fi
-
-    # Demo apps - install by default in standalone mode
-    INSTALL_OTEL_DEMO=true
+    # Demo apps - disabled by default in standalone mode
+    INSTALL_OTEL_DEMO=false
 
     print_status "Standalone mode configured:"
     print_status "  Namespace: $NAMESPACE"
@@ -1907,7 +1984,6 @@ configure_standalone() {
 
     print_status "  Telemetry: $telemetry_status"
     print_status "  Demo apps: Enabled"
-    print_status "  Cardinal telemetry: $([ "$ENABLE_CARDINAL_TELEMETRY" = true ] && echo "Enabled" || echo "Disabled")"
     print_status "  Debug pod: $([ "$ENABLE_DEBUG_POD" = true ] && echo "Enabled" || echo "Disabled")"
 }
 
@@ -1969,6 +2045,7 @@ main() {
     install_minio
     install_postgresql
     install_kafka
+    install_collector
 
     generate_values_file
 
