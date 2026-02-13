@@ -3,13 +3,13 @@
 CHART_NAME := lakerunner
 TEST_RELEASE_NAME := test-release
 
-.PHONY: help test check lint template unittest clean package publish
+.PHONY: help test check lint template unittest clean package publish verify-icon
 
 help:  ## Show this help message
 	@echo "Available targets:"
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2}'
 
-test: lint template unittest  ## Run all tests (Layer 1 + Layer 2)
+test: lint template unittest verify-icon  ## Run all tests (Layer 1 + Layer 2)
 
 check: test  ## Alias for test - run lints and tests
 
@@ -31,6 +31,21 @@ template:  ## Test template rendering with various configurations
 unittest:  ## Run helm unittest tests
 	@echo "Running unit tests..."
 	helm unittest . -v tests/test-values.yaml
+
+verify-icon:  ## Verify chart icon URL is accessible
+	@echo "Verifying chart icon URL..."
+	@ICON_URL=$$(yq e '.icon' Chart.yaml); \
+	if [ -z "$$ICON_URL" ] || [ "$$ICON_URL" = "null" ]; then \
+		echo "Warning: No icon URL defined in Chart.yaml"; \
+	else \
+		HTTP_CODE=$$(curl -s -o /dev/null -w "%{http_code}" --head "$$ICON_URL"); \
+		if [ "$$HTTP_CODE" = "200" ]; then \
+			echo "Icon URL verified: $$ICON_URL"; \
+		else \
+			echo "Error: Icon URL returned HTTP $$HTTP_CODE: $$ICON_URL"; \
+			exit 1; \
+		fi \
+	fi
 
 clean:  ## Clean up test artifacts and packaged charts
 	@echo "Cleaning up test artifacts and packaged charts..."

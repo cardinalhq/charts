@@ -20,6 +20,10 @@ global:
   imagePullSecrets: []
   # Global image settings
   image:
+    # Default repository for all lakerunner images
+    # Override this to use a different registry/repository for all images
+    # Example: "public.ecr.aws/cardinalhq.io/lakerunner"
+    repository: ""
     # Default tag for all lakerunner images (defaults to Chart.appVersion)
     # Override this to use a different tag for all images
     tag: ""

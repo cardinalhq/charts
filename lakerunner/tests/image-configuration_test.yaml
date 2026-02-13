@@ -29,6 +29,40 @@ tests:
           path: spec.template.spec.containers[0].image
           pattern: ":v1.2.3$"
 
+  - it: should override with global repository
+    set:
+      global.image.repository: "public.ecr.aws/cardinalhq.io/lakerunner"
+    templates:
+      - setup-job.yaml
+      - ingest-logs-deployment.yaml
+    asserts:
+      - matchRegex:
+          path: spec.template.spec.containers[0].image
+          pattern: "^public.ecr.aws/cardinalhq.io/lakerunner:"
+
+  - it: should override with both global repository and tag
+    set:
+      global.image.repository: "public.ecr.aws/cardinalhq.io/lakerunner"
+      global.image.tag: "v2.0.0"
+    templates:
+      - setup-job.yaml
+      - ingest-logs-deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: "public.ecr.aws/cardinalhq.io/lakerunner:v2.0.0"
+
+  - it: should not override external images with global repository
+    set:
+      global.image.repository: "public.ecr.aws/cardinalhq.io/lakerunner"
+      grafana.enabled: true
+    templates:
+      - grafana-deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: "grafana/grafana:latest"
+
   - it: should use component-specific tag when set
     set:
       setup.image.tag: "v2.0.0"
