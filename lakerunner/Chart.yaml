@@ -13,6 +13,7 @@ keywords:
   - observability
   - grafana
 home: https://github.com/cardinalhq/lakerunner
+icon: https://raw.githubusercontent.com/cardinalhq/lakerunner/main/assets/lakerunner-chip.png
 sources:
   - https://github.com/cardinalhq/lakerunner
 maintainers:

@@ -499,6 +499,23 @@ Usage: {{ include "lakerunner.image.tag" (list .Values.componentName.image .) }}
 {{- end -}}
 
 {{/*
+Generate the image repository to use.
+Takes two arguments: component image config and root context
+Priority: global.image.repository (if set) > component.repository
+Only applies global override for lakerunner images (contains "lakerunner" in repository)
+Usage: {{ include "lakerunner.image.repository" (list .Values.componentName.image .) }}
+*/}}
+{{- define "lakerunner.image.repository" -}}
+{{- $componentImage := index . 0 -}}
+{{- $root := index . 1 -}}
+{{- if and $root.Values.global.image.repository (ne $root.Values.global.image.repository "") (contains "lakerunner" $componentImage.repository) -}}
+{{- $root.Values.global.image.repository -}}
+{{- else -}}
+{{- $componentImage.repository -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
 Generate the full image name for components.
 Takes two arguments: component image config and root context
 Usage: {{ include "lakerunner.image" (list .Values.componentName.image .) }}
@@ -506,8 +523,9 @@ Usage: {{ include "lakerunner.image" (list .Values.componentName.image .) }}
 {{- define "lakerunner.image" -}}
 {{- $componentImage := index . 0 -}}
 {{- $root := index . 1 -}}
+{{- $repository := include "lakerunner.image.repository" (list $componentImage $root) -}}
 {{- $tag := include "lakerunner.image.tag" (list $componentImage $root) -}}
-{{- printf "%s:%s" $componentImage.repository $tag -}}
+{{- printf "%s:%s" $repository $tag -}}
 {{- end -}}
 
 {{/*
