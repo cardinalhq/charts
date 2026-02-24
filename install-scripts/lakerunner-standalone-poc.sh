@@ -866,12 +866,12 @@ data:
       awss3:
         marshaler: otlp_proto
         s3uploader:
-          region: "us-east-1"
+          region: "$([ "$INSTALL_MINIO" = true ] && echo "us-east-1" || echo "$S3_REGION")"
           s3_bucket: "$BUCKET_NAME"
           s3_prefix: "otel-raw/$ORG_ID/lakerunner"
-          endpoint: "http://minio.$NAMESPACE.svc.cluster.local:9000"
+          $([ "$INSTALL_MINIO" = true ] && echo "endpoint: \"http://minio.$NAMESPACE.svc.cluster.local:9000\"" || echo "# endpoint: \"\"")
           s3_force_path_style: true
-          disable_ssl: true
+          $([ "$INSTALL_MINIO" = true ] && echo "disable_ssl: true" || echo "# disable_ssl: false")
           compression: gzip
       debug:
         verbosity: basic
@@ -1611,7 +1611,7 @@ $([ "$INSTALL_MINIO" = true ] && echo "          region: \"us-east-1\"" || echo 
           s3_prefix: "otel-raw/$ORG_ID/lakerunner"
 $([ "$INSTALL_MINIO" = true ] && echo "          endpoint: \"http://minio.$NAMESPACE.svc.cluster.local:9000\"" || echo "          # endpoint: \"\"")
           compression: "gzip"
-$([ "$INSTALL_MINIO" = true ] && echo "          s3_force_path_style: true" || echo "          # s3_force_path_style: false")
+          s3_force_path_style: true
 $([ "$INSTALL_MINIO" = true ] && echo "          disable_ssl: true" || echo "          # disable_ssl: false")
       awss3/logs:
         marshaler: otlp_proto
@@ -1621,7 +1621,7 @@ $([ "$INSTALL_MINIO" = true ] && echo "          region: \"us-east-1\"" || echo 
           s3_prefix: "otel-raw/$ORG_ID/lakerunner"
 $([ "$INSTALL_MINIO" = true ] && echo "          endpoint: \"http://minio.$NAMESPACE.svc.cluster.local:9000\"" || echo "          # endpoint: \"\"")
           compression: "gzip"
-$([ "$INSTALL_MINIO" = true ] && echo "          s3_force_path_style: true" || echo "          # s3_force_path_style: false")
+          s3_force_path_style: true
 $([ "$INSTALL_MINIO" = true ] && echo "          disable_ssl: true" || echo "          # disable_ssl: false")
       awss3/traces:
         marshaler: otlp_proto
@@ -1631,7 +1631,7 @@ $([ "$INSTALL_MINIO" = true ] && echo "          region: \"us-east-1\"" || echo 
           s3_prefix: "otel-raw/$ORG_ID/lakerunner"
 $([ "$INSTALL_MINIO" = true ] && echo "          endpoint: \"http://minio.$NAMESPACE.svc.cluster.local:9000\"" || echo "          # endpoint: \"\"")
           compression: "gzip"
-$([ "$INSTALL_MINIO" = true ] && echo "          s3_force_path_style: true" || echo "          # s3_force_path_style: false")
+          s3_force_path_style: true
 $([ "$INSTALL_MINIO" = true ] && echo "          disable_ssl: true" || echo "          # disable_ssl: false")
     service:
       pipelines:
