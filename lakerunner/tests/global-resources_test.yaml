@@ -29,6 +29,7 @@ tests:
   - it: should render resources when global.resources.enabled is true (default)
     set:
       global.resources.enabled: true
+      grafana.enabled: true
     asserts:
       # Test a few key deployments to ensure resources are rendered
       - template: ingest-logs-deployment.yaml
@@ -36,10 +37,10 @@ tests:
           path: spec.template.spec.containers[0].resources
           value:
             requests:
-              cpu: "2"
+              cpu: "1"
               memory: 4Gi
             limits:
-              cpu: "2"
+              cpu: "1"
               memory: 4Gi
       - template: query-api-deployment.yaml
         equal:
@@ -47,10 +48,10 @@ tests:
           value:
             requests:
               cpu: "1"
-              memory: 512Mi
+              memory: 4Gi
             limits:
               cpu: "1"
-              memory: 512Mi
+              memory: 4Gi
       - template: grafana-deployment.yaml
         equal:
           path: spec.template.spec.containers[0].resources
@@ -75,6 +76,7 @@ tests:
   - it: should NOT render resources when global.resources.enabled is false
     set:
       global.resources.enabled: false
+      grafana.enabled: true
     asserts:
       # Test that resources sections are completely omitted
       - template: ingest-logs-deployment.yaml
@@ -105,10 +107,10 @@ tests:
           path: spec.template.spec.containers[0].resources
           value:
             requests:
-              cpu: "2"
+              cpu: "1"
               memory: 4Gi
             limits:
-              cpu: "2"
+              cpu: "1"
               memory: 4Gi
       - template: sweeper-deployment.yaml
         equal:

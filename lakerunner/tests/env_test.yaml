@@ -107,6 +107,7 @@ tests:
 
   - it: should render global env variables across all components
     set:
+      grafana.enabled: true
       global.env:
         - name: GLOBAL_LOG_LEVEL
           value: "info"

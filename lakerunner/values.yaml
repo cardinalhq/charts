@@ -411,10 +411,10 @@ ingestLogs:
     pullPolicy: ""
   resources:
     requests:
-      cpu: "2"
+      cpu: "1"
       memory: 4Gi
     limits:
-      cpu: "2"
+      cpu: "1"
       memory: 4Gi
   temporaryStorage:
     size: "10Gi"
@@ -488,10 +488,10 @@ ingestTraces:
     pullPolicy: ""
   resources:
     requests:
-      cpu: "2"
+      cpu: "1"
       memory: 4Gi
     limits:
-      cpu: "2"
+      cpu: "1"
       memory: 4Gi
   temporaryStorage:
     size: "10Gi"
@@ -525,10 +525,10 @@ compactLogs:
     pullPolicy: ""
   resources:
     requests:
-      cpu: "2"
+      cpu: "1"
       memory: 4Gi
     limits:
-      cpu: "2"
+      cpu: "1"
       memory: 4Gi
   temporaryStorage:
     size: "10Gi"
@@ -562,10 +562,10 @@ compactMetrics:
     pullPolicy: ""
   resources:
     requests:
-      cpu: "2"
+      cpu: "1"
       memory: 5Gi
     limits:
-      cpu: "2"
+      cpu: "1"
       memory: 5Gi
   temporaryStorage:
     size: "10Gi"
@@ -599,10 +599,10 @@ compactTraces:
     pullPolicy: ""
   resources:
     requests:
-      cpu: "2"
+      cpu: "1"
       memory: 4Gi
     limits:
-      cpu: "2"
+      cpu: "1"
       memory: 4Gi
   temporaryStorage:
     size: "10Gi"
@@ -911,10 +911,10 @@ queryApi:
   resources:
     requests:
       cpu: "1"
-      memory: 512Mi
+      memory: 4Gi
     limits:
       cpu: "1"
-      memory: 512Mi
+      memory: 4Gi
   terminationGracePeriodSeconds: 120
   nodeSelector: {}
   tolerations: []
@@ -954,7 +954,7 @@ queryWorker:
 
 # Grafana configuration
 grafana:
-  enabled: true
+  enabled: false
   replicas: 1 # For replicas > 1, configure external database via grafana.env (see Grafana docs)
   # CardinalHQ LakeRunner datasource configuration
   # This provides a simplified way to configure the Cardinal datasource
@@ -1018,7 +1018,7 @@ grafana:
 collector:
   # Whether to create the Collector resource
   # Default: true (creates collector when Cardinal API key and storage profiles are configured)
-  enabled: true
+  enabled: false
 
   # Resource configuration for the collector
   # CPU and memory limits and requests
