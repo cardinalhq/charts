@@ -833,11 +833,11 @@ pubsub:
       pullPolicy: ""
     resources:
       requests:
-        cpu: 500m
-        memory: 256Mi
+        cpu: "1"
+        memory: 512Mi
       limits:
-        cpu: 500m
-        memory: 256Mi
+        cpu: "1"
+        memory: 512Mi
     terminationGracePeriodSeconds: 120
     nodeSelector: {}
     tolerations: []

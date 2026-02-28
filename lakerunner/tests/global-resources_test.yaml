@@ -145,11 +145,11 @@ tests:
           path: spec.template.spec.containers[0].resources
           value:
             requests:
-              cpu: 500m
-              memory: 256Mi
+              cpu: "1"
+              memory: 512Mi
             limits:
-              cpu: 500m
-              memory: 256Mi
+              cpu: "1"
+              memory: 512Mi
 
   - it: should omit resources from pubsub components when disabled
     set:
