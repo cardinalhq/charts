@@ -808,11 +808,11 @@ pubsub:
       pullPolicy: ""
     resources:
       requests:
-        cpu: 200m
-        memory: 200Mi
+        cpu: "1"
+        memory: 512Mi
       limits:
-        cpu: 200m
-        memory: 200Mi
+        cpu: "1"
+        memory: 512Mi
     terminationGracePeriodSeconds: 120
     nodeSelector: {}
     tolerations: []
@@ -857,11 +857,11 @@ pubsub:
       pullPolicy: ""
     resources:
       requests:
-        cpu: 200m
-        memory: 200Mi
+        cpu: "1"
+        memory: 512Mi
       limits:
-        cpu: 200m
-        memory: 200Mi
+        cpu: "1"
+        memory: 512Mi
     terminationGracePeriodSeconds: 120
     nodeSelector: {}
     tolerations: []
