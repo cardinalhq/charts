@@ -76,6 +76,8 @@ global:
   # This is a key: value map.
   # Optional.
   env:
+    - name: SOFT_LICENSE_CHECK
+      value: "true"
     # - name: ENVAR1
     #   value: "value1"
     # - name: ENVAR2
