@@ -50,7 +50,6 @@ spec:
         resources:
           {{- toYaml .Values.setup.resources | nindent 10 }}
         {{- end }}
-        {{- if or (eq .Values.storageProfiles.source "config") (eq .Values.apiKeys.source "config") (and .Values.setup.kafka.enabled .Values.kafkaTopics.create) }}
         volumeMounts:
         {{- if eq .Values.storageProfiles.source "config" }}
         - name: storage-profiles
@@ -70,8 +69,7 @@ spec:
           subPath: kafka_topics.yaml
           readOnly: true
         {{- end }}
-        {{- end }}
-      {{- if or (eq .Values.storageProfiles.source "config") (eq .Values.apiKeys.source "config") (and .Values.setup.kafka.enabled .Values.kafkaTopics.create) }}
+        {{- include "lakerunner.licenseVolumeMount" . | nindent 8 }}
       volumes:
       {{- if eq .Values.storageProfiles.source "config" }}
       - name: storage-profiles
@@ -88,6 +86,6 @@ spec:
         configMap:
           name: {{ include "lakerunner.kafkaTopicsConfigmapName" . }}
       {{- end }}
-      {{- end }}
+      {{- include "lakerunner.licenseVolume" . | nindent 6 }}
   backoffLimit: 0
 {{- end }}

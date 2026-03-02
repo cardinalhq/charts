@@ -705,6 +705,37 @@ Always included when using Azure workload identity auth type.
 {{- end }}
 
 {{/*
+Return the secret name for the license. If create is true, prefix with release name.
+*/}}
+{{- define "lakerunner.licenseSecretName" -}}
+{{- if .Values.license.create }}
+{{- printf "%s-%s" (include "lakerunner.fullname" .) .Values.license.secretName | trunc 63 | trimSuffix "-" }}
+{{- else }}
+{{- .Values.license.secretName | trunc 63 | trimSuffix "-" }}
+{{- end }}
+{{- end }}
+
+{{/*
+Generate license volume mount. Always emitted — license is required.
+Usage: {{ include "lakerunner.licenseVolumeMount" . }}
+*/}}
+{{- define "lakerunner.licenseVolumeMount" -}}
+- name: license
+  mountPath: /app/license
+  readOnly: true
+{{- end }}
+
+{{/*
+Generate license volume. Always emitted — license is required.
+Usage: {{ include "lakerunner.licenseVolume" . }}
+*/}}
+{{- define "lakerunner.licenseVolume" -}}
+- name: license
+  secret:
+    secretName: {{ include "lakerunner.licenseSecretName" . }}
+{{- end }}
+
+{{/*
 Health probe configuration helper
 Takes root context and service configuration and returns whether health probes should be enabled
 Usage: {{ include "lakerunner.healthProbesEnabled" (list . .Values.serviceName) }}

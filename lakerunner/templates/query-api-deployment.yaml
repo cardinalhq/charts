@@ -94,6 +94,7 @@ spec:
           readOnly: true
         {{- end }}
         {{- include "lakerunner.azureTokenVolumeMount" . | nindent 8 }}
+        {{- include "lakerunner.licenseVolumeMount" . | nindent 8 }}
       {{- include "lakerunner.sched.nodeSelector" (list .Values.global.nodeSelector .Values.queryApi.nodeSelector) | nindent 6 }}
       {{- include "lakerunner.sched.tolerations"  (list .Values.global.tolerations  .Values.queryApi.tolerations)  | nindent 6 }}
       {{- include "lakerunner.sched.affinity"     (list .Values.global.affinity     .Values.queryApi.affinity)     | nindent 6 }}
@@ -104,4 +105,5 @@ spec:
           name: {{ include "lakerunner.storageProfilesConfigmapName" . }}
       {{- end }}
       {{- include "lakerunner.azureTokenVolume" . | nindent 6 }}
+      {{- include "lakerunner.licenseVolume" . | nindent 6 }}
 {{- end }}

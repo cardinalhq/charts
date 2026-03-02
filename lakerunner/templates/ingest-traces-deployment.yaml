@@ -96,6 +96,7 @@ spec:
         - name: scratch
           mountPath: /scratch
         {{- include "lakerunner.azureTokenVolumeMount" . | nindent 8 }}
+        {{- include "lakerunner.licenseVolumeMount" . | nindent 8 }}
       {{- include "lakerunner.sched.nodeSelector" (list .Values.global.nodeSelector .Values.ingestTraces.nodeSelector) | nindent 6 }}
       {{- include "lakerunner.sched.tolerations"  (list .Values.global.tolerations  .Values.ingestTraces.tolerations)  | nindent 6 }}
       {{- include "lakerunner.sched.affinity"     (list .Values.global.affinity     .Values.ingestTraces.affinity)     | nindent 6 }}
@@ -108,4 +109,5 @@ spec:
       {{- end }}
       {{- include "lakerunner.kafkaTopicsVolume" . | nindent 6 }}
       {{- include "lakerunner.azureTokenVolume" . | nindent 6 }}
+      {{- include "lakerunner.licenseVolume" . | nindent 6 }}
 {{- end }}

@@ -104,6 +104,7 @@ spec:
           readOnly: true
         {{- end }}
         {{- include "lakerunner.kafkaTopicsVolumeMount" $ | nindent 8 }}
+        {{- include "lakerunner.licenseVolumeMount" $ | nindent 8 }}
       volumes:
       {{- if eq $.Values.storageProfiles.source "config" }}
       - name: storage-profiles
@@ -111,5 +112,6 @@ spec:
           name: {{ include "lakerunner.storageProfilesConfigmapName" $ }}
       {{- end }}
       {{- include "lakerunner.kafkaTopicsVolume" $ | nindent 6 }}
+      {{- include "lakerunner.licenseVolume" $ | nindent 6 }}
 {{- end }}
 {{- end }}

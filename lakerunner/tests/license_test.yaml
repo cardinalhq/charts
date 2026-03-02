@@ -1,0 +1,131 @@
+suite: test license configuration
+values:
+  - ../values.yaml
+set:
+  cloudProvider.aws.region: us-west-2
+templates:
+  - license-secret.yaml
+  - ingest-logs-deployment.yaml
+  - sweeper-deployment.yaml
+  - setup-job.yaml
+  - boxer-deployment.yaml
+tests:
+  # Secret creation tests
+  - it: should create license secret when create is true and data is provided
+    set:
+      license.create: true
+      license.data: '{"key":"value"}'
+    templates:
+      - license-secret.yaml
+    asserts:
+      - isKind:
+          of: Secret
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-lakerunner-lakerunner-license
+
+  - it: should not create license secret when create is true but data is empty
+    set:
+      license.create: true
+      license.data: ""
+    templates:
+      - license-secret.yaml
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should not create license secret when create is false
+    set:
+      license.create: false
+    templates:
+      - license-secret.yaml
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  # Volume mount tests
+  - it: should have license volume mount in ingest-logs
+    templates:
+      - ingest-logs-deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: license
+            mountPath: /app/license
+            readOnly: true
+
+  # Volume tests
+  - it: should have license volume in ingest-logs
+    templates:
+      - ingest-logs-deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: license
+            secret:
+              secretName: RELEASE-NAME-lakerunner-lakerunner-license
+
+  - it: should have license volume mount in sweeper
+    templates:
+      - sweeper-deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: license
+            mountPath: /app/license
+            readOnly: true
+
+  - it: should have license volume in setup-job
+    templates:
+      - setup-job.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: license
+            secret:
+              secretName: RELEASE-NAME-lakerunner-lakerunner-license
+
+  - it: should have license volume mount in boxer
+    templates:
+      - boxer-deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: license
+            mountPath: /app/license
+            readOnly: true
+
+  # BYOS - exact secret name when create is false
+  - it: should use exact secret name when create is false (BYOS)
+    set:
+      license.create: false
+      license.secretName: "my-external-license"
+    templates:
+      - ingest-logs-deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: license
+            secret:
+              secretName: my-external-license
+
+  # Prefixed secret name when create is true
+  - it: should use prefixed secret name when create is true
+    set:
+      license.create: true
+      license.secretName: "custom-license"
+    templates:
+      - ingest-logs-deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: license
+            secret:
+              secretName: RELEASE-NAME-lakerunner-custom-license
