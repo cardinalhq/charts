@@ -1,4 +1,4 @@
-.PHONY: package publish help
+.PHONY: test lint template package publish help
 
 TAG ?= latest
 
@@ -13,6 +13,18 @@ help:
 	@echo "Requirements:"
 	@echo "  - TAG defaults to 'latest' if not specified"
 	@echo ""
+
+# Run all tests
+test: lint template
+
+# Lint the chart
+lint:
+	@echo "Linting chq-k8s-watcher chart..."
+	helm lint .
+
+# Test template rendering
+template:
+	@helm template test-release . --dry-run > /dev/null 2>&1
 
 # Package the chart
 package:

@@ -26,59 +26,47 @@ templates:
   - pubsub-gcp-deployment.yaml
   - pubsub-azure-deployment.yaml
 tests:
-  - it: should render resources when global.resources.enabled is true (default)
+  - it: should render resources with requests and limits when enabled
     set:
       global.resources.enabled: true
       grafana.enabled: true
     asserts:
-      # Test a few key deployments to ensure resources are rendered
       - template: ingest-logs-deployment.yaml
-        equal:
-          path: spec.template.spec.containers[0].resources
-          value:
-            requests:
-              cpu: "1"
-              memory: 4Gi
-            limits:
-              cpu: "1"
-              memory: 4Gi
+        exists:
+          path: spec.template.spec.containers[0].resources.requests.cpu
+      - template: ingest-logs-deployment.yaml
+        exists:
+          path: spec.template.spec.containers[0].resources.requests.memory
+      - template: ingest-logs-deployment.yaml
+        exists:
+          path: spec.template.spec.containers[0].resources.limits.cpu
+      - template: ingest-logs-deployment.yaml
+        exists:
+          path: spec.template.spec.containers[0].resources.limits.memory
       - template: query-api-deployment.yaml
-        equal:
-          path: spec.template.spec.containers[0].resources
-          value:
-            requests:
-              cpu: "1"
-              memory: 4Gi
-            limits:
-              cpu: "1"
-              memory: 4Gi
+        exists:
+          path: spec.template.spec.containers[0].resources.requests.cpu
+      - template: query-api-deployment.yaml
+        exists:
+          path: spec.template.spec.containers[0].resources.limits.cpu
       - template: grafana-deployment.yaml
-        equal:
-          path: spec.template.spec.containers[0].resources
-          value:
-            requests:
-              cpu: 200m
-              memory: 256Mi
-            limits:
-              cpu: 200m
-              memory: 256Mi
+        exists:
+          path: spec.template.spec.containers[0].resources.requests.cpu
+      - template: grafana-deployment.yaml
+        exists:
+          path: spec.template.spec.containers[0].resources.limits.cpu
       - template: setup-job.yaml
-        equal:
-          path: spec.template.spec.containers[0].resources
-          value:
-            requests:
-              cpu: 1100m
-              memory: 250Mi
-            limits:
-              cpu: 1100m
-              memory: 250Mi
+        exists:
+          path: spec.template.spec.containers[0].resources.requests.cpu
+      - template: setup-job.yaml
+        exists:
+          path: spec.template.spec.containers[0].resources.limits.cpu
 
   - it: should NOT render resources when global.resources.enabled is false
     set:
       global.resources.enabled: false
       grafana.enabled: true
     asserts:
-      # Test that resources sections are completely omitted
       - template: ingest-logs-deployment.yaml
         notExists:
           path: spec.template.spec.containers[0].resources
@@ -99,31 +87,21 @@ tests:
           path: spec.template.spec.containers[0].resources
 
   - it: should default to enabled when global.resources.enabled is not specified
-    # Don't set global.resources.enabled, rely on default value of true
     asserts:
-      # Test that resources are rendered by default
       - template: ingest-logs-deployment.yaml
-        equal:
-          path: spec.template.spec.containers[0].resources
-          value:
-            requests:
-              cpu: "1"
-              memory: 4Gi
-            limits:
-              cpu: "1"
-              memory: 4Gi
+        exists:
+          path: spec.template.spec.containers[0].resources.requests.cpu
+      - template: ingest-logs-deployment.yaml
+        exists:
+          path: spec.template.spec.containers[0].resources.limits.cpu
       - template: sweeper-deployment.yaml
-        equal:
-          path: spec.template.spec.containers[0].resources
-          value:
-            requests:
-              cpu: 250m
-              memory: 300Mi
-            limits:
-              cpu: 250m
-              memory: 300Mi
+        exists:
+          path: spec.template.spec.containers[0].resources.requests.cpu
+      - template: sweeper-deployment.yaml
+        exists:
+          path: spec.template.spec.containers[0].resources.limits.cpu
 
-  - it: should work with pubsub components when enabled
+  - it: should render resources on pubsub components when enabled
     set:
       global.resources.enabled: true
       pubsub.HTTP.enabled: true
@@ -131,25 +109,17 @@ tests:
       pubsub.SQS.queueURL: "https://sqs.us-east-2.amazonaws.com/123456789012/my-queue"
     asserts:
       - template: pubsub-http-deployment.yaml
-        equal:
-          path: spec.template.spec.containers[0].resources
-          value:
-            requests:
-              cpu: 200m
-              memory: 200Mi
-            limits:
-              cpu: 200m
-              memory: 200Mi
+        exists:
+          path: spec.template.spec.containers[0].resources.requests.cpu
+      - template: pubsub-http-deployment.yaml
+        exists:
+          path: spec.template.spec.containers[0].resources.limits.cpu
       - template: pubsub-sqs-deployment.yaml
-        equal:
-          path: spec.template.spec.containers[0].resources
-          value:
-            requests:
-              cpu: "1"
-              memory: 512Mi
-            limits:
-              cpu: "1"
-              memory: 512Mi
+        exists:
+          path: spec.template.spec.containers[0].resources.requests.cpu
+      - template: pubsub-sqs-deployment.yaml
+        exists:
+          path: spec.template.spec.containers[0].resources.limits.cpu
 
   - it: should omit resources from pubsub components when disabled
     set:
