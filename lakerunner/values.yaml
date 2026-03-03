@@ -446,7 +446,6 @@ ingestLogs:
       cpuTrigger:
         enabled: true # Enable CPU-based scaling alongside queue depth
         targetUtilization: 80 # Target average CPU utilization percentage
-  terminationGracePeriodSeconds: 600
   # Health probe configuration (inherits from global.healthProbes if not specified)
   healthProbes:
     enabled: null # null = inherit from global.healthProbes.enabled
@@ -486,7 +485,6 @@ ingestMetrics:
       cpuTrigger:
         enabled: true # Enable CPU-based scaling alongside queue depth
         targetUtilization: 80 # Target average CPU utilization percentage
-  terminationGracePeriodSeconds: 600
   labels: {}
   annotations: {}
   nodeSelector: {}
@@ -523,7 +521,6 @@ ingestTraces:
       cpuTrigger:
         enabled: true # Enable CPU-based scaling alongside queue depth
         targetUtilization: 80 # Target average CPU utilization percentage
-  terminationGracePeriodSeconds: 600
   labels: {}
   annotations: {}
   nodeSelector: {}
@@ -560,7 +557,6 @@ compactLogs:
       cpuTrigger:
         enabled: true # Enable CPU-based scaling alongside queue depth
         targetUtilization: 80 # Target average CPU utilization percentage
-  terminationGracePeriodSeconds: 300
   labels: {}
   annotations: {}
   nodeSelector: {}
@@ -597,7 +593,6 @@ compactMetrics:
       cpuTrigger:
         enabled: true # Enable CPU-based scaling alongside queue depth
         targetUtilization: 80 # Target average CPU utilization percentage
-  terminationGracePeriodSeconds: 300
   labels: {}
   annotations: {}
   nodeSelector: {}
@@ -634,7 +629,6 @@ compactTraces:
       cpuTrigger:
         enabled: true # Enable CPU-based scaling alongside queue depth
         targetUtilization: 80 # Target average CPU utilization percentage
-  terminationGracePeriodSeconds: 300
   labels: {}
   annotations: {}
   nodeSelector: {}
@@ -671,7 +665,6 @@ rollupMetrics:
       cpuTrigger:
         enabled: true # Enable CPU-based scaling alongside queue depth
         targetUtilization: 80 # Target average CPU utilization percentage
-  terminationGracePeriodSeconds: 300
   labels: {}
   annotations: {}
   nodeSelector: {}
@@ -707,7 +700,6 @@ boxers:
       cpuTrigger:
         enabled: true # Enable CPU-based scaling alongside queue depth
         targetUtilization: 80 # Target average CPU utilization percentage
-  terminationGracePeriodSeconds: 300
   labels: {}
   annotations: {}
   nodeSelector: {}
@@ -741,12 +733,34 @@ sweeper:
     limits:
       cpu: 250m
       memory: 300Mi
-  terminationGracePeriodSeconds: 300
   labels: {}
   annotations: {}
   nodeSelector: {}
   tolerations: []
   affinity: {}
+
+# Alert Evaluator configuration
+alertEvaluator:
+  enabled: true
+  replicas: 1
+  image:
+    repository: ghcr.io/cardinalhq/lakerunner
+    tag: ""
+    pullPolicy: ""
+  queryApiUrl: "" # auto-configured to internal query-api if empty
+  resources:
+    requests:
+      cpu: "1"
+      memory: 512Mi
+    limits:
+      cpu: "1"
+      memory: 512Mi
+  labels: {}
+  annotations: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  env: []
 
 # Monitoring service configuration
 monitoring:
@@ -770,7 +784,6 @@ monitoring:
     limits:
       cpu: 250m
       memory: 100Mi
-  terminationGracePeriodSeconds: 30
   labels: {}
   annotations: {}
   nodeSelector: {}
@@ -799,7 +812,6 @@ adminApi:
     limits:
       cpu: 250m
       memory: 200Mi
-  terminationGracePeriodSeconds: 30
   labels: {}
   annotations: {}
   nodeSelector: {}
@@ -829,7 +841,6 @@ pubsub:
       limits:
         cpu: "1"
         memory: 512Mi
-    terminationGracePeriodSeconds: 120
     nodeSelector: {}
     tolerations: []
     affinity: {}
@@ -854,7 +865,6 @@ pubsub:
       limits:
         cpu: "1"
         memory: 512Mi
-    terminationGracePeriodSeconds: 120
     nodeSelector: {}
     tolerations: []
     affinity: {}
@@ -878,7 +888,6 @@ pubsub:
       limits:
         cpu: "1"
         memory: 512Mi
-    terminationGracePeriodSeconds: 120
     nodeSelector: {}
     tolerations: []
     affinity: {}
@@ -903,7 +912,6 @@ pubsub:
       limits:
         cpu: 200m
         memory: 200Mi
-    terminationGracePeriodSeconds: 120
     nodeSelector: {}
     tolerations: []
     affinity: {}
@@ -931,7 +939,6 @@ queryApi:
     limits:
       cpu: "1"
       memory: 4Gi
-  terminationGracePeriodSeconds: 120
   nodeSelector: {}
   tolerations: []
   affinity: {}
@@ -961,7 +968,6 @@ queryWorker:
     loadBalancerSourceRanges: []
   temporaryStorage:
     size: "100Gi"
-  terminationGracePeriodSeconds: 120
   labels: {}
   annotations: {}
   nodeSelector: {}

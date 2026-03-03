@@ -30,7 +30,6 @@ spec:
       {{- include "lakerunner.annotations" . | nindent 6 }}
     spec:
       serviceAccountName: {{ include "lakerunner.serviceAccountName" . }}
-      terminationGracePeriodSeconds: {{ .Values.pubsub.Azure.terminationGracePeriodSeconds }}
       securityContext:
         runAsNonRoot: true
         runAsUser: 65532

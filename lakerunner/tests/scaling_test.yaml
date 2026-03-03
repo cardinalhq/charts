@@ -67,17 +67,6 @@ tests:
       - failedTemplate:
           errorPattern: "HPA scaling mode is no longer supported"
 
-  - it: should set correct termination grace periods
-    set:
-      ingestLogs.enabled: true
-      ingestLogs.terminationGracePeriodSeconds: 900
-    templates:
-      - ingest-logs-deployment.yaml
-    asserts:
-      - equal:
-          path: spec.template.spec.terminationGracePeriodSeconds
-          value: 900
-
   # KEDA Scaling Tests
   - it: should create ScaledObject when KEDA mode is enabled
     set:
@@ -192,17 +181,6 @@ tests:
       - failedTemplate:
           errorPattern: "HPA scaling mode is no longer supported"
 
-  - it: should set correct termination grace periods for traces
-    set:
-      ingestTraces.enabled: true
-      ingestTraces.terminationGracePeriodSeconds: 600
-    templates:
-      - ingest-traces-deployment.yaml
-    asserts:
-      - equal:
-          path: spec.template.spec.terminationGracePeriodSeconds
-          value: 600
-
   - it: should create ScaledObject for traces when KEDA mode is enabled
     set:
       global.autoscaling.mode: keda
@@ -306,4 +284,3 @@ tests:
     asserts:
       - failedTemplate:
           errorPattern: "HPA scaling mode is no longer supported"
-

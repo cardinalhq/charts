@@ -38,7 +38,6 @@ spec:
       {{- include "lakerunner.annotations" . | nindent 6 }}
     spec:
       serviceAccountName: {{ include "lakerunner.serviceAccountName" . }}
-      terminationGracePeriodSeconds: 120
       securityContext:
         runAsNonRoot: true
         runAsUser: 472
@@ -95,4 +94,4 @@ spec:
       - name: grafana-datasources
         configMap:
           name: {{ include "lakerunner.fullname" . }}-grafana-datasources
-{{- end }} 
+{{- end }}

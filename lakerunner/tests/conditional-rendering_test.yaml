@@ -15,6 +15,7 @@ templates:
   - rollup-metrics-deployment.yaml
   - boxer-deployment.yaml
   - sweeper-deployment.yaml
+  - alert-evaluator-deployment.yaml
   - pubsub-http-deployment.yaml
   - pubsub-sqs-deployment.yaml
   - pubsub-gcp-deployment.yaml
@@ -168,4 +169,22 @@ tests:
     asserts:
       - isKind:
           of: Deployment
+
+  - it: should render alert evaluator when enabled
+    set:
+      alertEvaluator.enabled: true
+    templates:
+      - alert-evaluator-deployment.yaml
+    asserts:
+      - isKind:
+          of: Deployment
+
+  - it: should not render alert evaluator when disabled
+    set:
+      alertEvaluator.enabled: false
+    templates:
+      - alert-evaluator-deployment.yaml
+    asserts:
+      - hasDocuments:
+          count: 0
 

@@ -27,7 +27,6 @@ spec:
       {{- include "lakerunner.annotations" . | nindent 6 }}
     spec:
       serviceAccountName: {{ include "lakerunner.serviceAccountName" . }}
-      terminationGracePeriodSeconds: {{ .Values.pubsub.GCP.terminationGracePeriodSeconds }}
       securityContext:
         runAsNonRoot: true
         runAsUser: 65532

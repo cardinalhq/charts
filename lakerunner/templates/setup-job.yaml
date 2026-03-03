@@ -18,7 +18,6 @@ spec:
     spec:
       serviceAccountName: {{ include "lakerunner.serviceAccountName" . }}
       restartPolicy: Never
-      terminationGracePeriodSeconds: 120
       securityContext:
         runAsNonRoot: true
         runAsUser: 65532

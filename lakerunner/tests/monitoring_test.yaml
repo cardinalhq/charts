@@ -372,25 +372,3 @@ tests:
           content:
             name: TMPDIR
             value: /scratch
-
-  # Termination Grace Period Tests
-  - it: should set default terminationGracePeriodSeconds
-    set:
-      monitoring.enabled: true
-    templates:
-      - monitoring-deployment.yaml
-    asserts:
-      - equal:
-          path: spec.template.spec.terminationGracePeriodSeconds
-          value: 30
-
-  - it: should allow custom terminationGracePeriodSeconds
-    set:
-      monitoring.enabled: true
-      monitoring.terminationGracePeriodSeconds: 60
-    templates:
-      - monitoring-deployment.yaml
-    asserts:
-      - equal:
-          path: spec.template.spec.terminationGracePeriodSeconds
-          value: 60

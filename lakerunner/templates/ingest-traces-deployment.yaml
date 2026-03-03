@@ -28,7 +28,6 @@ spec:
       {{- include "lakerunner.annotationsWithComponent" (list . .Values.ingestTraces.annotations) | nindent 6 }}
     spec:
       serviceAccountName: {{ include "lakerunner.serviceAccountName" . }}
-      terminationGracePeriodSeconds: {{ .Values.ingestTraces.terminationGracePeriodSeconds }}
       securityContext:
         runAsNonRoot: true
         runAsUser: 65532
