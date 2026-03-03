@@ -781,7 +781,7 @@ monitoring:
 adminApi:
   enabled: true
   replicas: 1
-  grpcPort: 9091
+  port: 9091
   service:
     type: ClusterIP
     annotations: {}

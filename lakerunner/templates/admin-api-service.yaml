@@ -20,10 +20,10 @@ spec:
     {{- toYaml .Values.adminApi.service.loadBalancerSourceRanges | nindent 4 }}
   {{- end }}
   ports:
-    - port: {{ .Values.adminApi.grpcPort }}
-      targetPort: grpc
+    - port: {{ .Values.adminApi.port }}
+      targetPort: http
       protocol: TCP
-      name: grpc
+      name: http
       {{- if and (eq .Values.adminApi.service.type "NodePort") .Values.adminApi.service.nodePort }}
       nodePort: {{ .Values.adminApi.service.nodePort }}
       {{- end }}

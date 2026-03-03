@@ -45,10 +45,10 @@ spec:
         args:
           - "admin-api"
           - "serve"
-          - "--grpc-port={{ .Values.adminApi.grpcPort }}"
+          - "--port={{ .Values.adminApi.port }}"
         ports:
-          - name: grpc
-            containerPort: {{ .Values.adminApi.grpcPort }}
+          - name: http
+            containerPort: {{ .Values.adminApi.port }}
             protocol: TCP
           - name: healthcheck
             containerPort: {{ .Values.global.healthProbes.healthcheckPort }}
