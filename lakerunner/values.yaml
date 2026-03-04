@@ -78,6 +78,10 @@ global:
   env:
     - name: SOFT_LICENSE_CHECK
       value: "true"
+    - name: OTEL_TRACES_SAMPLER
+      value: "parentbased_traceidratio"
+    - name: OTEL_TRACES_SAMPLER_ARG
+      value: "0.01"
     # - name: ENVAR1
     #   value: "value1"
     # - name: ENVAR2
