@@ -33,6 +33,46 @@ To fix this error:
 ` }}
 {{- end }}
 
+{{- if and .Values.alertEvaluator.enabled (not .Values.notificationSender.enabled) }}
+{{- fail `
+================================================================================
+CONFIGURATION ERROR: alertEvaluator requires notificationSender
+
+alertEvaluator.enabled is true but notificationSender.enabled is false.
+The alert evaluator queues notifications when alerts fire, but without the
+notification sender running, those notifications will never be delivered.
+
+To fix this error, enable or disable both components. For example:
+
+    alertEvaluator:
+      enabled: true
+    notificationSender:
+      enabled: true
+
+================================================================================
+` }}
+{{- end }}
+
+{{- if and .Values.notificationSender.enabled (not .Values.alertEvaluator.enabled) }}
+{{- fail `
+================================================================================
+CONFIGURATION ERROR: notificationSender requires alertEvaluator
+
+notificationSender.enabled is true but alertEvaluator.enabled is false.
+The notification sender processes the notification queue, but without the
+alert evaluator running, nothing will be enqueued.
+
+To fix this error, enable or disable both components. For example:
+
+    alertEvaluator:
+      enabled: true
+    notificationSender:
+      enabled: true
+
+================================================================================
+` }}
+{{- end }}
+
 {{- if or .Values.cloudProvider.gcp.accessKeyId .Values.cloudProvider.gcp.secretAccessKey }}
 {{- fail `
 ================================================================================
