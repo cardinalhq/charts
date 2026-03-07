@@ -16,6 +16,7 @@ templates:
   - boxer-deployment.yaml
   - sweeper-deployment.yaml
   - alert-evaluator-deployment.yaml
+  - notification-sender-deployment.yaml
   - pubsub-http-deployment.yaml
   - pubsub-sqs-deployment.yaml
   - pubsub-gcp-deployment.yaml
@@ -169,6 +170,24 @@ tests:
     asserts:
       - isKind:
           of: Deployment
+
+  - it: should render notification sender when enabled
+    set:
+      notificationSender.enabled: true
+    templates:
+      - notification-sender-deployment.yaml
+    asserts:
+      - isKind:
+          of: Deployment
+
+  - it: should not render notification sender when disabled
+    set:
+      notificationSender.enabled: false
+    templates:
+      - notification-sender-deployment.yaml
+    asserts:
+      - hasDocuments:
+          count: 0
 
   - it: should render alert evaluator when enabled
     set:
