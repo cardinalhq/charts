@@ -17,6 +17,7 @@ templates:
   - sweeper-deployment.yaml
   - alert-evaluator-deployment.yaml
   - notification-sender-deployment.yaml
+  - deprecation-warnings.yaml
   - pubsub-http-deployment.yaml
   - pubsub-sqs-deployment.yaml
   - pubsub-gcp-deployment.yaml
@@ -174,6 +175,7 @@ tests:
   - it: should render notification sender when enabled
     set:
       notificationSender.enabled: true
+      alertEvaluator.enabled: true
     templates:
       - notification-sender-deployment.yaml
     asserts:
@@ -192,6 +194,7 @@ tests:
   - it: should render alert evaluator when enabled
     set:
       alertEvaluator.enabled: true
+      notificationSender.enabled: true
     templates:
       - alert-evaluator-deployment.yaml
     asserts:
@@ -203,6 +206,46 @@ tests:
       alertEvaluator.enabled: false
     templates:
       - alert-evaluator-deployment.yaml
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should fail when alertEvaluator enabled without notificationSender
+    set:
+      alertEvaluator.enabled: true
+      notificationSender.enabled: false
+    templates:
+      - deprecation-warnings.yaml
+    asserts:
+      - failedTemplate:
+          errorPattern: "alertEvaluator requires notificationSender"
+
+  - it: should fail when notificationSender enabled without alertEvaluator
+    set:
+      alertEvaluator.enabled: false
+      notificationSender.enabled: true
+    templates:
+      - deprecation-warnings.yaml
+    asserts:
+      - failedTemplate:
+          errorPattern: "notificationSender requires alertEvaluator"
+
+  - it: should pass when both alertEvaluator and notificationSender enabled
+    set:
+      alertEvaluator.enabled: true
+      notificationSender.enabled: true
+    templates:
+      - deprecation-warnings.yaml
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should pass when both alertEvaluator and notificationSender disabled
+    set:
+      alertEvaluator.enabled: false
+      notificationSender.enabled: false
+    templates:
+      - deprecation-warnings.yaml
     asserts:
       - hasDocuments:
           count: 0
