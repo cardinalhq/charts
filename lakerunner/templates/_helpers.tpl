@@ -283,6 +283,17 @@ Return the secret name for the APIKeys.  If we have create true, we will prefix 
 {{- end }}
 {{- end }}
 
+{{/*
+Return the secret name for the internal service keys.
+*/}}
+{{- define "lakerunner.intkeySecretName" -}}
+{{- if .Values.internalServiceKeys.create }}
+{{- printf "%s-%s" (include "lakerunner.fullname" .) .Values.internalServiceKeys.secretName | trunc 63 | trimSuffix "-" }}
+{{- else }}
+{{- .Values.internalServiceKeys.secretName | trunc 63 | trimSuffix "-" }}
+{{- end }}
+{{- end }}
+
 
 {{/*
 Return the secret name for the Cardinal API key.

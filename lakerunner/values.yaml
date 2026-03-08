@@ -335,6 +335,12 @@ apiKeys:
     #     - my-api-key-1
     #     - my-api-key-2
 
+# Internal service authentication keys for inter-service communication.
+# Auto-generated on first install if create is true.
+internalServiceKeys:
+  create: true
+  secretName: "intkey"
+
 # Database configuration
 # Required.
 database:

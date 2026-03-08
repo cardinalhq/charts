@@ -51,6 +51,11 @@ spec:
         env:
           - name: OTEL_SERVICE_NAME
             value: {{ include "lakerunner.fullname" . }}-query-api
+          - name: INTERNAL_SERVICE_KEYS
+            valueFrom:
+              secretKeyRef:
+                name: {{ include "lakerunner.intkeySecretName" . }}
+                key: internal-service-keys
           - name: EXECUTION_ENVIRONMENT
             value: "kubernetes"
           - name: POD_NAMESPACE
