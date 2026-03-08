@@ -185,6 +185,7 @@ tests:
   - it: should not render notification sender when disabled
     set:
       notificationSender.enabled: false
+      alertEvaluator.enabled: false
     templates:
       - notification-sender-deployment.yaml
     asserts:
@@ -204,6 +205,7 @@ tests:
   - it: should not render alert evaluator when disabled
     set:
       alertEvaluator.enabled: false
+      notificationSender.enabled: false
     templates:
       - alert-evaluator-deployment.yaml
     asserts:
