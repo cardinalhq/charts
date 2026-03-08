@@ -2,7 +2,7 @@ apiVersion: v2
 name: lakerunner
 description: A Helm chart for LakeRunner - a log and metrics processing platform
 type: application
-version: "2.5.0"
+version: "2.5.1"
 appVersion: "v1.15.0"
 keywords:
   - lakerunner
@@ -12,10 +12,10 @@ keywords:
   - operations
   - observability
   - grafana
-home: https://github.com/cardinalhq/lakerunner
+  - agentic
+  - mcp
+home: https://docs.cardinalhq.io/lakerunner
 icon: https://docs.cardinalhq.io/lakerunner_left.png
-sources:
-  - https://github.com/cardinalhq/lakerunner
 maintainers:
   - name: Cardinal HQ
     email: support@cardinalhq.com
