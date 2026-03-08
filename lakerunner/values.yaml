@@ -745,7 +745,7 @@ sweeper:
 
 # Alert Evaluator configuration
 alertEvaluator:
-  enabled: false
+  enabled: true
   replicas: 1
   image:
     repository: ghcr.io/cardinalhq/lakerunner
@@ -768,7 +768,7 @@ alertEvaluator:
 
 # Notification sender configuration
 notificationSender:
-  enabled: false
+  enabled: true
   replicas: 1
   image:
     repository: ghcr.io/cardinalhq/lakerunner
