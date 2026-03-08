@@ -4,3 +4,4 @@ packages
 install-scripts/generated
 **/.DS_Store
 *.tgz
+**/docs/plans
