@@ -66,6 +66,11 @@ spec:
             value: {{ include "lakerunner.fullname" . }}-notification-sender
           - name: TMPDIR
             value: /scratch
+          - name: INTERNAL_SERVICE_KEYS
+            valueFrom:
+              secretKeyRef:
+                name: {{ include "lakerunner.intkeySecretName" . }}
+                key: internal-service-keys
           {{- if eq .Values.cloudProvider.provider "azure" }}
           - name: AZURE_AUTH_TYPE
             value: {{ .Values.cloudProvider.azure.authType | quote }}
