@@ -1,0 +1,22 @@
+{{- if .Values.mcpGateway.enabled -}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "maestro.fullname" . }}-mcp-gateway
+  labels:
+    {{- include "maestro.labels" . | nindent 4 }}
+    app.kubernetes.io/component: mcp-gateway
+  {{ include "maestro.annotations" . | nindent 2 }}
+spec:
+  type: ClusterIP
+  ports:
+    - port: {{ .Values.mcpGateway.port }}
+      targetPort: http
+      name: http
+    - port: {{ .Values.mcpGateway.debugPort }}
+      targetPort: debug
+      name: debug
+  selector:
+    {{- include "maestro.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: mcp-gateway
+{{- end }}

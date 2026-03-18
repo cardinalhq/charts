@@ -1,0 +1,84 @@
+{{- if .Values.maestro.enabled -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "maestro.fullname" . }}-maestro
+  labels:
+    {{- include "maestro.labels" . | nindent 4 }}
+    app.kubernetes.io/component: maestro
+  {{ include "maestro.annotations" . | nindent 2 }}
+spec:
+  replicas: {{ .Values.maestro.replicas }}
+  selector:
+    matchLabels:
+      {{- include "maestro.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: maestro
+  template:
+    metadata:
+      labels:
+        {{- include "maestro.labels" . | nindent 8 }}
+        app.kubernetes.io/component: maestro
+      {{- include "maestro.annotations" . | nindent 6 }}
+    spec:
+      serviceAccountName: {{ include "maestro.serviceAccountName" . }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+      {{- include "maestro.imagePullSecrets" . | nindent 6 }}
+      {{- if .Values.mcpGateway.enabled }}
+      initContainers:
+      - name: wait-for-mcp-gateway
+        image: busybox:1.36
+        command: ['sh', '-c', 'until nc -z {{ include "maestro.fullname" . }}-mcp-gateway {{ .Values.mcpGateway.port }}; do echo waiting for mcp-gateway; sleep 2; done']
+      {{- end }}
+      containers:
+      - name: maestro
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop: ["ALL"]
+          seccompProfile:
+            type: RuntimeDefault
+        image: {{ include "maestro.image" (list .Values.maestro.image .) }}
+        imagePullPolicy: {{ .Values.maestro.image.pullPolicy }}
+        ports:
+        - containerPort: {{ .Values.maestro.port }}
+          name: http
+        env:
+          {{ include "maestro.databaseEnv" . | nindent 10 }}
+          - name: MCP_GATEWAY_URL
+            value: "http://{{ include "maestro.fullname" . }}-mcp-gateway:{{ .Values.mcpGateway.port }}/lakerunner/mcp"
+          - name: PORT
+            value: {{ .Values.maestro.port | quote }}
+          {{- with .Values.global.env }}
+          {{- toYaml . | nindent 10 }}
+          {{- end }}
+          {{- with .Values.maestro.env }}
+          {{- toYaml . | nindent 10 }}
+          {{- end }}
+        readinessProbe:
+          httpGet:
+            path: /api/health
+            port: http
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /api/health
+            port: http
+          initialDelaySeconds: 15
+          periodSeconds: 10
+        resources:
+          {{- toYaml .Values.maestro.resources | nindent 10 }}
+        volumeMounts:
+        - name: tmp
+          mountPath: /tmp
+      {{- include "maestro.sched.nodeSelector" (list .Values.global.nodeSelector .Values.maestro.nodeSelector) | nindent 6 }}
+      {{- include "maestro.sched.tolerations"  (list .Values.global.tolerations  .Values.maestro.tolerations)  | nindent 6 }}
+      {{- include "maestro.sched.affinity"     (list .Values.global.affinity     .Values.maestro.affinity)     | nindent 6 }}
+      volumes:
+      - name: tmp
+        emptyDir: {}
+{{- end }}

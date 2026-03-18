@@ -1,0 +1,41 @@
+{{- if .Values.uiWeb.enabled -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "maestro.fullname" . }}-ui-web-nginx
+  labels:
+    {{- include "maestro.labels" . | nindent 4 }}
+    app.kubernetes.io/component: ui-web
+  {{ include "maestro.annotations" . | nindent 2 }}
+data:
+  nginx.conf: |
+    server {
+        listen {{ .Values.uiWeb.port }};
+        root /usr/share/nginx/html;
+        index index.html;
+
+        location /api/ {
+            proxy_pass http://{{ include "maestro.fullname" . }}-maestro:{{ .Values.maestro.port }}/api/;
+            proxy_http_version 1.1;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header Connection "";
+            proxy_buffering off;
+            proxy_read_timeout 120s;
+        }
+
+        location / {
+            try_files $uri $uri/ /index.html;
+        }
+
+        location /assets/ {
+            expires 1y;
+            add_header Cache-Control "public, immutable";
+        }
+
+        location /healthz {
+            access_log off;
+            return 200 "ok\n";
+        }
+    }
+{{- end }}
