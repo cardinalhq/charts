@@ -1,0 +1,102 @@
+# Default values for maestro
+# This is a YAML-formatted file.
+
+nameOverride: ""
+fullnameOverride: ""
+
+# Maestro API server configuration
+maestro:
+  enabled: true
+  image:
+    repository: public.ecr.aws/cardinalhq.io/maestro
+    tag: ""          # defaults to Chart.appVersion
+    pullPolicy: IfNotPresent
+  replicas: 1
+  port: 4200
+  resources: {}
+  labels: {}
+  annotations: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  env: []            # additional env vars
+
+# MCP Gateway configuration
+mcpGateway:
+  enabled: true
+  image:
+    repository: public.ecr.aws/cardinalhq.io/mcp-gateway
+    tag: ""
+    pullPolicy: IfNotPresent
+  replicas: 1
+  port: 8080
+  debugPort: 9090
+  apiKey: ""
+  resources: {}
+  labels: {}
+  annotations: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  env: []
+
+# UI Web configuration (nginx SPA + reverse proxy)
+uiWeb:
+  enabled: true
+  image:
+    repository: public.ecr.aws/cardinalhq.io/ui-web
+    tag: ""
+    pullPolicy: IfNotPresent
+  replicas: 1
+  port: 8080
+  resources: {}
+  labels: {}
+  annotations: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+# Database configuration
+# Required.
+database:
+  secretName: "pg-credentials"
+  # Whether to create the database credentials secret.
+  # Set to false to use an existing secret (BYOS).
+  create: true
+  # Key name for password in the secret
+  passwordKey: "MAESTRO_DB_PASSWORD"
+  # PostgreSQL hostname.
+  # Required.
+  host: ""
+  # PostgreSQL port.
+  port: 5432
+  # PostgreSQL database name.
+  name: "maestro"
+  # PostgreSQL username.
+  username: "maestro"
+  # PostgreSQL password (only used when create: true).
+  password: ""
+  # SSL mode for PostgreSQL connection.
+  sslMode: "require"
+
+# Ingress configuration
+ingress:
+  enabled: false
+  className: ""
+  host: ""
+  annotations: {}
+  tls: []
+
+# Service account configuration
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+
+# Global settings
+global:
+  imagePullSecrets: []
+  # Common environment variables to inject into all containers.
+  env: []
+  labels: {}
+  annotations: {}

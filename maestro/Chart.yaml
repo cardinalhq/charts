@@ -1,0 +1,15 @@
+apiVersion: v2
+name: maestro
+description: A Helm chart for Maestro - AI agent server with web UI
+type: application
+version: "0.1.0"
+appVersion: "v0.1.0"
+keywords:
+  - maestro
+  - ai
+  - agent
+  - mcp
+home: https://github.com/cardinalhq/conductor
+maintainers:
+  - name: Cardinal HQ
+    email: support@cardinalhq.com
