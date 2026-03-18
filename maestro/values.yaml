@@ -4,13 +4,16 @@
 nameOverride: ""
 fullnameOverride: ""
 
-# Maestro API server configuration
+# Unified image for all components (Maestro + MCP Gateway + UI SPA).
+# Entrypoint selects which component to run.
+image:
+  repository: public.ecr.aws/cardinalhq.io/maestro
+  tag: ""          # defaults to Chart.appVersion
+  pullPolicy: IfNotPresent
+
+# Maestro API server + UI configuration
 maestro:
   enabled: true
-  image:
-    repository: public.ecr.aws/cardinalhq.io/maestro
-    tag: ""          # defaults to Chart.appVersion
-    pullPolicy: IfNotPresent
   replicas: 1
   port: 4200
   resources: {}
@@ -24,10 +27,6 @@ maestro:
 # MCP Gateway configuration
 mcpGateway:
   enabled: true
-  image:
-    repository: public.ecr.aws/cardinalhq.io/mcp-gateway
-    tag: ""
-    pullPolicy: IfNotPresent
   replicas: 1
   port: 8080
   debugPort: 9090
@@ -39,22 +38,6 @@ mcpGateway:
   tolerations: []
   affinity: {}
   env: []
-
-# UI Web configuration (nginx SPA + reverse proxy)
-uiWeb:
-  enabled: true
-  image:
-    repository: public.ecr.aws/cardinalhq.io/ui-web
-    tag: ""
-    pullPolicy: IfNotPresent
-  replicas: 1
-  port: 8080
-  resources: {}
-  labels: {}
-  annotations: {}
-  nodeSelector: {}
-  tolerations: []
-  affinity: {}
 
 # Database configuration
 # Required.

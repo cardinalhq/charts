@@ -25,7 +25,7 @@ spec:
         pathType: Prefix
         backend:
           service:
-            name: {{ include "maestro.fullname" . }}-ui-web
+            name: {{ include "maestro.fullname" . }}-maestro
             port:
               name: http
 {{- end }}

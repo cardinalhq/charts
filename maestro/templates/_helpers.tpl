@@ -100,21 +100,18 @@ Create the name of the service account to use
 {{- end }}
 
 {{/*
-Generate the full image name for components.
-Takes two arguments: component image config and root context
-Priority: component.tag > Chart.appVersion
-Usage: {{ include "maestro.image" (list .Values.componentName.image .) }}
+Generate the full image name (unified image for all components).
+Priority: image.tag > Chart.appVersion
+Usage: {{ include "maestro.image" . }}
 */}}
 {{- define "maestro.image" -}}
-{{- $componentImage := index . 0 -}}
-{{- $root := index . 1 -}}
 {{- $tag := "" -}}
-{{- if and $componentImage.tag (ne $componentImage.tag "") -}}
-{{- $tag = $componentImage.tag -}}
+{{- if and .Values.image.tag (ne .Values.image.tag "") -}}
+{{- $tag = .Values.image.tag -}}
 {{- else -}}
-{{- $tag = $root.Chart.AppVersion -}}
+{{- $tag = .Chart.AppVersion -}}
 {{- end -}}
-{{- printf "%s:%s" $componentImage.repository $tag -}}
+{{- printf "%s:%s" .Values.image.repository $tag -}}
 {{- end -}}
 
 {{/*

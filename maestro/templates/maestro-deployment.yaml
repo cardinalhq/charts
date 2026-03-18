@@ -42,8 +42,8 @@ spec:
             drop: ["ALL"]
           seccompProfile:
             type: RuntimeDefault
-        image: {{ include "maestro.image" (list .Values.maestro.image .) }}
-        imagePullPolicy: {{ .Values.maestro.image.pullPolicy }}
+        image: {{ include "maestro.image" . }}
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
         ports:
         - containerPort: {{ .Values.maestro.port }}
           name: http

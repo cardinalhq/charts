@@ -36,8 +36,10 @@ spec:
             drop: ["ALL"]
           seccompProfile:
             type: RuntimeDefault
-        image: {{ include "maestro.image" (list .Values.mcpGateway.image .) }}
-        imagePullPolicy: {{ .Values.mcpGateway.image.pullPolicy }}
+        image: {{ include "maestro.image" . }}
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        command: ["/app/entrypoint.sh"]
+        args: ["mcp-gateway"]
         ports:
         - containerPort: {{ .Values.mcpGateway.port }}
           name: http
