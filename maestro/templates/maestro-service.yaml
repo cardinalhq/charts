@@ -1,0 +1,19 @@
+{{- if .Values.maestro.enabled -}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "maestro.fullname" . }}-maestro
+  labels:
+    {{- include "maestro.labels" . | nindent 4 }}
+    app.kubernetes.io/component: maestro
+  {{ include "maestro.annotations" . | nindent 2 }}
+spec:
+  type: ClusterIP
+  ports:
+    - port: {{ .Values.maestro.port }}
+      targetPort: http
+      name: http
+  selector:
+    {{- include "maestro.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: maestro
+{{- end }}
