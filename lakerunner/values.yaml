@@ -330,11 +330,11 @@ setup:
     pullPolicy: ""
   resources:
     requests:
-      cpu: 1100m
-      memory: 250Mi
+      cpu: "1"
+      memory: 512Mi
     limits:
-      cpu: 1100m
-      memory: 250Mi
+      cpu: "1"
+      memory: 512Mi
   labels: {}
   annotations: {}
   nodeSelector: {}
@@ -352,10 +352,10 @@ ingestLogs:
   resources:
     requests:
       cpu: "1"
-      memory: 4Gi
+      memory: 2Gi
     limits:
       cpu: "1"
-      memory: 4Gi
+      memory: 2Gi
   temporaryStorage:
     size: "10Gi"
   autoscaling:
@@ -381,10 +381,10 @@ ingestMetrics:
   resources:
     requests:
       cpu: "1"
-      memory: 4Gi
+      memory: 2Gi
     limits:
       cpu: "1"
-      memory: 4Gi
+      memory: 2Gi
   temporaryStorage:
     size: "10Gi"
   autoscaling:
@@ -407,10 +407,10 @@ ingestTraces:
   resources:
     requests:
       cpu: "1"
-      memory: 4Gi
+      memory: 2Gi
     limits:
       cpu: "1"
-      memory: 4Gi
+      memory: 2Gi
   temporaryStorage:
     size: "10Gi"
   autoscaling:
@@ -433,10 +433,10 @@ compactLogs:
   resources:
     requests:
       cpu: "1"
-      memory: 4Gi
+      memory: 2Gi
     limits:
       cpu: "1"
-      memory: 4Gi
+      memory: 2Gi
   temporaryStorage:
     size: "10Gi"
   autoscaling:
@@ -459,10 +459,10 @@ compactMetrics:
   resources:
     requests:
       cpu: "1"
-      memory: 5Gi
+      memory: 2Gi
     limits:
       cpu: "1"
-      memory: 5Gi
+      memory: 2Gi
   temporaryStorage:
     size: "10Gi"
   autoscaling:
@@ -485,10 +485,10 @@ compactTraces:
   resources:
     requests:
       cpu: "1"
-      memory: 4Gi
+      memory: 2Gi
     limits:
       cpu: "1"
-      memory: 4Gi
+      memory: 2Gi
   temporaryStorage:
     size: "10Gi"
   autoscaling:
@@ -510,11 +510,11 @@ rollupMetrics:
     pullPolicy: ""
   resources:
     requests:
-      cpu: "4"
-      memory: 8Gi
+      cpu: "1"
+      memory: 2Gi
     limits:
-      cpu: "4"
-      memory: 8Gi
+      cpu: "1"
+      memory: 2Gi
   temporaryStorage:
     size: "10Gi"
   autoscaling:
@@ -536,11 +536,11 @@ sweeper:
     pullPolicy: ""
   resources:
     requests:
-      cpu: 250m
-      memory: 300Mi
+      cpu: "500m"
+      memory: 512Mi
     limits:
-      cpu: 250m
-      memory: 300Mi
+      cpu: "500m"
+      memory: 512Mi
   labels: {}
   annotations: {}
   nodeSelector: {}
@@ -580,11 +580,11 @@ notificationSender:
     pullPolicy: ""
   resources:
     requests:
-      cpu: "250m"
-      memory: 256Mi
+      cpu: "500m"
+      memory: 512Mi
     limits:
       cpu: "500m"
-      memory: 256Mi
+      memory: 512Mi
   labels: {}
   annotations: {}
   nodeSelector: {}
@@ -617,11 +617,11 @@ monitoring:
     pullPolicy: ""
   resources:
     requests:
-      cpu: 250m
-      memory: 100Mi
+      cpu: "1"
+      memory: 512Mi
     limits:
-      cpu: 250m
-      memory: 100Mi
+      cpu: "1"
+      memory: 512Mi
   labels: {}
   annotations: {}
   nodeSelector: {}
@@ -745,11 +745,11 @@ pubsub:
       pullPolicy: ""
     resources:
       requests:
-        cpu: 200m
-        memory: 200Mi
+        cpu: "1"
+        memory: 512Mi
       limits:
-        cpu: 200m
-        memory: 200Mi
+        cpu: "1"
+        memory: 512Mi
     nodeSelector: {}
     tolerations: []
     affinity: {}
@@ -773,10 +773,10 @@ queryApi:
   resources:
     requests:
       cpu: "1"
-      memory: 4Gi
+      memory: 2Gi
     limits:
       cpu: "1"
-      memory: 4Gi
+      memory: 2Gi
   nodeSelector: {}
   tolerations: []
   affinity: {}
