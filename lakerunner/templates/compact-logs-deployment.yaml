@@ -8,7 +8,6 @@ metadata:
     app.kubernetes.io/component: compact-logs
   {{ include "lakerunner.annotations" . | nindent 2 }}
 spec:
-  replicas: {{ .Values.compactLogs.replicas }}
   selector:
     matchLabels:
       {{- include "lakerunner.selectorLabels" . | nindent 6 }}

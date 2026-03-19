@@ -24,49 +24,41 @@ tests:
           path: spec.replicas
           value: 3
 
-  - it: should always set replicas on worker deployments
+  - it: should not set replicas on autoscaled worker deployments
     set:
       ingestLogs.enabled: true
-      ingestLogs.replicas: 5
     templates:
       - ingest-logs-deployment.yaml
     asserts:
-      - equal:
+      - notExists:
           path: spec.replicas
-          value: 5
 
-  - it: should set replicas for ingest traces
+  - it: should not set replicas for ingest traces
     set:
       ingestTraces.enabled: true
-      ingestTraces.replicas: 4
     templates:
       - ingest-traces-deployment.yaml
     asserts:
-      - equal:
+      - notExists:
           path: spec.replicas
-          value: 4
 
-  - it: should set replicas for compact logs
+  - it: should not set replicas for compact logs
     set:
       compactLogs.enabled: true
-      compactLogs.replicas: 3
     templates:
       - compact-logs-deployment.yaml
     asserts:
-      - equal:
+      - notExists:
           path: spec.replicas
-          value: 3
 
-  - it: should set replicas for compact traces
+  - it: should not set replicas for compact traces
     set:
       compactTraces.enabled: true
-      compactTraces.replicas: 2
     templates:
       - compact-traces-deployment.yaml
     asserts:
-      - equal:
+      - notExists:
           path: spec.replicas
-          value: 2
 
   # Autoscaler env var tests (on monitoring deployment)
   - it: should inject autoscaler env vars for enabled services
