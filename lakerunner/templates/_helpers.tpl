@@ -1,13 +1,4 @@
 {{/*
-Validate that HPA mode is not used - fail deployment if it is
-*/}}
-{{- define "lakerunner.validateScalingMode" -}}
-{{- if eq .Values.global.autoscaling.mode "hpa" -}}
-{{- fail "HPA scaling mode is no longer supported. Please use 'keda' or 'disabled' for autoscaling.mode" -}}
-{{- end -}}
-{{- end -}}
-
-{{/*
 Expand the name of the chart.
 */}}
 {{- define "lakerunner.name" -}}
@@ -494,19 +485,71 @@ Usage: {{ include "lakerunner.image" (list .Values.componentName.image .) }}
 {{- end -}}
 
 {{/*
-Determine the autoscaling mode for a component.
-Takes two arguments: component autoscaling config and root context
-Returns the effective scaling mode: "hpa", "keda", or "disabled"
-Usage: {{ include "lakerunner.autoscalingMode" (list .Values.componentName.autoscaling .) }}
+Generate autoscaler environment variables for the monitoring deployment.
+Emits LAKERUNNER_AUTOSCALER_* env vars for all enabled worker services.
+Usage: {{ include "lakerunner.autoscalerEnv" . }}
 */}}
-{{- define "lakerunner.autoscalingMode" -}}
-{{- $componentAutoscaling := index . 0 -}}
-{{- $root := index . 1 -}}
-{{- if not $componentAutoscaling.enabled -}}
-disabled
-{{- else -}}
-{{- $root.Values.global.autoscaling.mode -}}
-{{- end -}}
+{{- define "lakerunner.autoscalerEnv" -}}
+- name: LAKERUNNER_AUTOSCALER_ENABLED
+  value: "true"
+- name: LAKERUNNER_AUTOSCALER_OBSERVE_ONLY
+  value: {{ .Values.monitoring.autoscaler.observeOnly | quote }}
+{{- if .Values.ingestLogs.enabled }}
+- name: LAKERUNNER_AUTOSCALER_SERVICES_INGEST_LOGS_DEPLOYMENT
+  value: {{ include "lakerunner.fullname" . }}-ingest-logs
+- name: LAKERUNNER_AUTOSCALER_SERVICES_INGEST_LOGS_MIN_REPLICAS
+  value: {{ .Values.ingestLogs.autoscaling.minReplicas | quote }}
+- name: LAKERUNNER_AUTOSCALER_SERVICES_INGEST_LOGS_MAX_REPLICAS
+  value: {{ .Values.ingestLogs.autoscaling.maxReplicas | quote }}
+{{- end }}
+{{- if .Values.ingestMetrics.enabled }}
+- name: LAKERUNNER_AUTOSCALER_SERVICES_INGEST_METRICS_DEPLOYMENT
+  value: {{ include "lakerunner.fullname" . }}-ingest-metrics
+- name: LAKERUNNER_AUTOSCALER_SERVICES_INGEST_METRICS_MIN_REPLICAS
+  value: {{ .Values.ingestMetrics.autoscaling.minReplicas | quote }}
+- name: LAKERUNNER_AUTOSCALER_SERVICES_INGEST_METRICS_MAX_REPLICAS
+  value: {{ .Values.ingestMetrics.autoscaling.maxReplicas | quote }}
+{{- end }}
+{{- if .Values.ingestTraces.enabled }}
+- name: LAKERUNNER_AUTOSCALER_SERVICES_INGEST_TRACES_DEPLOYMENT
+  value: {{ include "lakerunner.fullname" . }}-ingest-traces
+- name: LAKERUNNER_AUTOSCALER_SERVICES_INGEST_TRACES_MIN_REPLICAS
+  value: {{ .Values.ingestTraces.autoscaling.minReplicas | quote }}
+- name: LAKERUNNER_AUTOSCALER_SERVICES_INGEST_TRACES_MAX_REPLICAS
+  value: {{ .Values.ingestTraces.autoscaling.maxReplicas | quote }}
+{{- end }}
+{{- if .Values.compactLogs.enabled }}
+- name: LAKERUNNER_AUTOSCALER_SERVICES_COMPACT_LOGS_DEPLOYMENT
+  value: {{ include "lakerunner.fullname" . }}-compact-logs
+- name: LAKERUNNER_AUTOSCALER_SERVICES_COMPACT_LOGS_MIN_REPLICAS
+  value: {{ .Values.compactLogs.autoscaling.minReplicas | quote }}
+- name: LAKERUNNER_AUTOSCALER_SERVICES_COMPACT_LOGS_MAX_REPLICAS
+  value: {{ .Values.compactLogs.autoscaling.maxReplicas | quote }}
+{{- end }}
+{{- if .Values.compactMetrics.enabled }}
+- name: LAKERUNNER_AUTOSCALER_SERVICES_COMPACT_METRICS_DEPLOYMENT
+  value: {{ include "lakerunner.fullname" . }}-compact-metrics
+- name: LAKERUNNER_AUTOSCALER_SERVICES_COMPACT_METRICS_MIN_REPLICAS
+  value: {{ .Values.compactMetrics.autoscaling.minReplicas | quote }}
+- name: LAKERUNNER_AUTOSCALER_SERVICES_COMPACT_METRICS_MAX_REPLICAS
+  value: {{ .Values.compactMetrics.autoscaling.maxReplicas | quote }}
+{{- end }}
+{{- if .Values.compactTraces.enabled }}
+- name: LAKERUNNER_AUTOSCALER_SERVICES_COMPACT_TRACES_DEPLOYMENT
+  value: {{ include "lakerunner.fullname" . }}-compact-traces
+- name: LAKERUNNER_AUTOSCALER_SERVICES_COMPACT_TRACES_MIN_REPLICAS
+  value: {{ .Values.compactTraces.autoscaling.minReplicas | quote }}
+- name: LAKERUNNER_AUTOSCALER_SERVICES_COMPACT_TRACES_MAX_REPLICAS
+  value: {{ .Values.compactTraces.autoscaling.maxReplicas | quote }}
+{{- end }}
+{{- if .Values.rollupMetrics.enabled }}
+- name: LAKERUNNER_AUTOSCALER_SERVICES_ROLLUP_METRICS_DEPLOYMENT
+  value: {{ include "lakerunner.fullname" . }}-rollup-metrics
+- name: LAKERUNNER_AUTOSCALER_SERVICES_ROLLUP_METRICS_MIN_REPLICAS
+  value: {{ .Values.rollupMetrics.autoscaling.minReplicas | quote }}
+- name: LAKERUNNER_AUTOSCALER_SERVICES_ROLLUP_METRICS_MAX_REPLICAS
+  value: {{ .Values.rollupMetrics.autoscaling.maxReplicas | quote }}
+{{- end }}
 {{- end -}}
 
 {{/*

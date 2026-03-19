@@ -69,6 +69,7 @@ spec:
             value: {{ include "lakerunner.fullname" . }}-monitoring
           - name: TMPDIR
             value: /scratch
+          {{- include "lakerunner.autoscalerEnv" . | nindent 10 }}
           {{- include "lakerunner.injectEnv" (list . .Values.monitoring) | nindent 8 }}
           {{- include "lakerunner.cardinalTelemetryEnv" . | nindent 10 }}
         {{- include "lakerunner.healthProbes" (list . .Values.monitoring) | nindent 8 }}
