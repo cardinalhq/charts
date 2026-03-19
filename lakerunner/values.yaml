@@ -229,75 +229,6 @@ cloudProvider:
     # Service account JSON for native GCP API access (e.g., Pub/Sub, GCS)
     serviceAccountJson: ""
 
-# Kafka connection settings
-kafka:
-  # Name of the Kubernetes secret containing Kafka credentials
-  secretName: "kafka-credentials"
-  # Whether to create the Kafka credentials secret
-  create: true
-  # Secret key names (only needed if using an existing secret with different key names)
-  usernameKey: "KAFKA_USERNAME" # Key name for username in the secret
-  passwordKey: "KAFKA_PASSWORD" # Key name for password in the secret
-  # Kafka broker configuration
-  # Required - Comma-separated list of Kafka broker addresses
-  # Example: "b-1.cluster.kafka.us-east-1.amazonaws.com:9096,b-2.cluster.kafka.us-east-1.amazonaws.com:9096"
-  brokers: ""
-  # SASL (Simple Authentication and Security Layer) configuration
-  sasl:
-    # Whether to enable SASL authentication (default: true)
-    enabled: true
-    # SASL mechanism - Options: "PLAIN", "SCRAM-SHA-256", "SCRAM-SHA-512"
-    mechanism: "SCRAM-SHA-512"
-    # SASL username (only used if create: true)
-    username: ""
-    # SASL password (only used if create: true)
-    password: ""
-  # TLS configuration
-  tls:
-    # Whether to enable TLS encryption (default: true)
-    enabled: true
-
-# Kafka topics configuration
-# Defines the Kafka topics that will be created during setup.
-kafkaTopics:
-  configmapName: "kafka-topics" # Name of the ConfigMap containing Kafka topics
-  # IF create is true, the contents of the `config` block will be used to set up
-  # the Kafka topics.  If false, the configuration defined below will be
-  # ignored, but
-  create: true
-  config:
-    version: 2
-    defaults:
-      # This will be the default for all topics unless overridden below.
-      # Can only increase this value as Kafka does not support decreasing
-      # partitions.
-      partitionCount: 16
-      # Set the replication factor for all topics.  This can be changed
-      # and the new value will be configured on the next setup job run.
-      replicationFactor: 2
-      # Additional topic-level configuration options.
-      # These will be applied to all topics unless overridden below,
-      # on the next setup job run.
-      options:
-        "retention.ms": "604800000" # 7 days
-    # Worker overrides by service type will configure the
-    # topic that feeds these services.  See the docs for more details.
-    # workers:
-    #   objstore.ingest.logs:
-    #     partitionCount: 16
-    #   objstore.ingest.metrics:
-    #     partitionCount: 16
-    #   objstore.ingest.traces:
-    #     partitionCount: 16
-    #   boxer.logs.compact:
-    #     partitionCount: 16
-    #   boxer.metrics.compact:
-    #     partitionCount: 16
-    #   boxer.traces.compact:
-    #     partitionCount: 16
-    #   boxer.metrics.rollup:
-    #     partitionCount: 16
-
 # Storage profile configuration
 # At least one storage profile is required for the LakeRunner to function.
 # Required.
@@ -421,10 +352,6 @@ setup:
   nodeSelector: {}
   tolerations: []
   affinity: {}
-  # Kafka topic setup configuration
-  # This enables the setup job to create Kafka topics from the kafkaTopics configuration
-  kafka:
-    enabled: true
 
 # Ingest Logs configuration
 ingestLogs:
@@ -680,53 +607,6 @@ rollupMetrics:
   nodeSelector: {}
   tolerations: []
   affinity: {}
-
-# Boxer configuration
-# New instances-based configuration for running multiple tasks in a single pod
-boxers:
-  # Default configuration that applies to all boxer instances
-  # The number of replicas to run. This is not used if autoscaling is enabled.
-  replicas: 1
-  image:
-    repository: ghcr.io/cardinalhq/lakerunner
-    tag: ""
-    pullPolicy: ""
-  resources:
-    requests:
-      cpu: "200m"
-      memory: 250Mi
-    limits:
-      cpu: "200m"
-      memory: 250Mi
-  autoscaling:
-    enabled: true
-    minReplicas: 1
-    maxReplicas: 1
-    keda:
-      pollingInterval: 60 # Longer interval for batch work
-      cooldownPeriod: 600 # 10-minute cooldown for processing
-      targetQueueDepth: 15 # DEPRECATED: not used - controlled by monitor (external scaler)
-      activationQueueDepth: 2 # DEPRECATED: not used - controlled by monitor (external scaler)
-      cpuTrigger:
-        enabled: true # Enable CPU-based scaling alongside queue depth
-        targetUtilization: 80 # Target average CPU utilization percentage
-  labels: {}
-  annotations: {}
-  nodeSelector: {}
-  tolerations: []
-  affinity: {}
-  # Boxer instances configuration
-  instances:
-    # Default configuration: single boxer with all tasks
-    - name: common
-      tasks:
-        - compact-logs
-        - compact-metrics
-        - compact-traces
-        - ingest-logs
-        - ingest-metrics
-        - ingest-traces
-        - rollup-metrics
 
 # Sweeper configuration
 sweeper:

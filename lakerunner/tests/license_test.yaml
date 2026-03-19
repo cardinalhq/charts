@@ -8,7 +8,6 @@ templates:
   - ingest-logs-deployment.yaml
   - sweeper-deployment.yaml
   - setup-job.yaml
-  - boxer-deployment.yaml
 tests:
   # Secret creation tests
   - it: should create license secret when create is true and data is provided
@@ -88,17 +87,6 @@ tests:
             name: license
             secret:
               secretName: RELEASE-NAME-lakerunner-lakerunner-license
-
-  - it: should have license volume mount in boxer
-    templates:
-      - boxer-deployment.yaml
-    asserts:
-      - contains:
-          path: spec.template.spec.containers[0].volumeMounts
-          content:
-            name: license
-            mountPath: /app/license
-            readOnly: true
 
   # BYOS - exact secret name when create is false
   - it: should use exact secret name when create is false (BYOS)

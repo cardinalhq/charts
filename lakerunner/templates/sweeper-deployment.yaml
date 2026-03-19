@@ -72,7 +72,6 @@ spec:
           {{- end }}
           {{- include "lakerunner.injectEnv" (list . .Values.sweeper) | nindent 8 }}
           {{- include "lakerunner.cardinalTelemetryEnv" . | nindent 10 }}
-          {{- include "lakerunner.kafkaEnv" . | nindent 10 }}
         {{- if eq (include "lakerunner.injectCloudProviderCredentials" .) "true" }}
         envFrom:
           - secretRef:
@@ -89,11 +88,9 @@ spec:
           mountPath: /app/config/storage_profiles.yaml
           subPath: storage_profiles.yaml
           readOnly: true
-        {{- include "lakerunner.kafkaTopicsVolumeMount" . | nindent 8 }}
         {{- include "lakerunner.licenseVolumeMount" . | nindent 8 }}
         {{- else }}
         volumeMounts:
-        {{- include "lakerunner.kafkaTopicsVolumeMount" . | nindent 8 }}
         {{- include "lakerunner.licenseVolumeMount" . | nindent 8 }}
         {{- end }}
       {{- if eq .Values.storageProfiles.source "config" }}
@@ -101,11 +98,9 @@ spec:
       - name: storage-profiles
         configMap:
           name: {{ include "lakerunner.storageProfilesConfigmapName" . }}
-      {{- include "lakerunner.kafkaTopicsVolume" . | nindent 6 }}
       {{- include "lakerunner.licenseVolume" . | nindent 6 }}
       {{- else }}
       volumes:
-      {{- include "lakerunner.kafkaTopicsVolume" . | nindent 6 }}
       {{- include "lakerunner.licenseVolume" . | nindent 6 }}
       {{- end }}
 {{- end }}

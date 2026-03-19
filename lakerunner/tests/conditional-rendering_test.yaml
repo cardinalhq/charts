@@ -13,7 +13,6 @@ templates:
   - compact-logs-deployment.yaml
   - compact-metrics-deployment.yaml
   - rollup-metrics-deployment.yaml
-  - boxer-deployment.yaml
   - sweeper-deployment.yaml
   - alert-evaluator-deployment.yaml
   - notification-sender-deployment.yaml
@@ -166,7 +165,6 @@ tests:
       - compact-logs-deployment.yaml
       - compact-metrics-deployment.yaml
       - rollup-metrics-deployment.yaml
-      - boxer-deployment.yaml
       - sweeper-deployment.yaml
     asserts:
       - isKind:

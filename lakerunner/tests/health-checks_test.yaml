@@ -19,10 +19,6 @@ templates:
   - pubsub-sqs-deployment.yaml
   - pubsub-azure-deployment.yaml
   - pubsub-gcp-deployment.yaml
-  - boxer-compact-logs-deployment.yaml
-  - boxer-compact-metrics-deployment.yaml
-  - boxer-compact-traces-deployment.yaml
-  - boxer-rollup-metrics-deployment.yaml
   - monitoring-deployment.yaml
 tests:
   # Global Health Probe Configuration Tests

@@ -71,16 +71,13 @@ spec:
             value: /scratch
           {{- include "lakerunner.injectEnv" (list . .Values.adminApi) | nindent 8 }}
           {{- include "lakerunner.cardinalTelemetryEnv" . | nindent 10 }}
-          {{- include "lakerunner.kafkaEnv" . | nindent 10 }}
         {{- include "lakerunner.healthProbes" (list . .Values.adminApi) | nindent 8 }}
         {{- if .Values.global.resources.enabled }}
         resources:
           {{- toYaml .Values.adminApi.resources | nindent 10 }}
         {{- end }}
         volumeMounts:
-        {{- include "lakerunner.kafkaTopicsVolumeMount" . | nindent 8 }}
         {{- include "lakerunner.licenseVolumeMount" . | nindent 8 }}
       volumes:
-      {{- include "lakerunner.kafkaTopicsVolume" . | nindent 6 }}
       {{- include "lakerunner.licenseVolume" . | nindent 6 }}
 {{- end }}
