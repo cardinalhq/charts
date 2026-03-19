@@ -73,7 +73,6 @@ spec:
           {{- end }}
           {{- include "lakerunner.injectEnvDuckdb" (list . .Values.compactMetrics) | nindent 8 }}
           {{- include "lakerunner.cardinalTelemetryEnv" . | nindent 10 }}
-          {{- include "lakerunner.kafkaEnv" . | nindent 10 }}
         {{- if eq (include "lakerunner.injectCloudProviderCredentials" .) "true" }}
         envFrom:
           - secretRef:
@@ -91,7 +90,6 @@ spec:
           subPath: storage_profiles.yaml
           readOnly: true
         {{- end }}
-        {{- include "lakerunner.kafkaTopicsVolumeMount" . | nindent 8 }}
         - name: scratch
           mountPath: /scratch
         {{- include "lakerunner.azureTokenVolumeMount" . | nindent 8 }}
@@ -106,7 +104,6 @@ spec:
         configMap:
           name: {{ include "lakerunner.storageProfilesConfigmapName" . }}
       {{- end }}
-      {{- include "lakerunner.kafkaTopicsVolume" . | nindent 6 }}
       {{- include "lakerunner.azureTokenVolume" . | nindent 6 }}
       {{- include "lakerunner.licenseVolume" . | nindent 6 }}
 {{- end }}

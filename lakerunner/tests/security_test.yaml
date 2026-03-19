@@ -13,7 +13,6 @@ templates:
   - compact-metrics-deployment.yaml
   - compact-traces-deployment.yaml
   - rollup-metrics-deployment.yaml
-  - boxer-deployment.yaml
   - sweeper-deployment.yaml
   - monitoring-deployment.yaml
   # PubSub components
@@ -40,7 +39,6 @@ tests:
       - compact-metrics-deployment.yaml
       - compact-traces-deployment.yaml
       - rollup-metrics-deployment.yaml
-      - boxer-deployment.yaml
       - sweeper-deployment.yaml
       - monitoring-deployment.yaml
     set:
@@ -74,7 +72,6 @@ tests:
       - compact-metrics-deployment.yaml
       - compact-traces-deployment.yaml
       - rollup-metrics-deployment.yaml
-      - boxer-deployment.yaml
       - sweeper-deployment.yaml
       - monitoring-deployment.yaml
     set:

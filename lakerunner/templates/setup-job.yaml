@@ -44,7 +44,6 @@ spec:
             value: {{ include "lakerunner.fullname" . }}-setup
           {{- include "lakerunner.injectEnv" (list . .Values.setup) | nindent 8 }}
           {{- include "lakerunner.cardinalTelemetryEnv" . | nindent 10 }}
-          {{- include "lakerunner.kafkaEnv" . | nindent 10 }}
         {{- if .Values.global.resources.enabled }}
         resources:
           {{- toYaml .Values.setup.resources | nindent 10 }}
@@ -62,12 +61,6 @@ spec:
           subPath: apikeys.yaml
           readOnly: true
         {{- end }}
-        {{- if and .Values.setup.kafka.enabled .Values.kafkaTopics.create }}
-        - name: kafka-topics
-          mountPath: /app/config/kafka_topics.yaml
-          subPath: kafka_topics.yaml
-          readOnly: true
-        {{- end }}
         {{- include "lakerunner.licenseVolumeMount" . | nindent 8 }}
       volumes:
       {{- if eq .Values.storageProfiles.source "config" }}
@@ -79,11 +72,6 @@ spec:
       - name: apikeys
         secret:
           secretName: {{ include "lakerunner.apiKeysSecretName" . }}
-      {{- end }}
-      {{- if and .Values.setup.kafka.enabled .Values.kafkaTopics.create }}
-      - name: kafka-topics
-        configMap:
-          name: {{ include "lakerunner.kafkaTopicsConfigmapName" . }}
       {{- end }}
       {{- include "lakerunner.licenseVolume" . | nindent 6 }}
   backoffLimit: 0

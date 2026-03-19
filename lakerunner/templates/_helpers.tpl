@@ -8,41 +8,6 @@ Validate that HPA mode is not used - fail deployment if it is
 {{- end -}}
 
 {{/*
-Validate that legacy boxer configurations are not used
-*/}}
-{{- define "lakerunner.validateLegacyBoxerConfigs" -}}
-{{- if or (hasKey .Values "boxerRollupMetrics") (hasKey .Values "boxerCompactMetrics") (hasKey .Values "boxerCompactLogs") (hasKey .Values "boxerCompactTraces") -}}
-{{- fail "Legacy boxer configurations (boxerRollupMetrics, boxerCompactMetrics, boxerCompactLogs, boxerCompactTraces) are no longer supported. Please migrate to the new boxers.instances configuration. Example:\n\nboxers:\n  instances:\n    - name: common\n      tasks:\n        - compact-logs\n        - compact-metrics\n        - compact-traces\n        - rollup-metrics\n\nFor multiple instances, specify additional entries with different names and task lists." -}}
-{{- end -}}
-{{- end -}}
-
-{{/*
-Validate that boxer instances do not have overlapping tasks
-*/}}
-{{- define "lakerunner.validateBoxerInstances" -}}
-{{- if .Values.boxers.instances -}}
-{{- $allTasks := list -}}
-{{- range $instance := .Values.boxers.instances -}}
-  {{- if not (hasKey $instance "name") -}}
-    {{- fail "Boxer instance missing required 'name' field." -}}
-  {{- end -}}
-  {{- if not (hasKey $instance "tasks") -}}
-    {{- fail (printf "Boxer instance '%s' missing required 'tasks' field." $instance.name) -}}
-  {{- end -}}
-  {{- if not $instance.tasks -}}
-    {{- fail (printf "Boxer instance '%s' has no tasks assigned. Each instance must have at least one task." $instance.name) -}}
-  {{- end -}}
-  {{- range $task := $instance.tasks -}}
-    {{- if has $task $allTasks -}}
-      {{- fail (printf "Task '%s' is assigned to multiple boxer instances. Each task can only be assigned to one instance." $task) -}}
-    {{- end -}}
-    {{- $allTasks = append $allTasks $task -}}
-  {{- end -}}
-{{- end -}}
-{{- end -}}
-{{- end -}}
-
-{{/*
 Expand the name of the chart.
 */}}
 {{- define "lakerunner.name" -}}
@@ -333,17 +298,6 @@ Return the configmap name for the Storage Profiles.  If we have create true, we 
 {{- end }}
 
 {{/*
-Return the configmap name for the Kafka Topics.  If we have create true, we will prefix it with the release name.
-*/}}
-{{- define "lakerunner.kafkaTopicsConfigmapName" -}}
-{{- if .Values.kafkaTopics.create }}
-{{- printf "%s-%s" (include "lakerunner.fullname" .) .Values.kafkaTopics.configmapName | trunc 63 | trimSuffix "-" }}
-{{- else }}
-{{- .Values.kafkaTopics.configmapName | trunc 63 | trimSuffix "-" }}
-{{- end }}
-{{- end }}
-
-{{/*
 Return the secret name for the Database credentials.  If we have create true, we will prefix it with the release name.
 */}}
 {{- define "lakerunner.databaseSecretName" -}}
@@ -618,74 +572,6 @@ Usage: {{ include "lakerunner.ephemeralVolumeBasic" (list "storage" .) }}
   emptyDir: {}
 {{- end -}}
 {{- end -}}
-
-{{/*
-Return the secret name for the Kafka credentials. If we have create true, we will prefix it with the release name.
-*/}}
-{{- define "lakerunner.kafkaSecretName" -}}
-{{- if .Values.kafka.create }}
-{{- printf "%s-%s" (include "lakerunner.fullname" .) .Values.kafka.secretName | trunc 63 | trimSuffix "-" }}
-{{- else }}
-{{- .Values.kafka.secretName }}
-{{- end }}
-{{- end }}
-
-{{/*
-Generate Kafka environment variables.
-This template injects Kafka configuration environment variables.
-Usage: {{ include "lakerunner.kafkaEnv" . }}
-*/}}
-{{- define "lakerunner.kafkaEnv" -}}
-# KAFKA_* variables
-- name: LAKERUNNER_KAFKA_BROKERS
-  value: {{ .Values.kafka.brokers | quote }}
-- name: LAKERUNNER_KAFKA_TLS_ENABLED
-  value: {{ .Values.kafka.tls.enabled | quote }}
-{{- if .Values.kafka.sasl.enabled }}
-- name: LAKERUNNER_KAFKA_SASL_ENABLED
-  value: "true"
-- name: LAKERUNNER_KAFKA_SASL_MECHANISM
-  value: {{ .Values.kafka.sasl.mechanism | quote }}
-- name: LAKERUNNER_KAFKA_SASL_USERNAME
-  valueFrom:
-    secretKeyRef:
-      name: {{ include "lakerunner.kafkaSecretName" . }}
-      key: {{ .Values.kafka.usernameKey }}
-- name: LAKERUNNER_KAFKA_SASL_PASSWORD
-  valueFrom:
-    secretKeyRef:
-      name: {{ include "lakerunner.kafkaSecretName" . }}
-      key: {{ .Values.kafka.passwordKey }}
-{{- else }}
-- name: LAKERUNNER_KAFKA_SASL_ENABLED
-  value: "false"
-{{- end }}
-{{- end }}
-
-{{/*
-Generate Kafka topics ConfigMap volume mount.
-Usage: {{ include "lakerunner.kafkaTopicsVolumeMount" . }}
-*/}}
-{{- define "lakerunner.kafkaTopicsVolumeMount" -}}
-{{- if .Values.kafkaTopics.create }}
-- name: kafka-topics
-  mountPath: /app/config/kafka_topics.yaml
-  subPath: kafka_topics.yaml
-  readOnly: true
-{{- end }}
-{{- end }}
-
-{{/*
-Generate Kafka topics ConfigMap volume.
-Usage: {{ include "lakerunner.kafkaTopicsVolume" . }}
-*/}}
-{{- define "lakerunner.kafkaTopicsVolume" -}}
-{{- if .Values.kafkaTopics.create }}
-- name: kafka-topics
-  configMap:
-    name: {{ include "lakerunner.kafkaTopicsConfigmapName" . }}
-{{- end }}
-{{- end }}
 
 {{/*
 Generate Azure workload identity token volume mount.

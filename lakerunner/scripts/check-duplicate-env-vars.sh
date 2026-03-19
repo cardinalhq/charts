@@ -16,10 +16,6 @@ TEMPLATES=(
   "compact-metrics-deployment.yaml"
   "compact-traces-deployment.yaml"
   "rollup-metrics-deployment.yaml"
-  "boxer-rollup-metrics-deployment.yaml"
-  "boxer-compact-metrics-deployment.yaml"
-  "boxer-compact-logs-deployment.yaml"
-  "boxer-compact-traces-deployment.yaml"
   "sweeper-deployment.yaml"
   "monitoring-deployment.yaml"
   "pubsub-http-deployment.yaml"
@@ -35,9 +31,6 @@ TEMPLATES=(
 # Enable services that might be disabled by default
 HELM_SET_VALUES="--set cloudProvider.aws.region=us-west-2 \
 --set ingestTraces.enabled=true \
---set boxerCompactMetrics.enabled=true \
---set boxerCompactLogs.enabled=true \
---set boxerCompactTraces.enabled=true \
 --set pubsub.SQS.enabled=true \
 --set pubsub.SQS.queueURL=https://sqs.us-west-2.amazonaws.com/123456789/test \
 --set pubsub.HTTP.enabled=true \
