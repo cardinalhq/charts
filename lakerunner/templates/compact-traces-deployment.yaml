@@ -1,5 +1,4 @@
 {{- if .Values.compactTraces.enabled -}}
-{{- include "lakerunner.validateScalingMode" . -}}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -9,10 +8,7 @@ metadata:
     app.kubernetes.io/component: compact-traces
   {{ include "lakerunner.annotations" . | nindent 2 }}
 spec:
-  {{- $scalingMode := include "lakerunner.autoscalingMode" (list .Values.compactTraces.autoscaling .) }}
-  {{- if eq $scalingMode "disabled" }}
   replicas: {{ .Values.compactTraces.replicas }}
-  {{- end }}
   selector:
     matchLabels:
       {{- include "lakerunner.selectorLabels" . | nindent 6 }}

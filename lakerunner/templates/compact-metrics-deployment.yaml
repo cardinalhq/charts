@@ -1,5 +1,4 @@
 {{- if .Values.compactMetrics.enabled -}}
-{{- include "lakerunner.validateScalingMode" . -}}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -9,10 +8,7 @@ metadata:
     app.kubernetes.io/component: compact-metrics
   {{ include "lakerunner.annotations" . | nindent 2 }}
 spec:
-  {{- $scalingMode := include "lakerunner.autoscalingMode" (list .Values.compactMetrics.autoscaling .) }}
-  {{- if eq $scalingMode "disabled" }}
   replicas: {{ .Values.compactMetrics.replicas }}
-  {{- end }}
   selector:
     matchLabels:
       {{- include "lakerunner.selectorLabels" . | nindent 6 }}

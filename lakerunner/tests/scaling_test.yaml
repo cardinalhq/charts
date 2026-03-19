@@ -2,13 +2,10 @@ suite: test scaling configuration
 templates:
   - query-api-deployment.yaml
   - ingest-logs-deployment.yaml
-  - ingest-logs-scaledobject.yaml
   - ingest-traces-deployment.yaml
-  - ingest-traces-scaledobject.yaml
   - compact-logs-deployment.yaml
-  - compact-logs-scaledobject.yaml
   - compact-traces-deployment.yaml
-  - compact-traces-scaledobject.yaml
+  - monitoring-deployment.yaml
 values:
   - ../values.yaml
 set:
@@ -27,110 +24,8 @@ tests:
           path: spec.replicas
           value: 3
 
-  - it: should set correct replicas for ingest logs when autoscaling disabled
+  - it: should always set replicas on worker deployments
     set:
-      ingestLogs.enabled: true
-      ingestLogs.replicas: 5
-      ingestLogs.autoscaling.enabled: false
-    templates:
-      - ingest-logs-deployment.yaml
-    asserts:
-      - equal:
-          path: spec.replicas
-          value: 5
-
-  - it: should not set replicas when KEDA autoscaling is active
-    set:
-      global.autoscaling.mode: keda
-      monitoring.enabled: true
-      ingestLogs.enabled: true
-      ingestLogs.autoscaling.enabled: true
-    templates:
-      - ingest-logs-deployment.yaml
-    asserts:
-      - notExists:
-          path: spec.replicas
-
-  - it: should fail deployment when HPA mode is used
-    set:
-      global.autoscaling.mode: hpa
-      ingestLogs.enabled: true
-      ingestMetrics.enabled: false
-      ingestTraces.enabled: false
-      compactLogs.enabled: false
-      compactMetrics.enabled: false
-      compactTraces.enabled: false
-      rollupMetrics.enabled: false
-    templates:
-      - ingest-logs-deployment.yaml
-    asserts:
-      - failedTemplate:
-          errorPattern: "HPA scaling mode is no longer supported"
-
-  # KEDA Scaling Tests
-  - it: should create ScaledObject when KEDA mode is enabled
-    set:
-      global.autoscaling.mode: keda
-      ingestLogs.enabled: true
-      monitoring.enabled: true
-      ingestLogs.autoscaling.minReplicas: 1
-      ingestLogs.autoscaling.maxReplicas: 10
-    templates:
-      - ingest-logs-scaledobject.yaml
-    asserts:
-      - isKind:
-          of: ScaledObject
-      - equal:
-          path: spec.minReplicaCount
-          value: 1
-      - equal:
-          path: spec.maxReplicaCount
-          value: 10
-      - equal:
-          path: spec.triggers[0].type
-          value: "external"
-      - equal:
-          path: spec.triggers[0].metadata.serviceType
-          value: "worker-ingest-logs"
-
-  - it: should not create ScaledObject when disabled mode is set
-    set:
-      global.autoscaling.mode: disabled
-      ingestLogs.enabled: true
-    templates:
-      - ingest-logs-scaledobject.yaml
-    asserts:
-      - hasDocuments:
-          count: 0
-
-
-  - it: should support per-component scaling disable
-    set:
-      global.autoscaling.mode: keda
-      monitoring.enabled: true
-      ingestLogs.enabled: true
-      ingestLogs.autoscaling.enabled: false
-    templates:
-      - ingest-logs-scaledobject.yaml
-    asserts:
-      - hasDocuments:
-          count: 0
-
-  - it: should not set replicas when KEDA scaling is enabled
-    set:
-      global.autoscaling.mode: keda
-      ingestLogs.enabled: true
-      ingestLogs.replicas: 5
-      monitoring.enabled: true
-    templates:
-      - ingest-logs-deployment.yaml
-    asserts:
-      - notExists:
-          path: spec.replicas
-
-  - it: should set replicas when scaling is disabled
-    set:
-      global.autoscaling.mode: disabled
       ingestLogs.enabled: true
       ingestLogs.replicas: 5
     templates:
@@ -140,12 +35,10 @@ tests:
           path: spec.replicas
           value: 5
 
-  # Traces component tests
-  - it: should set correct replicas for ingest traces when autoscaling disabled
+  - it: should set replicas for ingest traces
     set:
       ingestTraces.enabled: true
       ingestTraces.replicas: 4
-      ingestTraces.autoscaling.enabled: false
     templates:
       - ingest-traces-deployment.yaml
     asserts:
@@ -153,134 +46,133 @@ tests:
           path: spec.replicas
           value: 4
 
-  - it: should not set replicas for traces when KEDA autoscaling is active
+  - it: should set replicas for compact logs
     set:
-      global.autoscaling.mode: keda
-      monitoring.enabled: true
-      ingestTraces.enabled: true
-      ingestTraces.autoscaling.enabled: true
-    templates:
-      - ingest-traces-deployment.yaml
-    asserts:
-      - notExists:
-          path: spec.replicas
-
-  - it: should fail deployment for traces when HPA mode is used
-    set:
-      global.autoscaling.mode: hpa
-      ingestLogs.enabled: false
-      ingestMetrics.enabled: false
-      ingestTraces.enabled: true
-      compactLogs.enabled: false
-      compactMetrics.enabled: false
-      compactTraces.enabled: false
-      rollupMetrics.enabled: false
-    templates:
-      - ingest-traces-deployment.yaml
-    asserts:
-      - failedTemplate:
-          errorPattern: "HPA scaling mode is no longer supported"
-
-  - it: should create ScaledObject for traces when KEDA mode is enabled
-    set:
-      global.autoscaling.mode: keda
-      ingestTraces.enabled: true
-      monitoring.enabled: true
-      ingestTraces.autoscaling.minReplicas: 2
-      ingestTraces.autoscaling.maxReplicas: 12
-    templates:
-      - ingest-traces-scaledobject.yaml
-    asserts:
-      - isKind:
-          of: ScaledObject
-      - equal:
-          path: spec.minReplicaCount
-          value: 2
-      - equal:
-          path: spec.maxReplicaCount
-          value: 12
-      - equal:
-          path: spec.triggers[0].type
-          value: "external"
-      - equal:
-          path: spec.triggers[0].metadata.serviceType
-          value: "worker-ingest-traces"
-
-  - it: should not create ScaledObject for traces when disabled mode is set
-    set:
-      global.autoscaling.mode: disabled
-      ingestTraces.enabled: true
-    templates:
-      - ingest-traces-scaledobject.yaml
-    asserts:
-      - hasDocuments:
-          count: 0
-
-  - it: should support per-component scaling disable for traces
-    set:
-      global.autoscaling.mode: keda
-      monitoring.enabled: true
-      ingestTraces.enabled: true
-      ingestTraces.autoscaling.enabled: false
-    templates:
-      - ingest-traces-scaledobject.yaml
-    asserts:
-      - hasDocuments:
-          count: 0
-
-  - it: should not set replicas for traces when KEDA scaling is enabled
-    set:
-      global.autoscaling.mode: keda
-      ingestTraces.enabled: true
-      ingestTraces.replicas: 4
-      monitoring.enabled: true
-    templates:
-      - ingest-traces-deployment.yaml
-    asserts:
-      - notExists:
-          path: spec.replicas
-
-  - it: should set replicas for traces when scaling is disabled
-    set:
-      global.autoscaling.mode: disabled
-      ingestTraces.enabled: true
-      ingestTraces.replicas: 6
-    templates:
-      - ingest-traces-deployment.yaml
-    asserts:
-      - equal:
-          path: spec.replicas
-          value: 6
-
-  # Compact component tests
-  - it: should fail deployment for compact-logs when HPA mode is used
-    set:
-      global.autoscaling.mode: hpa
-      ingestLogs.enabled: false
-      ingestMetrics.enabled: false
-      ingestTraces.enabled: false
       compactLogs.enabled: true
-      compactMetrics.enabled: false
-      compactTraces.enabled: false
-      rollupMetrics.enabled: false
+      compactLogs.replicas: 3
     templates:
       - compact-logs-deployment.yaml
     asserts:
-      - failedTemplate:
-          errorPattern: "HPA scaling mode is no longer supported"
+      - equal:
+          path: spec.replicas
+          value: 3
 
-  - it: should fail deployment for compact-traces when HPA mode is used
+  - it: should set replicas for compact traces
     set:
-      global.autoscaling.mode: hpa
-      ingestLogs.enabled: false
-      ingestMetrics.enabled: false
-      ingestTraces.enabled: false
-      compactLogs.enabled: false
-      compactMetrics.enabled: false
       compactTraces.enabled: true
-      rollupMetrics.enabled: false
+      compactTraces.replicas: 2
     templates:
       - compact-traces-deployment.yaml
     asserts:
-      - failedTemplate:
-          errorPattern: "HPA scaling mode is no longer supported"
+      - equal:
+          path: spec.replicas
+          value: 2
+
+  # Autoscaler env var tests (on monitoring deployment)
+  - it: should inject autoscaler env vars for enabled services
+    set:
+      monitoring.enabled: true
+      ingestLogs.enabled: true
+      ingestLogs.autoscaling.minReplicas: 1
+      ingestLogs.autoscaling.maxReplicas: 10
+    templates:
+      - monitoring-deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: LAKERUNNER_AUTOSCALER_ENABLED
+            value: "true"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: LAKERUNNER_AUTOSCALER_SERVICES_INGEST_LOGS_DEPLOYMENT
+            value: RELEASE-NAME-lakerunner-ingest-logs
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: LAKERUNNER_AUTOSCALER_SERVICES_INGEST_LOGS_MIN_REPLICAS
+            value: "1"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: LAKERUNNER_AUTOSCALER_SERVICES_INGEST_LOGS_MAX_REPLICAS
+            value: "10"
+
+  - it: should not inject autoscaler env vars for disabled services
+    set:
+      monitoring.enabled: true
+      ingestTraces.enabled: false
+    templates:
+      - monitoring-deployment.yaml
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: LAKERUNNER_AUTOSCALER_SERVICES_INGEST_TRACES_DEPLOYMENT
+            value: RELEASE-NAME-lakerunner-ingest-traces
+
+  - it: should set observe-only mode when configured
+    set:
+      monitoring.enabled: true
+      monitoring.autoscaler.observeOnly: true
+    templates:
+      - monitoring-deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: LAKERUNNER_AUTOSCALER_OBSERVE_ONLY
+            value: "true"
+
+  - it: should default to observe-only false
+    set:
+      monitoring.enabled: true
+    templates:
+      - monitoring-deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: LAKERUNNER_AUTOSCALER_OBSERVE_ONLY
+            value: "false"
+
+  - it: should support pinning replicas with min equals max
+    set:
+      monitoring.enabled: true
+      ingestLogs.enabled: true
+      ingestLogs.autoscaling.minReplicas: 5
+      ingestLogs.autoscaling.maxReplicas: 5
+    templates:
+      - monitoring-deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: LAKERUNNER_AUTOSCALER_SERVICES_INGEST_LOGS_MIN_REPLICAS
+            value: "5"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: LAKERUNNER_AUTOSCALER_SERVICES_INGEST_LOGS_MAX_REPLICAS
+            value: "5"
+
+  - it: should support disabling autoscaling with min and max zero
+    set:
+      monitoring.enabled: true
+      ingestLogs.enabled: true
+      ingestLogs.autoscaling.minReplicas: 0
+      ingestLogs.autoscaling.maxReplicas: 0
+    templates:
+      - monitoring-deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: LAKERUNNER_AUTOSCALER_SERVICES_INGEST_LOGS_MIN_REPLICAS
+            value: "0"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: LAKERUNNER_AUTOSCALER_SERVICES_INGEST_LOGS_MAX_REPLICAS
+            value: "0"

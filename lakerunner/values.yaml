@@ -45,18 +45,6 @@ global:
       labels:
         {}
         # type: my-frontend-volume
-  # Global autoscaling configuration
-  autoscaling:
-    # Global scaling mode for all components (can be overridden per component)
-    # Options: "keda" (work queue-based), "disabled"
-    #
-    # PRODUCTION: Use "keda" for production environments.
-    # Work queue-based scaling (KEDA) provides intelligent scaling based on actual
-    # workload backlog, which is essential for micro-batch workloads.
-    #
-    # You must have KEDA installed in your cluster to use "keda" mode.
-    # See https://keda.sh for installation instructions.
-    mode: "disabled"
   # Global health probe configuration
   # These defaults can be overridden per service
   healthProbes:
@@ -356,7 +344,6 @@ setup:
 # Ingest Logs configuration
 ingestLogs:
   enabled: true
-  # The number of replicas to run.  This is not used if autoscaling is enabled.
   replicas: 1
   image:
     repository: ghcr.io/cardinalhq/lakerunner
@@ -372,17 +359,8 @@ ingestLogs:
   temporaryStorage:
     size: "10Gi"
   autoscaling:
-    enabled: true
     minReplicas: 1
     maxReplicas: 10
-    keda:
-      pollingInterval: 30 # How often to check the queue (seconds)
-      cooldownPeriod: 300 # Wait time before scaling down (seconds)
-      targetQueueDepth: 100 # DEPRECATED: not used - controlled by monitor (external scaler)
-      activationQueueDepth: 10 # DEPRECATED: not used - controlled by monitor (external scaler)
-      cpuTrigger:
-        enabled: true # Enable CPU-based scaling alongside queue depth
-        targetUtilization: 80 # Target average CPU utilization percentage
   # Health probe configuration (inherits from global.healthProbes if not specified)
   healthProbes:
     enabled: null # null = inherit from global.healthProbes.enabled
@@ -395,7 +373,6 @@ ingestLogs:
 # Ingest Metrics configuration
 ingestMetrics:
   enabled: true
-  # The number of replicas to run.  This is not used if autoscaling is enabled.
   replicas: 1
   image:
     repository: ghcr.io/cardinalhq/lakerunner
@@ -411,17 +388,8 @@ ingestMetrics:
   temporaryStorage:
     size: "10Gi"
   autoscaling:
-    enabled: true
     minReplicas: 1
     maxReplicas: 10
-    keda:
-      pollingInterval: 30 # How often to check the queue (seconds)
-      cooldownPeriod: 300 # Wait time before scaling down (seconds)
-      targetQueueDepth: 150 # DEPRECATED: not used - controlled by monitor (external scaler)
-      activationQueueDepth: 20 # DEPRECATED: not used - controlled by monitor (external scaler)
-      cpuTrigger:
-        enabled: true # Enable CPU-based scaling alongside queue depth
-        targetUtilization: 80 # Target average CPU utilization percentage
   labels: {}
   annotations: {}
   nodeSelector: {}
@@ -430,8 +398,7 @@ ingestMetrics:
 
 # Ingest Traces configuration
 ingestTraces:
-  enabled: false
-  # The number of replicas to run.  This is not used if autoscaling is enabled.
+  enabled: true
   replicas: 1
   image:
     repository: ghcr.io/cardinalhq/lakerunner
@@ -447,17 +414,8 @@ ingestTraces:
   temporaryStorage:
     size: "10Gi"
   autoscaling:
-    enabled: true
     minReplicas: 1
     maxReplicas: 10
-    keda:
-      pollingInterval: 30 # How often to check the queue (seconds)
-      cooldownPeriod: 300 # Wait time before scaling down (seconds)
-      targetQueueDepth: 120 # DEPRECATED: not used - controlled by monitor (external scaler)
-      activationQueueDepth: 15 # DEPRECATED: not used - controlled by monitor (external scaler)
-      cpuTrigger:
-        enabled: true # Enable CPU-based scaling alongside queue depth
-        targetUtilization: 80 # Target average CPU utilization percentage
   labels: {}
   annotations: {}
   nodeSelector: {}
@@ -467,7 +425,6 @@ ingestTraces:
 # Compact Logs configuration
 compactLogs:
   enabled: true
-  # The number of replicas to run.  This is not used if autoscaling is enabled.
   replicas: 1
   image:
     repository: ghcr.io/cardinalhq/lakerunner
@@ -483,17 +440,8 @@ compactLogs:
   temporaryStorage:
     size: "10Gi"
   autoscaling:
-    enabled: true
     minReplicas: 1
     maxReplicas: 10
-    keda:
-      pollingInterval: 60 # Longer interval for batch work
-      cooldownPeriod: 600 # 10-minute cooldown for compaction
-      targetQueueDepth: 10 # DEPRECATED: not used - controlled by monitor (external scaler)
-      activationQueueDepth: 1 # DEPRECATED: not used - controlled by monitor (external scaler)
-      cpuTrigger:
-        enabled: true # Enable CPU-based scaling alongside queue depth
-        targetUtilization: 80 # Target average CPU utilization percentage
   labels: {}
   annotations: {}
   nodeSelector: {}
@@ -503,7 +451,6 @@ compactLogs:
 # Compact Metrics configuration
 compactMetrics:
   enabled: true
-  # The number of replicas to run.  This is not used if autoscaling is enabled.
   replicas: 1
   image:
     repository: ghcr.io/cardinalhq/lakerunner
@@ -519,17 +466,8 @@ compactMetrics:
   temporaryStorage:
     size: "10Gi"
   autoscaling:
-    enabled: true
     minReplicas: 1
     maxReplicas: 10
-    keda:
-      pollingInterval: 60 # Longer interval for batch work
-      cooldownPeriod: 600 # 10-minute cooldown for compaction
-      targetQueueDepth: 10 # DEPRECATED: not used - controlled by monitor (external scaler)
-      activationQueueDepth: 1 # DEPRECATED: not used - controlled by monitor (external scaler)
-      cpuTrigger:
-        enabled: true # Enable CPU-based scaling alongside queue depth
-        targetUtilization: 80 # Target average CPU utilization percentage
   labels: {}
   annotations: {}
   nodeSelector: {}
@@ -539,7 +477,6 @@ compactMetrics:
 # Compact Traces configuration
 compactTraces:
   enabled: true
-  # The number of replicas to run.  This is not used if autoscaling is enabled.
   replicas: 1
   image:
     repository: ghcr.io/cardinalhq/lakerunner
@@ -555,17 +492,8 @@ compactTraces:
   temporaryStorage:
     size: "10Gi"
   autoscaling:
-    enabled: true
     minReplicas: 1
     maxReplicas: 10
-    keda:
-      pollingInterval: 60 # Longer interval for batch work
-      cooldownPeriod: 600 # 10-minute cooldown for compaction
-      targetQueueDepth: 10 # DEPRECATED: not used - controlled by monitor (external scaler)
-      activationQueueDepth: 1 # DEPRECATED: not used - controlled by monitor (external scaler)
-      cpuTrigger:
-        enabled: true # Enable CPU-based scaling alongside queue depth
-        targetUtilization: 80 # Target average CPU utilization percentage
   labels: {}
   annotations: {}
   nodeSelector: {}
@@ -575,7 +503,6 @@ compactTraces:
 # Rollup Metrics configuration
 rollupMetrics:
   enabled: true
-  # The number of replicas to run.  This is not used if autoscaling is enabled.
   replicas: 1
   image:
     repository: ghcr.io/cardinalhq/lakerunner
@@ -591,17 +518,8 @@ rollupMetrics:
   temporaryStorage:
     size: "10Gi"
   autoscaling:
-    enabled: true
     minReplicas: 1
     maxReplicas: 10
-    keda:
-      pollingInterval: 60 # Longer interval for batch work
-      cooldownPeriod: 600 # 10-minute cooldown for rollup processing
-      targetQueueDepth: 15 # DEPRECATED: not used - controlled by monitor (external scaler)
-      activationQueueDepth: 2 # DEPRECATED: not used - controlled by monitor (external scaler)
-      cpuTrigger:
-        enabled: true # Enable CPU-based scaling alongside queue depth
-        targetUtilization: 80 # Target average CPU utilization percentage
   labels: {}
   annotations: {}
   nodeSelector: {}
@@ -679,6 +597,14 @@ monitoring:
   enabled: true
   replicas: 1
   grpcPort: 9090
+  # PI autoscaler configuration
+  # The autoscaler runs inside the monitoring pod and manages worker deployment replicas.
+  # It is always enabled. To disable scaling for a specific service, set its
+  # autoscaling.minReplicas and autoscaling.maxReplicas both to 0.
+  # To pin a service at a fixed replica count, set min == max (e.g., min=5 max=5).
+  autoscaler:
+    # Set to true to log scaling decisions without actually changing replicas.
+    observeOnly: false
   service:
     type: ClusterIP
     annotations: {}

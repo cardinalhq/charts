@@ -1,5 +1,4 @@
 {{- if .Values.ingestLogs.enabled -}}
-{{- include "lakerunner.validateScalingMode" . -}}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -9,10 +8,7 @@ metadata:
     app.kubernetes.io/component: ingest-logs
   {{ include "lakerunner.annotationsWithComponent" (list . .Values.ingestLogs.annotations) | nindent 2 }}
 spec:
-  {{- $scalingMode := include "lakerunner.autoscalingMode" (list .Values.ingestLogs.autoscaling .) }}
-  {{- if eq $scalingMode "disabled" }}
   replicas: {{ .Values.ingestLogs.replicas }}
-  {{- end }}
   selector:
     matchLabels:
       {{- include "lakerunner.selectorLabels" . | nindent 6 }}

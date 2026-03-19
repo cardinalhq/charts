@@ -1,5 +1,4 @@
 {{- if .Values.ingestTraces.enabled -}}
-{{- include "lakerunner.validateScalingMode" . -}}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -9,10 +8,7 @@ metadata:
     app.kubernetes.io/component: ingest-traces
   {{ include "lakerunner.annotationsWithComponent" (list . .Values.ingestTraces.annotations) | nindent 2 }}
 spec:
-  {{- $scalingMode := include "lakerunner.autoscalingMode" (list .Values.ingestTraces.autoscaling .) }}
-  {{- if eq $scalingMode "disabled" }}
   replicas: {{ .Values.ingestTraces.replicas }}
-  {{- end }}
   selector:
     matchLabels:
       {{- include "lakerunner.selectorLabels" . | nindent 6 }}
