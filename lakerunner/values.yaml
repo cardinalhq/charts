@@ -341,8 +341,8 @@ setup:
   tolerations: []
   affinity: {}
 
-# Ingest Logs configuration
-ingestLogs:
+# Process Logs configuration (handles both ingest and compact for logs)
+processLogs:
   enabled: true
   replicas: 1
   image:
@@ -361,7 +361,6 @@ ingestLogs:
   autoscaling:
     minReplicas: 1
     maxReplicas: 10
-  # Health probe configuration (inherits from global.healthProbes if not specified)
   healthProbes:
     enabled: null # null = inherit from global.healthProbes.enabled
   labels: {}
@@ -370,8 +369,8 @@ ingestLogs:
   tolerations: []
   affinity: {}
 
-# Ingest Metrics configuration
-ingestMetrics:
+# Process Metrics configuration (handles ingest, compact, and rollup for metrics)
+processMetrics:
   enabled: true
   replicas: 1
   image:
@@ -390,14 +389,16 @@ ingestMetrics:
   autoscaling:
     minReplicas: 1
     maxReplicas: 10
+  healthProbes:
+    enabled: null # null = inherit from global.healthProbes.enabled
   labels: {}
   annotations: {}
   nodeSelector: {}
   tolerations: []
   affinity: {}
 
-# Ingest Traces configuration
-ingestTraces:
+# Process Traces configuration (handles both ingest and compact for traces)
+processTraces:
   enabled: true
   replicas: 1
   image:
@@ -416,110 +417,8 @@ ingestTraces:
   autoscaling:
     minReplicas: 1
     maxReplicas: 10
-  labels: {}
-  annotations: {}
-  nodeSelector: {}
-  tolerations: []
-  affinity: {}
-
-# Compact Logs configuration
-compactLogs:
-  enabled: true
-  replicas: 1
-  image:
-    repository: ghcr.io/cardinalhq/lakerunner
-    tag: ""
-    pullPolicy: ""
-  resources:
-    requests:
-      cpu: "1"
-      memory: 2Gi
-    limits:
-      cpu: "1"
-      memory: 2Gi
-  temporaryStorage:
-    size: "10Gi"
-  autoscaling:
-    minReplicas: 1
-    maxReplicas: 10
-  labels: {}
-  annotations: {}
-  nodeSelector: {}
-  tolerations: []
-  affinity: {}
-
-# Compact Metrics configuration
-compactMetrics:
-  enabled: true
-  replicas: 1
-  image:
-    repository: ghcr.io/cardinalhq/lakerunner
-    tag: ""
-    pullPolicy: ""
-  resources:
-    requests:
-      cpu: "1"
-      memory: 2Gi
-    limits:
-      cpu: "1"
-      memory: 2Gi
-  temporaryStorage:
-    size: "10Gi"
-  autoscaling:
-    minReplicas: 1
-    maxReplicas: 10
-  labels: {}
-  annotations: {}
-  nodeSelector: {}
-  tolerations: []
-  affinity: {}
-
-# Compact Traces configuration
-compactTraces:
-  enabled: true
-  replicas: 1
-  image:
-    repository: ghcr.io/cardinalhq/lakerunner
-    tag: ""
-    pullPolicy: ""
-  resources:
-    requests:
-      cpu: "1"
-      memory: 2Gi
-    limits:
-      cpu: "1"
-      memory: 2Gi
-  temporaryStorage:
-    size: "10Gi"
-  autoscaling:
-    minReplicas: 1
-    maxReplicas: 10
-  labels: {}
-  annotations: {}
-  nodeSelector: {}
-  tolerations: []
-  affinity: {}
-
-# Rollup Metrics configuration
-rollupMetrics:
-  enabled: true
-  replicas: 1
-  image:
-    repository: ghcr.io/cardinalhq/lakerunner
-    tag: ""
-    pullPolicy: ""
-  resources:
-    requests:
-      cpu: "1"
-      memory: 2Gi
-    limits:
-      cpu: "1"
-      memory: 2Gi
-  temporaryStorage:
-    size: "10Gi"
-  autoscaling:
-    minReplicas: 1
-    maxReplicas: 10
+  healthProbes:
+    enabled: null # null = inherit from global.healthProbes.enabled
   labels: {}
   annotations: {}
   nodeSelector: {}

@@ -6,13 +6,12 @@ templates:
   - query-api-deployment.yaml
   - query-worker-deployment.yaml
   - grafana-deployment.yaml
-  - ingest-logs-deployment.yaml
-  - compact-logs-deployment.yaml
+  - process-logs-deployment.yaml
 tests:
   - it: should use appVersion as default tag for lakerunner components
     templates:
       - setup-job.yaml
-      - ingest-logs-deployment.yaml
+      - process-logs-deployment.yaml
     asserts:
       - matchRegex:
           path: spec.template.spec.containers[0].image
@@ -23,7 +22,7 @@ tests:
       global.image.tag: "v1.2.3"
     templates:
       - setup-job.yaml
-      - ingest-logs-deployment.yaml
+      - process-logs-deployment.yaml
     asserts:
       - matchRegex:
           path: spec.template.spec.containers[0].image
@@ -34,7 +33,7 @@ tests:
       global.image.repository: "public.ecr.aws/cardinalhq.io/lakerunner"
     templates:
       - setup-job.yaml
-      - ingest-logs-deployment.yaml
+      - process-logs-deployment.yaml
     asserts:
       - matchRegex:
           path: spec.template.spec.containers[0].image
@@ -46,7 +45,7 @@ tests:
       global.image.tag: "v2.0.0"
     templates:
       - setup-job.yaml
-      - ingest-logs-deployment.yaml
+      - process-logs-deployment.yaml
     asserts:
       - equal:
           path: spec.template.spec.containers[0].image
@@ -134,18 +133,13 @@ tests:
       global.image.pullPolicy: "Never"
     templates:
       - setup-job.yaml
-      - ingest-logs-deployment.yaml
-      - compact-logs-deployment.yaml
+      - process-logs-deployment.yaml
     asserts:
       - template: setup-job.yaml
         equal:
           path: spec.template.spec.containers[0].imagePullPolicy
           value: "Never"
-      - template: ingest-logs-deployment.yaml
-        equal:
-          path: spec.template.spec.containers[0].imagePullPolicy
-          value: "Never"
-      - template: compact-logs-deployment.yaml
+      - template: process-logs-deployment.yaml
         equal:
           path: spec.template.spec.containers[0].imagePullPolicy
           value: "Never"

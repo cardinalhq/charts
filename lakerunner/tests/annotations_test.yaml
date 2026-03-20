@@ -4,7 +4,7 @@ values:
 set:
   cloudProvider.aws.region: us-west-2
 templates:
-  - ingest-logs-deployment.yaml
+  - process-logs-deployment.yaml
   - query-api-deployment.yaml
   - grafana-deployment.yaml
   - setup-job.yaml
@@ -16,7 +16,7 @@ tests:
         prometheus.io/path: "/metrics"
         example.com/owner: "platform-team"
     templates:
-      - ingest-logs-deployment.yaml
+      - process-logs-deployment.yaml
     asserts:
       - equal:
           path: metadata.annotations["prometheus.io/scrape"]
@@ -59,7 +59,7 @@ tests:
     set:
       global.annotations: {}
     templates:
-      - ingest-logs-deployment.yaml
+      - process-logs-deployment.yaml
     asserts:
       - notExists:
           path: metadata.annotations
@@ -71,7 +71,7 @@ tests:
           more_set_headers "X-Custom-Header: value";
         "cert-manager.io/cluster-issuer": "letsencrypt-prod"
     templates:
-      - ingest-logs-deployment.yaml
+      - process-logs-deployment.yaml
     asserts:
       - equal:
           path: metadata.annotations["cert-manager.io/cluster-issuer"]
@@ -82,13 +82,13 @@ tests:
 
   - it: should apply per-component annotations when supported
     set:
-      ingestLogs.annotations:
+      processLogs.annotations:
         component-specific: "logs-processor"
         prometheus.io/port: "8080"
       global.annotations:
         prometheus.io/scrape: "true"
     templates:
-      - ingest-logs-deployment.yaml
+      - process-logs-deployment.yaml
     asserts:
       # Should have both global and component annotations
       - equal:
@@ -103,12 +103,12 @@ tests:
 
   - it: should prioritize component annotations over global annotations
     set:
-      ingestLogs.annotations:
+      processLogs.annotations:
         prometheus.io/scrape: "false"
       global.annotations:
         prometheus.io/scrape: "true"
     templates:
-      - ingest-logs-deployment.yaml
+      - process-logs-deployment.yaml
     asserts:
       - equal:
           path: metadata.annotations["prometheus.io/scrape"]
@@ -116,7 +116,7 @@ tests:
 
   - it: should handle mixed global and component annotations
     set:
-      ingestLogs.annotations:
+      processLogs.annotations:
         app.kubernetes.io/component-config: "custom-config"
         fluentd.log-level: "debug"
       global.annotations:
@@ -124,7 +124,7 @@ tests:
         prometheus.io/path: "/metrics"
         app.kubernetes.io/managed-by: "helm"
     templates:
-      - ingest-logs-deployment.yaml
+      - process-logs-deployment.yaml
     asserts:
       # Global annotations should be present
       - equal:

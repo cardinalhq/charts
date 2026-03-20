@@ -4,13 +4,9 @@ values:
 set:
   cloudProvider.aws.region: us-west-2
 templates:
-  - ingest-logs-deployment.yaml
-  - ingest-metrics-deployment.yaml
-  - ingest-traces-deployment.yaml
-  - compact-logs-deployment.yaml
-  - compact-metrics-deployment.yaml
-  - compact-traces-deployment.yaml
-  - rollup-metrics-deployment.yaml
+  - process-logs-deployment.yaml
+  - process-metrics-deployment.yaml
+  - process-traces-deployment.yaml
   - query-api-deployment.yaml
   - query-worker-deployment.yaml
   - grafana-deployment.yaml
@@ -26,7 +22,7 @@ tests:
     set:
       database.lrdb.host: "postgresql.default.svc.cluster.local"
     templates:
-      - ingest-logs-deployment.yaml
+      - process-logs-deployment.yaml
     asserts:
       - contains:
           path: spec.template.spec.containers[0].env
@@ -65,7 +61,7 @@ tests:
       configdb.lrdb.username: "configuser"
       configdb.lrdb.sslMode: "prefer"
     templates:
-      - ingest-logs-deployment.yaml
+      - process-logs-deployment.yaml
     asserts:
       - contains:
           path: spec.template.spec.containers[0].env
@@ -110,17 +106,17 @@ tests:
         - name: GLOBAL_FEATURE_FLAG
           value: "true"
     templates:
-      - ingest-logs-deployment.yaml
+      - process-logs-deployment.yaml
       - query-api-deployment.yaml
       - grafana-deployment.yaml
     asserts:
-      - template: ingest-logs-deployment.yaml
+      - template: process-logs-deployment.yaml
         contains:
           path: spec.template.spec.containers[0].env
           content:
             name: GLOBAL_LOG_LEVEL
             value: "info"
-      - template: ingest-logs-deployment.yaml
+      - template: process-logs-deployment.yaml
         contains:
           path: spec.template.spec.containers[0].env
           content:
@@ -141,13 +137,13 @@ tests:
 
   - it: should render component-specific env variables
     set:
-      ingestLogs.env:
+      processLogs.env:
         - name: COMPONENT_SPECIFIC_VAR
           value: "logs-component"
         - name: LOG_BUFFER_SIZE
           value: "1024"
     templates:
-      - ingest-logs-deployment.yaml
+      - process-logs-deployment.yaml
     asserts:
       - contains:
           path: spec.template.spec.containers[0].env
@@ -200,13 +196,13 @@ tests:
           value: "global-value"
         - name: SHARED_VAR
           value: "global-shared"
-      compactLogs.env:
+      processLogs.env:
         - name: COMPONENT_VAR
           value: "component-value"
         - name: SHARED_VAR
           value: "component-shared"
     templates:
-      - compact-logs-deployment.yaml
+      - process-logs-deployment.yaml
     asserts:
       - contains:
           path: spec.template.spec.containers[0].env
@@ -228,11 +224,11 @@ tests:
     set:
       global.env: []
       database.lrdb.host: "postgresql.default.svc.cluster.local"
-      rollupMetrics.env:
+      processMetrics.env:
         - name: ONLY_COMPONENT_VAR
           value: "only-component"
     templates:
-      - rollup-metrics-deployment.yaml
+      - process-metrics-deployment.yaml
     asserts:
       - contains:
           path: spec.template.spec.containers[0].env
@@ -249,11 +245,11 @@ tests:
     set:
       global.env: null
       database.lrdb.host: "postgresql.default.svc.cluster.local"
-      ingestMetrics.env:
+      processMetrics.env:
         - name: METRICS_VAR
           value: "metrics-value"
     templates:
-      - ingest-metrics-deployment.yaml
+      - process-metrics-deployment.yaml
     asserts:
       - contains:
           path: spec.template.spec.containers[0].env
@@ -289,16 +285,16 @@ tests:
 
   - it: should render service-specific environment variables
     templates:
-      - ingest-logs-deployment.yaml
+      - process-logs-deployment.yaml
       - query-api-deployment.yaml
       - setup-job.yaml
     asserts:
-      - template: ingest-logs-deployment.yaml
+      - template: process-logs-deployment.yaml
         contains:
           path: spec.template.spec.containers[0].env
           content:
             name: OTEL_SERVICE_NAME
-            value: RELEASE-NAME-lakerunner-ingest-logs
+            value: RELEASE-NAME-lakerunner-process-logs
       - template: query-api-deployment.yaml
         contains:
           path: spec.template.spec.containers[0].env

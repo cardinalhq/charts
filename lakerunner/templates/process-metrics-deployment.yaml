@@ -1,26 +1,26 @@
-{{- if .Values.compactLogs.enabled -}}
+{{- if .Values.processMetrics.enabled -}}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "lakerunner.fullname" . }}-compact-logs
+  name: {{ include "lakerunner.fullname" . }}-process-metrics
   labels:
-    {{- include "lakerunner.labels" . | nindent 4 }}
-    app.kubernetes.io/component: compact-logs
-  {{ include "lakerunner.annotations" . | nindent 2 }}
+    {{- include "lakerunner.labelsWithComponent" (list . .Values.processMetrics.labels) | nindent 4 }}
+    app.kubernetes.io/component: process-metrics
+  {{ include "lakerunner.annotationsWithComponent" (list . .Values.processMetrics.annotations) | nindent 2 }}
 spec:
   selector:
     matchLabels:
       {{- include "lakerunner.selectorLabels" . | nindent 6 }}
-      app.kubernetes.io/component: compact-logs
+      app.kubernetes.io/component: process-metrics
   template:
     metadata:
       labels:
-        {{- include "lakerunner.labels" . | nindent 8 }}
-        app.kubernetes.io/component: compact-logs
+        {{- include "lakerunner.labelsWithComponent" (list . .Values.processMetrics.labels) | nindent 8 }}
+        app.kubernetes.io/component: process-metrics
         {{- if eq .Values.cloudProvider.azure.authType "workload_identity" }}
         azure.workload.identity/use: "true"
         {{- end }}
-      {{- include "lakerunner.annotations" . | nindent 6 }}
+      {{- include "lakerunner.annotationsWithComponent" (list . .Values.processMetrics.annotations) | nindent 6 }}
     spec:
       serviceAccountName: {{ include "lakerunner.serviceAccountName" . }}
       securityContext:
@@ -29,21 +29,18 @@ spec:
         runAsGroup: 65532
         fsGroup: 65532
       {{- include "lakerunner.imagePullSecrets" . | nindent 6 }}
-      {{- include "lakerunner.sched.nodeSelector" (list .Values.global.nodeSelector .Values.compactLogs.nodeSelector) | nindent 6 }}
-      {{- include "lakerunner.sched.tolerations"  (list .Values.global.tolerations  .Values.compactLogs.tolerations)  | nindent 6 }}
-      {{- include "lakerunner.sched.affinity"     (list .Values.global.affinity     .Values.compactLogs.affinity)     | nindent 6 }}
       containers:
-      - name: compact-logs
+      - name: process-metrics
         securityContext:
           allowPrivilegeEscalation: false
           capabilities:
             drop: ["ALL"]
           seccompProfile:
             type: RuntimeDefault
-        image: {{ include "lakerunner.image" (list .Values.compactLogs.image .) }}
-        imagePullPolicy: {{ .Values.compactLogs.image.pullPolicy | default .Values.global.image.pullPolicy }}
+        image: {{ include "lakerunner.image" (list .Values.processMetrics.image .) }}
+        imagePullPolicy: {{ .Values.processMetrics.image.pullPolicy | default .Values.global.image.pullPolicy }}
         command: ["/app/bin/lakerunner"]
-        args: ["compact-logs"]
+        args: ["process-metrics"]
         ports:
           - name: healthcheck
             containerPort: {{ .Values.global.healthProbes.healthcheckPort }}
@@ -62,24 +59,24 @@ spec:
               fieldRef:
                 fieldPath: status.podIP
           - name: OTEL_SERVICE_NAME
-            value: {{ include "lakerunner.fullname" . }}-compact-logs
+            value: {{ include "lakerunner.fullname" . }}-process-metrics
           - name: TMPDIR
             value: /scratch
           {{- if eq .Values.cloudProvider.provider "azure" }}
           - name: AZURE_AUTH_TYPE
             value: {{ .Values.cloudProvider.azure.authType | quote }}
           {{- end }}
-          {{- include "lakerunner.injectEnvDuckdb" (list . .Values.compactLogs) | nindent 8 }}
+          {{- include "lakerunner.injectEnvDuckdb" (list . .Values.processMetrics) | nindent 8 }}
           {{- include "lakerunner.cardinalTelemetryEnv" . | nindent 10 }}
         {{- if eq (include "lakerunner.injectCloudProviderCredentials" .) "true" }}
         envFrom:
           - secretRef:
               name: {{ include "lakerunner.cloudProviderSecretName" . }}
         {{- end }}
-        {{- include "lakerunner.healthProbes" (list . .Values.compactLogs) | nindent 8 }}
+        {{- include "lakerunner.healthProbes" (list . .Values.processMetrics) | nindent 8 }}
         {{- if .Values.global.resources.enabled }}
         resources:
-          {{- toYaml .Values.compactLogs.resources | nindent 10 }}
+          {{- toYaml .Values.processMetrics.resources | nindent 10 }}
         {{- end }}
         volumeMounts:
         {{- if eq .Values.storageProfiles.source "config" }}
@@ -92,8 +89,11 @@ spec:
           mountPath: /scratch
         {{- include "lakerunner.azureTokenVolumeMount" . | nindent 8 }}
         {{- include "lakerunner.licenseVolumeMount" . | nindent 8 }}
+      {{- include "lakerunner.sched.nodeSelector" (list .Values.global.nodeSelector .Values.processMetrics.nodeSelector) | nindent 6 }}
+      {{- include "lakerunner.sched.tolerations"  (list .Values.global.tolerations  .Values.processMetrics.tolerations)  | nindent 6 }}
+      {{- include "lakerunner.sched.affinity"     (list .Values.global.affinity     .Values.processMetrics.affinity)     | nindent 6 }}
       volumes:
-      {{- include "lakerunner.ephemeralVolume" (list "scratch" .Values.compactLogs.temporaryStorage.size .) | nindent 6 }}
+      {{- include "lakerunner.ephemeralVolume" (list "scratch" .Values.processMetrics.temporaryStorage.size .) | nindent 6 }}
       {{- if eq .Values.storageProfiles.source "config" }}
       - name: storage-profiles
         configMap:

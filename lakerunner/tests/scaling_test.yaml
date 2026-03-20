@@ -1,10 +1,9 @@
 suite: test scaling configuration
 templates:
   - query-api-deployment.yaml
-  - ingest-logs-deployment.yaml
-  - ingest-traces-deployment.yaml
-  - compact-logs-deployment.yaml
-  - compact-traces-deployment.yaml
+  - process-logs-deployment.yaml
+  - process-metrics-deployment.yaml
+  - process-traces-deployment.yaml
   - monitoring-deployment.yaml
 values:
   - ../values.yaml
@@ -26,36 +25,27 @@ tests:
 
   - it: should not set replicas on autoscaled worker deployments
     set:
-      ingestLogs.enabled: true
+      processLogs.enabled: true
     templates:
-      - ingest-logs-deployment.yaml
+      - process-logs-deployment.yaml
     asserts:
       - notExists:
           path: spec.replicas
 
-  - it: should not set replicas for ingest traces
+  - it: should not set replicas for process metrics
     set:
-      ingestTraces.enabled: true
+      processMetrics.enabled: true
     templates:
-      - ingest-traces-deployment.yaml
+      - process-metrics-deployment.yaml
     asserts:
       - notExists:
           path: spec.replicas
 
-  - it: should not set replicas for compact logs
+  - it: should not set replicas for process traces
     set:
-      compactLogs.enabled: true
+      processTraces.enabled: true
     templates:
-      - compact-logs-deployment.yaml
-    asserts:
-      - notExists:
-          path: spec.replicas
-
-  - it: should not set replicas for compact traces
-    set:
-      compactTraces.enabled: true
-    templates:
-      - compact-traces-deployment.yaml
+      - process-traces-deployment.yaml
     asserts:
       - notExists:
           path: spec.replicas
@@ -64,9 +54,9 @@ tests:
   - it: should inject autoscaler env vars for enabled services
     set:
       monitoring.enabled: true
-      ingestLogs.enabled: true
-      ingestLogs.autoscaling.minReplicas: 1
-      ingestLogs.autoscaling.maxReplicas: 10
+      processLogs.enabled: true
+      processLogs.autoscaling.minReplicas: 1
+      processLogs.autoscaling.maxReplicas: 10
     templates:
       - monitoring-deployment.yaml
     asserts:
@@ -78,31 +68,31 @@ tests:
       - contains:
           path: spec.template.spec.containers[0].env
           content:
-            name: LAKERUNNER_AUTOSCALER_SERVICES_INGEST_LOGS_DEPLOYMENT
-            value: RELEASE-NAME-lakerunner-ingest-logs
+            name: LAKERUNNER_AUTOSCALER_SERVICES_LOGS_DEPLOYMENT
+            value: RELEASE-NAME-lakerunner-process-logs
       - contains:
           path: spec.template.spec.containers[0].env
           content:
-            name: LAKERUNNER_AUTOSCALER_SERVICES_INGEST_LOGS_MIN_REPLICAS
+            name: LAKERUNNER_AUTOSCALER_SERVICES_LOGS_MIN_REPLICAS
             value: "1"
       - contains:
           path: spec.template.spec.containers[0].env
           content:
-            name: LAKERUNNER_AUTOSCALER_SERVICES_INGEST_LOGS_MAX_REPLICAS
+            name: LAKERUNNER_AUTOSCALER_SERVICES_LOGS_MAX_REPLICAS
             value: "10"
 
   - it: should not inject autoscaler env vars for disabled services
     set:
       monitoring.enabled: true
-      ingestTraces.enabled: false
+      processTraces.enabled: false
     templates:
       - monitoring-deployment.yaml
     asserts:
       - notContains:
           path: spec.template.spec.containers[0].env
           content:
-            name: LAKERUNNER_AUTOSCALER_SERVICES_INGEST_TRACES_DEPLOYMENT
-            value: RELEASE-NAME-lakerunner-ingest-traces
+            name: LAKERUNNER_AUTOSCALER_SERVICES_TRACES_DEPLOYMENT
+            value: RELEASE-NAME-lakerunner-process-traces
 
   - it: should set observe-only mode when configured
     set:
@@ -132,39 +122,39 @@ tests:
   - it: should support pinning replicas with min equals max
     set:
       monitoring.enabled: true
-      ingestLogs.enabled: true
-      ingestLogs.autoscaling.minReplicas: 5
-      ingestLogs.autoscaling.maxReplicas: 5
+      processLogs.enabled: true
+      processLogs.autoscaling.minReplicas: 5
+      processLogs.autoscaling.maxReplicas: 5
     templates:
       - monitoring-deployment.yaml
     asserts:
       - contains:
           path: spec.template.spec.containers[0].env
           content:
-            name: LAKERUNNER_AUTOSCALER_SERVICES_INGEST_LOGS_MIN_REPLICAS
+            name: LAKERUNNER_AUTOSCALER_SERVICES_LOGS_MIN_REPLICAS
             value: "5"
       - contains:
           path: spec.template.spec.containers[0].env
           content:
-            name: LAKERUNNER_AUTOSCALER_SERVICES_INGEST_LOGS_MAX_REPLICAS
+            name: LAKERUNNER_AUTOSCALER_SERVICES_LOGS_MAX_REPLICAS
             value: "5"
 
   - it: should support disabling autoscaling with min and max zero
     set:
       monitoring.enabled: true
-      ingestLogs.enabled: true
-      ingestLogs.autoscaling.minReplicas: 0
-      ingestLogs.autoscaling.maxReplicas: 0
+      processLogs.enabled: true
+      processLogs.autoscaling.minReplicas: 0
+      processLogs.autoscaling.maxReplicas: 0
     templates:
       - monitoring-deployment.yaml
     asserts:
       - contains:
           path: spec.template.spec.containers[0].env
           content:
-            name: LAKERUNNER_AUTOSCALER_SERVICES_INGEST_LOGS_MIN_REPLICAS
+            name: LAKERUNNER_AUTOSCALER_SERVICES_LOGS_MIN_REPLICAS
             value: "0"
       - contains:
           path: spec.template.spec.containers[0].env
           content:
-            name: LAKERUNNER_AUTOSCALER_SERVICES_INGEST_LOGS_MAX_REPLICAS
+            name: LAKERUNNER_AUTOSCALER_SERVICES_LOGS_MAX_REPLICAS
             value: "0"

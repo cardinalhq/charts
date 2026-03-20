@@ -6,13 +6,9 @@ set:
 templates:
   # Core lakerunner image components
   - setup-job.yaml
-  - ingest-logs-deployment.yaml
-  - ingest-metrics-deployment.yaml
-  - ingest-traces-deployment.yaml
-  - compact-logs-deployment.yaml
-  - compact-metrics-deployment.yaml
-  - compact-traces-deployment.yaml
-  - rollup-metrics-deployment.yaml
+  - process-logs-deployment.yaml
+  - process-metrics-deployment.yaml
+  - process-traces-deployment.yaml
   - sweeper-deployment.yaml
   - monitoring-deployment.yaml
   # PubSub components
@@ -32,23 +28,15 @@ tests:
   - it: should set non-root security context for all lakerunner pods
     templates:
       - setup-job.yaml
-      - ingest-logs-deployment.yaml
-      - ingest-metrics-deployment.yaml
-      - ingest-traces-deployment.yaml
-      - compact-logs-deployment.yaml
-      - compact-metrics-deployment.yaml
-      - compact-traces-deployment.yaml
-      - rollup-metrics-deployment.yaml
+      - process-logs-deployment.yaml
+      - process-metrics-deployment.yaml
+      - process-traces-deployment.yaml
       - sweeper-deployment.yaml
       - monitoring-deployment.yaml
     set:
-      ingestLogs.enabled: true
-      ingestMetrics.enabled: true
-      ingestTraces.enabled: true
-      compactLogs.enabled: true
-      compactMetrics.enabled: true
-      compactTraces.enabled: true
-      rollupMetrics.enabled: true
+      processLogs.enabled: true
+      processMetrics.enabled: true
+      processTraces.enabled: true
       sweeper.enabled: true
       monitoring.enabled: true
     asserts:
@@ -65,23 +53,15 @@ tests:
   - it: should set container security context for all lakerunner components
     templates:
       - setup-job.yaml
-      - ingest-logs-deployment.yaml
-      - ingest-metrics-deployment.yaml
-      - ingest-traces-deployment.yaml
-      - compact-logs-deployment.yaml
-      - compact-metrics-deployment.yaml
-      - compact-traces-deployment.yaml
-      - rollup-metrics-deployment.yaml
+      - process-logs-deployment.yaml
+      - process-metrics-deployment.yaml
+      - process-traces-deployment.yaml
       - sweeper-deployment.yaml
       - monitoring-deployment.yaml
     set:
-      ingestLogs.enabled: true
-      ingestMetrics.enabled: true
-      ingestTraces.enabled: true
-      compactLogs.enabled: true
-      compactMetrics.enabled: true
-      compactTraces.enabled: true
-      rollupMetrics.enabled: true
+      processLogs.enabled: true
+      processMetrics.enabled: true
+      processTraces.enabled: true
       sweeper.enabled: true
       monitoring.enabled: true
     asserts:
@@ -208,9 +188,9 @@ tests:
     set:
       serviceAccount.create: true
       serviceAccount.name: "custom-sa"
-      ingestLogs.enabled: true
+      processLogs.enabled: true
     templates:
-      - ingest-logs-deployment.yaml
+      - process-logs-deployment.yaml
     asserts:
       - equal:
           path: spec.template.spec.serviceAccountName

@@ -8,11 +8,9 @@ templates:
   - query-api-deployment.yaml
   - query-worker-deployment.yaml
   - grafana-deployment.yaml
-  - ingest-logs-deployment.yaml
-  - ingest-metrics-deployment.yaml
-  - compact-logs-deployment.yaml
-  - compact-metrics-deployment.yaml
-  - rollup-metrics-deployment.yaml
+  - process-logs-deployment.yaml
+  - process-metrics-deployment.yaml
+  - process-traces-deployment.yaml
   - sweeper-deployment.yaml
   - alert-evaluator-deployment.yaml
   - notification-sender-deployment.yaml
@@ -151,20 +149,16 @@ tests:
       - hasDocuments:
           count: 0
 
-  - it: should render all ingest and processing components when enabled
+  - it: should render all processing components when enabled
     set:
-      ingestLogs.enabled: true
-      ingestMetrics.enabled: true
-      compactLogs.enabled: true
-      compactMetrics.enabled: true
-      rollupMetrics.enabled: true
+      processLogs.enabled: true
+      processMetrics.enabled: true
+      processTraces.enabled: true
       sweeper.enabled: true
     templates:
-      - ingest-logs-deployment.yaml
-      - ingest-metrics-deployment.yaml
-      - compact-logs-deployment.yaml
-      - compact-metrics-deployment.yaml
-      - rollup-metrics-deployment.yaml
+      - process-logs-deployment.yaml
+      - process-metrics-deployment.yaml
+      - process-traces-deployment.yaml
       - sweeper-deployment.yaml
     asserts:
       - isKind:
@@ -249,4 +243,3 @@ tests:
     asserts:
       - hasDocuments:
           count: 0
-

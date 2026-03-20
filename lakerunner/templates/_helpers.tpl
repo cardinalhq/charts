@@ -163,13 +163,13 @@ Usage:
 {{- end -}}
 
 {{/*
-Inject common + component-specific env vars for DuckDB services (ingest/compact/rollup).
+Inject common + component-specific env vars for DuckDB services (process-logs/metrics/traces).
 These services use DuckDB internally and need specific memory tuning.
 Takes two args:
   0: the root chart context (so we can call commonEnv with it)
   1: the component's values block (must have .env as a list)
 Usage:
-  {{ include "lakerunner.injectEnvDuckdb" (list . .Values.ingestLogs) | nindent 10 }}
+  {{ include "lakerunner.injectEnvDuckdb" (list . .Values.processLogs) | nindent 10 }}
 */}}
 {{- define "lakerunner.injectEnvDuckdb" -}}
 {{- $root := index . 0 -}}
@@ -494,61 +494,29 @@ Usage: {{ include "lakerunner.autoscalerEnv" . }}
   value: "true"
 - name: LAKERUNNER_AUTOSCALER_OBSERVE_ONLY
   value: {{ .Values.monitoring.autoscaler.observeOnly | quote }}
-{{- if .Values.ingestLogs.enabled }}
-- name: LAKERUNNER_AUTOSCALER_SERVICES_INGEST_LOGS_DEPLOYMENT
-  value: {{ include "lakerunner.fullname" . }}-ingest-logs
-- name: LAKERUNNER_AUTOSCALER_SERVICES_INGEST_LOGS_MIN_REPLICAS
-  value: {{ .Values.ingestLogs.autoscaling.minReplicas | quote }}
-- name: LAKERUNNER_AUTOSCALER_SERVICES_INGEST_LOGS_MAX_REPLICAS
-  value: {{ .Values.ingestLogs.autoscaling.maxReplicas | quote }}
+{{- if .Values.processLogs.enabled }}
+- name: LAKERUNNER_AUTOSCALER_SERVICES_LOGS_DEPLOYMENT
+  value: {{ include "lakerunner.fullname" . }}-process-logs
+- name: LAKERUNNER_AUTOSCALER_SERVICES_LOGS_MIN_REPLICAS
+  value: {{ .Values.processLogs.autoscaling.minReplicas | quote }}
+- name: LAKERUNNER_AUTOSCALER_SERVICES_LOGS_MAX_REPLICAS
+  value: {{ .Values.processLogs.autoscaling.maxReplicas | quote }}
 {{- end }}
-{{- if .Values.ingestMetrics.enabled }}
-- name: LAKERUNNER_AUTOSCALER_SERVICES_INGEST_METRICS_DEPLOYMENT
-  value: {{ include "lakerunner.fullname" . }}-ingest-metrics
-- name: LAKERUNNER_AUTOSCALER_SERVICES_INGEST_METRICS_MIN_REPLICAS
-  value: {{ .Values.ingestMetrics.autoscaling.minReplicas | quote }}
-- name: LAKERUNNER_AUTOSCALER_SERVICES_INGEST_METRICS_MAX_REPLICAS
-  value: {{ .Values.ingestMetrics.autoscaling.maxReplicas | quote }}
+{{- if .Values.processMetrics.enabled }}
+- name: LAKERUNNER_AUTOSCALER_SERVICES_METRICS_DEPLOYMENT
+  value: {{ include "lakerunner.fullname" . }}-process-metrics
+- name: LAKERUNNER_AUTOSCALER_SERVICES_METRICS_MIN_REPLICAS
+  value: {{ .Values.processMetrics.autoscaling.minReplicas | quote }}
+- name: LAKERUNNER_AUTOSCALER_SERVICES_METRICS_MAX_REPLICAS
+  value: {{ .Values.processMetrics.autoscaling.maxReplicas | quote }}
 {{- end }}
-{{- if .Values.ingestTraces.enabled }}
-- name: LAKERUNNER_AUTOSCALER_SERVICES_INGEST_TRACES_DEPLOYMENT
-  value: {{ include "lakerunner.fullname" . }}-ingest-traces
-- name: LAKERUNNER_AUTOSCALER_SERVICES_INGEST_TRACES_MIN_REPLICAS
-  value: {{ .Values.ingestTraces.autoscaling.minReplicas | quote }}
-- name: LAKERUNNER_AUTOSCALER_SERVICES_INGEST_TRACES_MAX_REPLICAS
-  value: {{ .Values.ingestTraces.autoscaling.maxReplicas | quote }}
-{{- end }}
-{{- if .Values.compactLogs.enabled }}
-- name: LAKERUNNER_AUTOSCALER_SERVICES_COMPACT_LOGS_DEPLOYMENT
-  value: {{ include "lakerunner.fullname" . }}-compact-logs
-- name: LAKERUNNER_AUTOSCALER_SERVICES_COMPACT_LOGS_MIN_REPLICAS
-  value: {{ .Values.compactLogs.autoscaling.minReplicas | quote }}
-- name: LAKERUNNER_AUTOSCALER_SERVICES_COMPACT_LOGS_MAX_REPLICAS
-  value: {{ .Values.compactLogs.autoscaling.maxReplicas | quote }}
-{{- end }}
-{{- if .Values.compactMetrics.enabled }}
-- name: LAKERUNNER_AUTOSCALER_SERVICES_COMPACT_METRICS_DEPLOYMENT
-  value: {{ include "lakerunner.fullname" . }}-compact-metrics
-- name: LAKERUNNER_AUTOSCALER_SERVICES_COMPACT_METRICS_MIN_REPLICAS
-  value: {{ .Values.compactMetrics.autoscaling.minReplicas | quote }}
-- name: LAKERUNNER_AUTOSCALER_SERVICES_COMPACT_METRICS_MAX_REPLICAS
-  value: {{ .Values.compactMetrics.autoscaling.maxReplicas | quote }}
-{{- end }}
-{{- if .Values.compactTraces.enabled }}
-- name: LAKERUNNER_AUTOSCALER_SERVICES_COMPACT_TRACES_DEPLOYMENT
-  value: {{ include "lakerunner.fullname" . }}-compact-traces
-- name: LAKERUNNER_AUTOSCALER_SERVICES_COMPACT_TRACES_MIN_REPLICAS
-  value: {{ .Values.compactTraces.autoscaling.minReplicas | quote }}
-- name: LAKERUNNER_AUTOSCALER_SERVICES_COMPACT_TRACES_MAX_REPLICAS
-  value: {{ .Values.compactTraces.autoscaling.maxReplicas | quote }}
-{{- end }}
-{{- if .Values.rollupMetrics.enabled }}
-- name: LAKERUNNER_AUTOSCALER_SERVICES_ROLLUP_METRICS_DEPLOYMENT
-  value: {{ include "lakerunner.fullname" . }}-rollup-metrics
-- name: LAKERUNNER_AUTOSCALER_SERVICES_ROLLUP_METRICS_MIN_REPLICAS
-  value: {{ .Values.rollupMetrics.autoscaling.minReplicas | quote }}
-- name: LAKERUNNER_AUTOSCALER_SERVICES_ROLLUP_METRICS_MAX_REPLICAS
-  value: {{ .Values.rollupMetrics.autoscaling.maxReplicas | quote }}
+{{- if .Values.processTraces.enabled }}
+- name: LAKERUNNER_AUTOSCALER_SERVICES_TRACES_DEPLOYMENT
+  value: {{ include "lakerunner.fullname" . }}-process-traces
+- name: LAKERUNNER_AUTOSCALER_SERVICES_TRACES_MIN_REPLICAS
+  value: {{ .Values.processTraces.autoscaling.minReplicas | quote }}
+- name: LAKERUNNER_AUTOSCALER_SERVICES_TRACES_MAX_REPLICAS
+  value: {{ .Values.processTraces.autoscaling.maxReplicas | quote }}
 {{- end }}
 {{- end -}}
 

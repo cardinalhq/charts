@@ -1,26 +1,26 @@
-{{- if .Values.rollupMetrics.enabled -}}
+{{- if .Values.processLogs.enabled -}}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "lakerunner.fullname" . }}-rollup-metrics
+  name: {{ include "lakerunner.fullname" . }}-process-logs
   labels:
-    {{- include "lakerunner.labels" . | nindent 4 }}
-    app.kubernetes.io/component: rollup-metrics
-  {{ include "lakerunner.annotations" . | nindent 2 }}
+    {{- include "lakerunner.labelsWithComponent" (list . .Values.processLogs.labels) | nindent 4 }}
+    app.kubernetes.io/component: process-logs
+  {{ include "lakerunner.annotationsWithComponent" (list . .Values.processLogs.annotations) | nindent 2 }}
 spec:
   selector:
     matchLabels:
       {{- include "lakerunner.selectorLabels" . | nindent 6 }}
-      app.kubernetes.io/component: rollup-metrics
+      app.kubernetes.io/component: process-logs
   template:
     metadata:
       labels:
-        {{- include "lakerunner.labels" . | nindent 8 }}
-        app.kubernetes.io/component: rollup-metrics
+        {{- include "lakerunner.labelsWithComponent" (list . .Values.processLogs.labels) | nindent 8 }}
+        app.kubernetes.io/component: process-logs
         {{- if eq .Values.cloudProvider.azure.authType "workload_identity" }}
         azure.workload.identity/use: "true"
         {{- end }}
-      {{- include "lakerunner.annotations" . | nindent 6 }}
+      {{- include "lakerunner.annotationsWithComponent" (list . .Values.processLogs.annotations) | nindent 6 }}
     spec:
       serviceAccountName: {{ include "lakerunner.serviceAccountName" . }}
       securityContext:
@@ -29,21 +29,18 @@ spec:
         runAsGroup: 65532
         fsGroup: 65532
       {{- include "lakerunner.imagePullSecrets" . | nindent 6 }}
-      {{- include "lakerunner.sched.nodeSelector" (list .Values.global.nodeSelector .Values.rollupMetrics.nodeSelector) | nindent 6 }}
-      {{- include "lakerunner.sched.tolerations"  (list .Values.global.tolerations  .Values.rollupMetrics.tolerations)  | nindent 6 }}
-      {{- include "lakerunner.sched.affinity"     (list .Values.global.affinity     .Values.rollupMetrics.affinity)     | nindent 6 }}
       containers:
-      - name: rollup-metrics
+      - name: process-logs
         securityContext:
           allowPrivilegeEscalation: false
           capabilities:
             drop: ["ALL"]
           seccompProfile:
             type: RuntimeDefault
-        image: {{ include "lakerunner.image" (list .Values.rollupMetrics.image .) }}
-        imagePullPolicy: {{ .Values.rollupMetrics.image.pullPolicy | default .Values.global.image.pullPolicy }}
+        image: {{ include "lakerunner.image" (list .Values.processLogs.image .) }}
+        imagePullPolicy: {{ .Values.processLogs.image.pullPolicy | default .Values.global.image.pullPolicy }}
         command: ["/app/bin/lakerunner"]
-        args: ["rollup-metrics"]
+        args: ["process-logs"]
         ports:
           - name: healthcheck
             containerPort: {{ .Values.global.healthProbes.healthcheckPort }}
@@ -62,24 +59,24 @@ spec:
               fieldRef:
                 fieldPath: status.podIP
           - name: OTEL_SERVICE_NAME
-            value: {{ include "lakerunner.fullname" . }}-rollup-metrics
+            value: {{ include "lakerunner.fullname" . }}-process-logs
           - name: TMPDIR
             value: /scratch
           {{- if eq .Values.cloudProvider.provider "azure" }}
           - name: AZURE_AUTH_TYPE
             value: {{ .Values.cloudProvider.azure.authType | quote }}
           {{- end }}
-          {{- include "lakerunner.injectEnvDuckdb" (list . .Values.rollupMetrics) | nindent 8 }}
+          {{- include "lakerunner.injectEnvDuckdb" (list . .Values.processLogs) | nindent 8 }}
           {{- include "lakerunner.cardinalTelemetryEnv" . | nindent 10 }}
         {{- if eq (include "lakerunner.injectCloudProviderCredentials" .) "true" }}
         envFrom:
           - secretRef:
               name: {{ include "lakerunner.cloudProviderSecretName" . }}
         {{- end }}
-        {{- include "lakerunner.healthProbes" (list . .Values.rollupMetrics) | nindent 8 }}
+        {{- include "lakerunner.healthProbes" (list . .Values.processLogs) | nindent 8 }}
         {{- if .Values.global.resources.enabled }}
         resources:
-          {{- toYaml .Values.rollupMetrics.resources | nindent 10 }}
+          {{- toYaml .Values.processLogs.resources | nindent 10 }}
         {{- end }}
         volumeMounts:
         {{- if eq .Values.storageProfiles.source "config" }}
@@ -92,8 +89,11 @@ spec:
           mountPath: /scratch
         {{- include "lakerunner.azureTokenVolumeMount" . | nindent 8 }}
         {{- include "lakerunner.licenseVolumeMount" . | nindent 8 }}
+      {{- include "lakerunner.sched.nodeSelector" (list .Values.global.nodeSelector .Values.processLogs.nodeSelector) | nindent 6 }}
+      {{- include "lakerunner.sched.tolerations"  (list .Values.global.tolerations  .Values.processLogs.tolerations)  | nindent 6 }}
+      {{- include "lakerunner.sched.affinity"     (list .Values.global.affinity     .Values.processLogs.affinity)     | nindent 6 }}
       volumes:
-      {{- include "lakerunner.ephemeralVolume" (list "scratch" .Values.rollupMetrics.temporaryStorage.size .) | nindent 6 }}
+      {{- include "lakerunner.ephemeralVolume" (list "scratch" .Values.processLogs.temporaryStorage.size .) | nindent 6 }}
       {{- if eq .Values.storageProfiles.source "config" }}
       - name: storage-profiles
         configMap:

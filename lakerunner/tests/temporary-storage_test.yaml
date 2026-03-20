@@ -4,13 +4,9 @@ values:
 set:
   cloudProvider.aws.region: us-west-2
 templates:
-  - ingest-logs-deployment.yaml
-  - ingest-metrics-deployment.yaml
-  - ingest-traces-deployment.yaml
-  - compact-logs-deployment.yaml
-  - compact-metrics-deployment.yaml
-  - compact-traces-deployment.yaml
-  - rollup-metrics-deployment.yaml
+  - process-logs-deployment.yaml
+  - process-metrics-deployment.yaml
+  - process-traces-deployment.yaml
   - query-worker-deployment.yaml
   - grafana-deployment.yaml
 tests:
@@ -18,9 +14,9 @@ tests:
   - it: should use emptyDir volumes by default
     set:
       global.temporaryStorage.type: "emptyDir"
-      ingestLogs.enabled: true
+      processLogs.enabled: true
     templates:
-      - ingest-logs-deployment.yaml
+      - process-logs-deployment.yaml
     asserts:
       - equal:
           path: spec.template.spec.volumes[0].name
@@ -33,29 +29,19 @@ tests:
   - it: should set default storage sizes for all components with emptyDir
     set:
       global.temporaryStorage.type: "emptyDir"
-      ingestLogs.enabled: true
-      ingestMetrics.enabled: true
-      compactLogs.enabled: true
-      rollupMetrics.enabled: true
+      processLogs.enabled: true
+      processMetrics.enabled: true
       queryWorker.enabled: true
     templates:
-      - ingest-logs-deployment.yaml
-      - ingest-metrics-deployment.yaml
-      - compact-logs-deployment.yaml
-      - rollup-metrics-deployment.yaml
+      - process-logs-deployment.yaml
+      - process-metrics-deployment.yaml
       - query-worker-deployment.yaml
     asserts:
       # All components should have a size limit set
-      - template: ingest-logs-deployment.yaml
+      - template: process-logs-deployment.yaml
         isNotNull:
           path: spec.template.spec.volumes[0].emptyDir.sizeLimit
-      - template: ingest-metrics-deployment.yaml
-        isNotNull:
-          path: spec.template.spec.volumes[0].emptyDir.sizeLimit
-      - template: compact-logs-deployment.yaml
-        isNotNull:
-          path: spec.template.spec.volumes[0].emptyDir.sizeLimit
-      - template: rollup-metrics-deployment.yaml
+      - template: process-metrics-deployment.yaml
         isNotNull:
           path: spec.template.spec.volumes[0].emptyDir.sizeLimit
       - template: query-worker-deployment.yaml
@@ -67,9 +53,9 @@ tests:
     set:
       global.temporaryStorage.type: "ephemeral"
       global.temporaryStorage.ephemeral.storageClassName: "fast-ssd"
-      ingestLogs.enabled: true
+      processLogs.enabled: true
     templates:
-      - ingest-logs-deployment.yaml
+      - process-logs-deployment.yaml
     asserts:
       - equal:
           path: spec.template.spec.volumes[0].name
@@ -89,44 +75,24 @@ tests:
     set:
       global.temporaryStorage.type: "ephemeral"
       global.temporaryStorage.ephemeral.storageClassName: "test-storage"
-      ingestLogs.enabled: true
-      ingestMetrics.enabled: true
-      ingestTraces.enabled: true
-      compactLogs.enabled: true
-      compactMetrics.enabled: true
-      compactTraces.enabled: true
-      rollupMetrics.enabled: true
+      processLogs.enabled: true
+      processMetrics.enabled: true
+      processTraces.enabled: true
       queryWorker.enabled: true
     templates:
-      - ingest-logs-deployment.yaml
-      - ingest-metrics-deployment.yaml
-      - ingest-traces-deployment.yaml
-      - compact-logs-deployment.yaml
-      - compact-metrics-deployment.yaml
-      - compact-traces-deployment.yaml
-      - rollup-metrics-deployment.yaml
+      - process-logs-deployment.yaml
+      - process-metrics-deployment.yaml
+      - process-traces-deployment.yaml
       - query-worker-deployment.yaml
     asserts:
       # All components should have storage size set
-      - template: ingest-logs-deployment.yaml
+      - template: process-logs-deployment.yaml
         isNotNull:
           path: spec.template.spec.volumes[0].ephemeral.volumeClaimTemplate.spec.resources.requests.storage
-      - template: ingest-metrics-deployment.yaml
+      - template: process-metrics-deployment.yaml
         isNotNull:
           path: spec.template.spec.volumes[0].ephemeral.volumeClaimTemplate.spec.resources.requests.storage
-      - template: ingest-traces-deployment.yaml
-        isNotNull:
-          path: spec.template.spec.volumes[0].ephemeral.volumeClaimTemplate.spec.resources.requests.storage
-      - template: compact-logs-deployment.yaml
-        isNotNull:
-          path: spec.template.spec.volumes[0].ephemeral.volumeClaimTemplate.spec.resources.requests.storage
-      - template: compact-metrics-deployment.yaml
-        isNotNull:
-          path: spec.template.spec.volumes[0].ephemeral.volumeClaimTemplate.spec.resources.requests.storage
-      - template: compact-traces-deployment.yaml
-        isNotNull:
-          path: spec.template.spec.volumes[0].ephemeral.volumeClaimTemplate.spec.resources.requests.storage
-      - template: rollup-metrics-deployment.yaml
+      - template: process-traces-deployment.yaml
         isNotNull:
           path: spec.template.spec.volumes[0].ephemeral.volumeClaimTemplate.spec.resources.requests.storage
       - template: query-worker-deployment.yaml
@@ -136,9 +102,9 @@ tests:
   - it: should use ephemeral volumes without storage class when not specified
     set:
       global.temporaryStorage.type: "ephemeral"
-      ingestLogs.enabled: true
+      processLogs.enabled: true
     templates:
-      - ingest-logs-deployment.yaml
+      - process-logs-deployment.yaml
     asserts:
       - equal:
           path: spec.template.spec.volumes[0].ephemeral.volumeClaimTemplate.spec.accessModes[0]
@@ -152,9 +118,9 @@ tests:
       global.temporaryStorage.ephemeral.labels:
         type: "scratch-storage"
         performance: "high"
-      ingestLogs.enabled: true
+      processLogs.enabled: true
     templates:
-      - ingest-logs-deployment.yaml
+      - process-logs-deployment.yaml
     asserts:
       - equal:
           path: spec.template.spec.volumes[0].ephemeral.volumeClaimTemplate.metadata.labels.type
@@ -205,10 +171,10 @@ tests:
   - it: should respect custom storage sizes with emptyDir
     set:
       global.temporaryStorage.type: "emptyDir"
-      ingestLogs.enabled: true
-      ingestLogs.temporaryStorage.size: "20Gi"
+      processLogs.enabled: true
+      processLogs.temporaryStorage.size: "20Gi"
     templates:
-      - ingest-logs-deployment.yaml
+      - process-logs-deployment.yaml
     asserts:
       - equal:
           path: spec.template.spec.volumes[0].emptyDir.sizeLimit
@@ -217,10 +183,10 @@ tests:
   - it: should respect custom storage sizes with ephemeral volumes
     set:
       global.temporaryStorage.type: "ephemeral"
-      ingestLogs.enabled: true
-      ingestLogs.temporaryStorage.size: "25Gi"
+      processLogs.enabled: true
+      processLogs.temporaryStorage.size: "25Gi"
     templates:
-      - ingest-logs-deployment.yaml
+      - process-logs-deployment.yaml
     asserts:
       - equal:
           path: spec.template.spec.volumes[0].ephemeral.volumeClaimTemplate.spec.resources.requests.storage
@@ -230,64 +196,59 @@ tests:
   - it: should apply custom volume size when specified (emptyDir)
     set:
       global.temporaryStorage.type: "emptyDir"
-      ingestLogs.enabled: true
-      ingestMetrics.enabled: true
-      compactLogs.enabled: true
-      # Change only ingest-logs size
-      ingestLogs.temporaryStorage.size: "50Gi"
+      processLogs.enabled: true
+      processMetrics.enabled: true
+      # Change only process-logs size
+      processLogs.temporaryStorage.size: "50Gi"
     templates:
-      - ingest-logs-deployment.yaml
-      - ingest-metrics-deployment.yaml
-      - compact-logs-deployment.yaml
+      - process-logs-deployment.yaml
+      - process-metrics-deployment.yaml
     asserts:
-      # ingest-logs should use the new custom size
-      - template: ingest-logs-deployment.yaml
+      # process-logs should use the new custom size
+      - template: process-logs-deployment.yaml
         equal:
           path: spec.template.spec.volumes[0].emptyDir.sizeLimit
           value: "50Gi"
       # Other services should have their sizes set (not checking exact values)
-      - template: ingest-metrics-deployment.yaml
-        isNotNull:
-          path: spec.template.spec.volumes[0].emptyDir.sizeLimit
-      - template: compact-logs-deployment.yaml
+      - template: process-metrics-deployment.yaml
         isNotNull:
           path: spec.template.spec.volumes[0].emptyDir.sizeLimit
 
   - it: should apply custom volume size when specified (ephemeral)
     set:
       global.temporaryStorage.type: "ephemeral"
-      compactLogs.enabled: true
-      compactMetrics.enabled: true
-      compactTraces.enabled: true
-      # Change only compact-metrics size
-      compactMetrics.temporaryStorage.size: "15Gi"
+      processLogs.enabled: true
+      processMetrics.enabled: true
+      processTraces.enabled: true
+      # Change only process-metrics size
+      processMetrics.temporaryStorage.size: "15Gi"
     templates:
-      - compact-logs-deployment.yaml
-      - compact-metrics-deployment.yaml
-      - compact-traces-deployment.yaml
+      - process-logs-deployment.yaml
+      - process-metrics-deployment.yaml
+      - process-traces-deployment.yaml
     asserts:
-      # compact-metrics should use the new custom size
-      - template: compact-metrics-deployment.yaml
+      # process-metrics should use the new custom size
+      - template: process-metrics-deployment.yaml
         equal:
           path: spec.template.spec.volumes[0].ephemeral.volumeClaimTemplate.spec.resources.requests.storage
           value: "15Gi"
       # Other services should have their sizes set (not checking exact values)
-      - template: compact-logs-deployment.yaml
+      - template: process-logs-deployment.yaml
         isNotNull:
           path: spec.template.spec.volumes[0].ephemeral.volumeClaimTemplate.spec.resources.requests.storage
-      - template: compact-traces-deployment.yaml
+      - template: process-traces-deployment.yaml
         isNotNull:
           path: spec.template.spec.volumes[0].ephemeral.volumeClaimTemplate.spec.resources.requests.storage
 
   - it: should change query-worker volume size independently of other services
     set:
       global.temporaryStorage.type: "emptyDir"
-      ingestLogs.enabled: true
+      processLogs.enabled: true
       queryWorker.enabled: true
       # Change only query-worker size
       queryWorker.temporaryStorage.size: "32Gi"
     templates:
-      - ingest-logs-deployment.yaml
+      - process-logs-deployment.yaml
       - query-worker-deployment.yaml
     asserts:
       # query-worker should use the new custom size (volume index 2)
@@ -295,8 +256,8 @@ tests:
         equal:
           path: spec.template.spec.volumes[0].emptyDir.sizeLimit
           value: "32Gi"
-      # ingest-logs should still use its default size
-      - template: ingest-logs-deployment.yaml
+      # process-logs should still use its default size
+      - template: process-logs-deployment.yaml
         equal:
           path: spec.template.spec.volumes[0].emptyDir.sizeLimit
           value: "10Gi"
@@ -305,44 +266,30 @@ tests:
     set:
       global.temporaryStorage.type: "ephemeral"
       global.temporaryStorage.ephemeral.storageClassName: "multi-test"
-      ingestLogs.enabled: true
-      ingestMetrics.enabled: true
-      compactLogs.enabled: true
-      rollupMetrics.enabled: true
+      processLogs.enabled: true
+      processMetrics.enabled: true
       # Set different custom sizes for multiple services
-      ingestLogs.temporaryStorage.size: "15Gi"
-      ingestMetrics.temporaryStorage.size: "20Gi"
-      compactLogs.temporaryStorage.size: "8Gi"
-      rollupMetrics.temporaryStorage.size: "25Gi"
+      processLogs.temporaryStorage.size: "15Gi"
+      processMetrics.temporaryStorage.size: "20Gi"
     templates:
-      - ingest-logs-deployment.yaml
-      - ingest-metrics-deployment.yaml
-      - compact-logs-deployment.yaml
-      - rollup-metrics-deployment.yaml
+      - process-logs-deployment.yaml
+      - process-metrics-deployment.yaml
     asserts:
       # Each service should use its specific custom size
-      - template: ingest-logs-deployment.yaml
+      - template: process-logs-deployment.yaml
         equal:
           path: spec.template.spec.volumes[0].ephemeral.volumeClaimTemplate.spec.resources.requests.storage
           value: "15Gi"
-      - template: ingest-metrics-deployment.yaml
+      - template: process-metrics-deployment.yaml
         equal:
           path: spec.template.spec.volumes[0].ephemeral.volumeClaimTemplate.spec.resources.requests.storage
           value: "20Gi"
-      - template: compact-logs-deployment.yaml
-        equal:
-          path: spec.template.spec.volumes[0].ephemeral.volumeClaimTemplate.spec.resources.requests.storage
-          value: "8Gi"
-      - template: rollup-metrics-deployment.yaml
-        equal:
-          path: spec.template.spec.volumes[0].ephemeral.volumeClaimTemplate.spec.resources.requests.storage
-          value: "25Gi"
       # All should use the same storage class
-      - template: ingest-logs-deployment.yaml
+      - template: process-logs-deployment.yaml
         equal:
           path: spec.template.spec.volumes[0].ephemeral.volumeClaimTemplate.spec.storageClassName
           value: "multi-test"
-      - template: rollup-metrics-deployment.yaml
+      - template: process-metrics-deployment.yaml
         equal:
           path: spec.template.spec.volumes[0].ephemeral.volumeClaimTemplate.spec.storageClassName
           value: "multi-test"
@@ -352,28 +299,20 @@ tests:
       # Start with emptyDir, change to ephemeral
       global.temporaryStorage.type: "ephemeral"
       global.temporaryStorage.ephemeral.storageClassName: "switched-storage"
-      ingestLogs.enabled: true
-      compactLogs.enabled: true
+      processLogs.enabled: true
       # Keep default sizes
     templates:
-      - ingest-logs-deployment.yaml
-      - compact-logs-deployment.yaml
+      - process-logs-deployment.yaml
     asserts:
-      # Both services should now use ephemeral volumes
-      - template: ingest-logs-deployment.yaml
+      # Service should now use ephemeral volumes
+      - template: process-logs-deployment.yaml
         isNotNull:
           path: spec.template.spec.volumes[0].ephemeral
-      - template: ingest-logs-deployment.yaml
-        isNull:
-          path: spec.template.spec.volumes[0].emptyDir
-      - template: compact-logs-deployment.yaml
-        isNotNull:
-          path: spec.template.spec.volumes[0].ephemeral
-      - template: compact-logs-deployment.yaml
+      - template: process-logs-deployment.yaml
         isNull:
           path: spec.template.spec.volumes[0].emptyDir
       # Should use the correct storage class
-      - template: ingest-logs-deployment.yaml
+      - template: process-logs-deployment.yaml
         equal:
           path: spec.template.spec.volumes[0].ephemeral.volumeClaimTemplate.spec.storageClassName
           value: "switched-storage"
@@ -381,22 +320,14 @@ tests:
   - it: should preserve individual service sizes when switching storage types
     set:
       global.temporaryStorage.type: "ephemeral"
-      ingestLogs.enabled: true
-      compactLogs.enabled: true
+      processLogs.enabled: true
       # Set custom sizes
-      ingestLogs.temporaryStorage.size: "12Gi"
-      compactLogs.temporaryStorage.size: "7Gi"
+      processLogs.temporaryStorage.size: "12Gi"
     templates:
-      - ingest-logs-deployment.yaml
-      - compact-logs-deployment.yaml
+      - process-logs-deployment.yaml
     asserts:
       # Custom sizes should be preserved with ephemeral storage
-      - template: ingest-logs-deployment.yaml
+      - template: process-logs-deployment.yaml
         equal:
           path: spec.template.spec.volumes[0].ephemeral.volumeClaimTemplate.spec.resources.requests.storage
           value: "12Gi"
-      - template: compact-logs-deployment.yaml
-        equal:
-          path: spec.template.spec.volumes[0].ephemeral.volumeClaimTemplate.spec.resources.requests.storage
-          value: "7Gi"
-

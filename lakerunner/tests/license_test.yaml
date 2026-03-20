@@ -5,7 +5,7 @@ set:
   cloudProvider.aws.region: us-west-2
 templates:
   - license-secret.yaml
-  - ingest-logs-deployment.yaml
+  - process-logs-deployment.yaml
   - sweeper-deployment.yaml
   - setup-job.yaml
 tests:
@@ -43,9 +43,9 @@ tests:
           count: 0
 
   # Volume mount tests
-  - it: should have license volume mount in ingest-logs
+  - it: should have license volume mount in process-logs
     templates:
-      - ingest-logs-deployment.yaml
+      - process-logs-deployment.yaml
     asserts:
       - contains:
           path: spec.template.spec.containers[0].volumeMounts
@@ -55,9 +55,9 @@ tests:
             readOnly: true
 
   # Volume tests
-  - it: should have license volume in ingest-logs
+  - it: should have license volume in process-logs
     templates:
-      - ingest-logs-deployment.yaml
+      - process-logs-deployment.yaml
     asserts:
       - contains:
           path: spec.template.spec.volumes
@@ -94,7 +94,7 @@ tests:
       license.create: false
       license.secretName: "my-external-license"
     templates:
-      - ingest-logs-deployment.yaml
+      - process-logs-deployment.yaml
     asserts:
       - contains:
           path: spec.template.spec.volumes
@@ -109,7 +109,7 @@ tests:
       license.create: true
       license.secretName: "custom-license"
     templates:
-      - ingest-logs-deployment.yaml
+      - process-logs-deployment.yaml
     asserts:
       - contains:
           path: spec.template.spec.volumes

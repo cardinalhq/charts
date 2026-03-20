@@ -4,7 +4,7 @@ values:
 set:
   cloudProvider.aws.region: us-west-2
 templates:
-  - ingest-logs-deployment.yaml
+  - process-logs-deployment.yaml
   - query-api-deployment.yaml
   - grafana-deployment.yaml
   - setup-job.yaml
@@ -16,7 +16,7 @@ tests:
         team: "platform"
         cost-center: "engineering"
     templates:
-      - ingest-logs-deployment.yaml
+      - process-logs-deployment.yaml
     asserts:
       - equal:
           path: metadata.labels.environment
@@ -67,7 +67,7 @@ tests:
     set:
       global.labels: {}
     templates:
-      - ingest-logs-deployment.yaml
+      - process-logs-deployment.yaml
     asserts:
       - equal:
           path: metadata.labels["app.kubernetes.io/name"]
@@ -81,7 +81,7 @@ tests:
         "app.domain.com/component": "ingest-service"
         "kubernetes.io/special-label": "value-with-dashes"
     templates:
-      - ingest-logs-deployment.yaml
+      - process-logs-deployment.yaml
     asserts:
       - equal:
           path: metadata.labels["app.domain.com/component"]
@@ -92,13 +92,13 @@ tests:
 
   - it: should apply per-component labels when supported
     set:
-      ingestLogs.labels:
+      processLogs.labels:
         component-specific: "logs-processor"
         workload-type: "batch"
       global.labels:
         environment: "production"
     templates:
-      - ingest-logs-deployment.yaml
+      - process-logs-deployment.yaml
     asserts:
       # Should have both global and component labels
       - equal:
@@ -113,14 +113,13 @@ tests:
 
   - it: should prioritize component labels over global labels
     set:
-      ingestLogs.labels:
+      processLogs.labels:
         environment: "component-override"
       global.labels:
         environment: "global-value"
     templates:
-      - ingest-logs-deployment.yaml
+      - process-logs-deployment.yaml
     asserts:
       - equal:
           path: metadata.labels.environment
           value: "component-override"
-

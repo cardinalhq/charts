@@ -4,13 +4,13 @@ values:
 set:
   cloudProvider.aws.region: us-west-2
 templates:
-  - ingest-logs-deployment.yaml
+  - process-logs-deployment.yaml
   - query-worker-deployment.yaml
   - grafana-deployment.yaml
 tests:
   - it: should not render scheduling when not configured
     templates:
-      - ingest-logs-deployment.yaml
+      - process-logs-deployment.yaml
     asserts:
       - notExists:
           path: spec.template.spec.nodeSelector
@@ -24,7 +24,7 @@ tests:
       global.nodeSelector:
         disktype: ssd
     templates:
-      - ingest-logs-deployment.yaml
+      - process-logs-deployment.yaml
     asserts:
       - equal:
           path: spec.template.spec.nodeSelector.disktype
@@ -74,7 +74,7 @@ tests:
           operator: "Exists"
           effect: "PreferNoSchedule"
     templates:
-      - ingest-logs-deployment.yaml
+      - process-logs-deployment.yaml
     asserts:
       - equal:
           path: spec.template.spec.tolerations[0].key
@@ -118,7 +118,7 @@ tests:
                     app: lakerunner
                 topologyKey: "kubernetes.io/hostname"
     templates:
-      - ingest-logs-deployment.yaml
+      - process-logs-deployment.yaml
     asserts:
       - equal:
           path: spec.template.spec.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms[0].matchExpressions[0].key
@@ -159,7 +159,7 @@ tests:
       global.tolerations: []
       global.affinity: {}
     templates:
-      - ingest-logs-deployment.yaml
+      - process-logs-deployment.yaml
     asserts:
       - notExists:
           path: spec.template.spec.tolerations

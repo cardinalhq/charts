@@ -4,13 +4,9 @@ values:
 set:
   cloudProvider.aws.region: us-west-2
 templates:
-  - ingest-logs-deployment.yaml
-  - ingest-metrics-deployment.yaml
-  - ingest-traces-deployment.yaml
-  - compact-logs-deployment.yaml
-  - compact-metrics-deployment.yaml
-  - compact-traces-deployment.yaml
-  - rollup-metrics-deployment.yaml
+  - process-logs-deployment.yaml
+  - process-metrics-deployment.yaml
+  - process-traces-deployment.yaml
   - sweeper-deployment.yaml
   - query-api-deployment.yaml
   - query-worker-deployment.yaml
@@ -26,8 +22,7 @@ tests:
     set:
       global.healthProbes.enabled: false
     templates:
-      - ingest-logs-deployment.yaml
-      - compact-logs-deployment.yaml
+      - process-logs-deployment.yaml
       - query-api-deployment.yaml
       - monitoring-deployment.yaml
     asserts:
@@ -40,8 +35,7 @@ tests:
     set:
       global.healthProbes.enabled: true
     templates:
-      - ingest-logs-deployment.yaml
-      - compact-logs-deployment.yaml
+      - process-logs-deployment.yaml
       - query-api-deployment.yaml
     asserts:
       - equal:
@@ -61,9 +55,9 @@ tests:
   - it: should allow service-level health probe override to enabled
     set:
       global.healthProbes.enabled: false
-      ingestLogs.healthProbes.enabled: true
+      processLogs.healthProbes.enabled: true
     templates:
-      - ingest-logs-deployment.yaml
+      - process-logs-deployment.yaml
     asserts:
       - equal:
           path: spec.template.spec.containers[0].livenessProbe.httpGet.path
@@ -75,9 +69,9 @@ tests:
   - it: should allow service-level health probe override to disabled
     set:
       global.healthProbes.enabled: true
-      ingestLogs.healthProbes.enabled: false
+      processLogs.healthProbes.enabled: false
     templates:
-      - ingest-logs-deployment.yaml
+      - process-logs-deployment.yaml
     asserts:
       - isNull:
           path: spec.template.spec.containers[0].livenessProbe
@@ -90,8 +84,7 @@ tests:
       global.healthProbes.enabled: true
       global.healthProbes.healthcheckPort: 8091
     templates:
-      - ingest-logs-deployment.yaml
-      - compact-logs-deployment.yaml
+      - process-logs-deployment.yaml
       - query-api-deployment.yaml
     asserts:
       - contains:

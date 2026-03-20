@@ -8,13 +8,9 @@ templates:
   - query-api-deployment.yaml
   - query-worker-deployment.yaml
   - grafana-deployment.yaml
-  - ingest-logs-deployment.yaml
-  - ingest-metrics-deployment.yaml
-  - ingest-traces-deployment.yaml
-  - compact-logs-deployment.yaml
-  - compact-metrics-deployment.yaml
-  - compact-traces-deployment.yaml
-  - rollup-metrics-deployment.yaml
+  - process-logs-deployment.yaml
+  - process-metrics-deployment.yaml
+  - process-traces-deployment.yaml
   - sweeper-deployment.yaml
   - monitoring-deployment.yaml
   - pubsub-http-deployment.yaml
@@ -27,16 +23,16 @@ tests:
       global.resources.enabled: true
       grafana.enabled: true
     asserts:
-      - template: ingest-logs-deployment.yaml
+      - template: process-logs-deployment.yaml
         exists:
           path: spec.template.spec.containers[0].resources.requests.cpu
-      - template: ingest-logs-deployment.yaml
+      - template: process-logs-deployment.yaml
         exists:
           path: spec.template.spec.containers[0].resources.requests.memory
-      - template: ingest-logs-deployment.yaml
+      - template: process-logs-deployment.yaml
         exists:
           path: spec.template.spec.containers[0].resources.limits.cpu
-      - template: ingest-logs-deployment.yaml
+      - template: process-logs-deployment.yaml
         exists:
           path: spec.template.spec.containers[0].resources.limits.memory
       - template: query-api-deployment.yaml
@@ -63,7 +59,7 @@ tests:
       global.resources.enabled: false
       grafana.enabled: true
     asserts:
-      - template: ingest-logs-deployment.yaml
+      - template: process-logs-deployment.yaml
         notExists:
           path: spec.template.spec.containers[0].resources
       - template: query-api-deployment.yaml
@@ -75,19 +71,16 @@ tests:
       - template: setup-job.yaml
         notExists:
           path: spec.template.spec.containers[0].resources
-      - template: compact-logs-deployment.yaml
-        notExists:
-          path: spec.template.spec.containers[0].resources
-      - template: rollup-metrics-deployment.yaml
+      - template: process-metrics-deployment.yaml
         notExists:
           path: spec.template.spec.containers[0].resources
 
   - it: should default to enabled when global.resources.enabled is not specified
     asserts:
-      - template: ingest-logs-deployment.yaml
+      - template: process-logs-deployment.yaml
         exists:
           path: spec.template.spec.containers[0].resources.requests.cpu
-      - template: ingest-logs-deployment.yaml
+      - template: process-logs-deployment.yaml
         exists:
           path: spec.template.spec.containers[0].resources.limits.cpu
       - template: sweeper-deployment.yaml
