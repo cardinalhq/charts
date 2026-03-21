@@ -364,3 +364,53 @@ tests:
           content:
             name: LRDB_HOST
             value: "postgresql.default.svc.cluster.local"
+
+  - it: should use setup database override for setup job when set
+    set:
+      database.lrdb.host: "pgbouncer.default.svc.cluster.local"
+      setup.database.lrdb.host: "postgres-direct.default.svc.cluster.local"
+    templates:
+      - setup-job.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: LRDB_HOST
+            value: "postgres-direct.default.svc.cluster.local"
+
+  - it: should fall back to global database for setup job when no override
+    set:
+      database.lrdb.host: "pgbouncer.default.svc.cluster.local"
+    templates:
+      - setup-job.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: LRDB_HOST
+            value: "pgbouncer.default.svc.cluster.local"
+
+  - it: should use setup configdb override for setup job when set
+    set:
+      configdb.lrdb.host: "pgbouncer-config.default.svc.cluster.local"
+      setup.configdb.lrdb.host: "postgres-config-direct.default.svc.cluster.local"
+    templates:
+      - setup-job.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: CONFIGDB_HOST
+            value: "postgres-config-direct.default.svc.cluster.local"
+
+  - it: should fall back to global configdb for setup job when no override
+    set:
+      configdb.lrdb.host: "pgbouncer-config.default.svc.cluster.local"
+    templates:
+      - setup-job.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: CONFIGDB_HOST
+            value: "pgbouncer-config.default.svc.cluster.local"

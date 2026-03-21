@@ -340,6 +340,24 @@ setup:
   nodeSelector: {}
   tolerations: []
   affinity: {}
+  # Override database connection for the setup job.
+  # This is useful when running migrations that require direct PostgreSQL
+  # connections (e.g., advisory locks that don't work through pgbouncer).
+  # Any field not set here falls back to the global database/configdb values.
+  database:
+    lrdb:
+      host: ""
+      port: ""
+      name: ""
+      username: ""
+      sslMode: ""
+  configdb:
+    lrdb:
+      host: ""
+      port: ""
+      name: ""
+      username: ""
+      sslMode: ""
 
 # Process Logs configuration (handles both ingest and compact for logs)
 processLogs:

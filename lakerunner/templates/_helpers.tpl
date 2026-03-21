@@ -105,41 +105,103 @@ Create the name of the service account to use
 Common environment variables
 */}}
 {{- define "lakerunner.commonEnv" -}}
+{{- include "lakerunner.dbEnv" (list . .Values.database .Values.configdb) -}}
+{{- end }}
+
+{{/*
+Database environment variables with optional per-component overrides.
+Args:
+  0: root context
+  1: database config (may have overrides)
+  2: configdb config (may have overrides)
+*/}}
+{{- define "lakerunner.dbEnv" -}}
+{{- $root := index . 0 -}}
+{{- $db := index . 1 -}}
+{{- $cdb := index . 2 -}}
 - name: LRDB_HOST
-  value: {{ .Values.database.lrdb.host | quote }}
+  value: {{ $db.lrdb.host | quote }}
 - name: LRDB_PORT
-  value: {{ .Values.database.lrdb.port | quote }}
+  value: {{ $db.lrdb.port | quote }}
 - name: LRDB_DBNAME
-  value: {{ .Values.database.lrdb.name | quote }}
+  value: {{ $db.lrdb.name | quote }}
 - name: LRDB_USER
-  value: {{ .Values.database.lrdb.username | quote }}
+  value: {{ $db.lrdb.username | quote }}
 - name: LRDB_PASSWORD
   valueFrom:
     secretKeyRef:
-      name: {{ include "lakerunner.databaseSecretName" . }}
-      key: {{ .Values.database.passwordKey }}
+      name: {{ include "lakerunner.databaseSecretName" $root }}
+      key: {{ $root.Values.database.passwordKey }}
 - name: LRDB_SSLMODE
-  value: {{ .Values.database.lrdb.sslMode | quote }}
+  value: {{ $db.lrdb.sslMode | quote }}
 - name: CONFIGDB_HOST
-  value: {{ .Values.configdb.lrdb.host | quote }}
+  value: {{ $cdb.lrdb.host | quote }}
 - name: CONFIGDB_PORT
-  value: {{ .Values.configdb.lrdb.port | quote }}
+  value: {{ $cdb.lrdb.port | quote }}
 - name: CONFIGDB_DBNAME
-  value: {{ .Values.configdb.lrdb.name | quote }}
+  value: {{ $cdb.lrdb.name | quote }}
 - name: CONFIGDB_USER
-  value: {{ .Values.configdb.lrdb.username | quote }}
+  value: {{ $cdb.lrdb.username | quote }}
 - name: CONFIGDB_PASSWORD
   valueFrom:
     secretKeyRef:
-      name: {{ include "lakerunner.configdbSecretName" . }}
-      key: {{ .Values.configdb.passwordKey }}
+      name: {{ include "lakerunner.configdbSecretName" $root }}
+      key: {{ $root.Values.configdb.passwordKey }}
 - name: CONFIGDB_SSLMODE
-  value: {{ .Values.configdb.lrdb.sslMode | quote }}
-{{- if eq .Values.storageProfiles.source "config" }}
+  value: {{ $cdb.lrdb.sslMode | quote }}
+{{- if eq $root.Values.storageProfiles.source "config" }}
 - name: STORAGE_PROFILE_FILE
   value: "/app/config/storage_profiles.yaml"
 {{- end -}}
 {{- end }}
+
+{{/*
+Setup job environment variables.
+Merges setup-specific database/configdb overrides with global defaults.
+Empty override values fall back to the global config.
+*/}}
+{{- define "lakerunner.setupEnv" -}}
+{{- $sdb := .Values.setup.database.lrdb -}}
+{{- $gdb := .Values.database.lrdb -}}
+{{- $scdb := .Values.setup.configdb.lrdb -}}
+{{- $gcdb := .Values.configdb.lrdb -}}
+{{- $mergedDb := dict "lrdb" (dict
+  "host" (default $gdb.host $sdb.host)
+  "port" (default $gdb.port $sdb.port)
+  "name" (default $gdb.name $sdb.name)
+  "username" (default $gdb.username $sdb.username)
+  "sslMode" (default $gdb.sslMode $sdb.sslMode)
+) -}}
+{{- $mergedCdb := dict "lrdb" (dict
+  "host" (default $gcdb.host $scdb.host)
+  "port" (default $gcdb.port $scdb.port)
+  "name" (default $gcdb.name $scdb.name)
+  "username" (default $gcdb.username $scdb.username)
+  "sslMode" (default $gcdb.sslMode $scdb.sslMode)
+) -}}
+{{- include "lakerunner.dbEnv" (list . $mergedDb $mergedCdb) -}}
+{{- end }}
+
+{{/*
+Inject setup env vars (with database overrides) + component-specific env vars.
+Takes two args:
+  0: the root chart context
+  1: the component's values block (must have .env as a list)
+Usage:
+  {{ include "lakerunner.injectEnvSetup" (list . .Values.setup) | nindent 10 }}
+*/}}
+{{- define "lakerunner.injectEnvSetup" -}}
+{{- $root := index . 0 -}}
+{{- $comp := index . 1 -}}
+{{- include "lakerunner.setupEnv" $root | nindent 2 -}}
+{{- include "lakerunner.goRuntimeEnv" (list $root $comp $comp.env) | nindent 2 -}}
+{{- with $root.Values.global.env -}}
+{{ toYaml . | nindent 2 -}}
+{{- end -}}
+{{- with $comp.env -}}
+{{ toYaml . | nindent 2 -}}
+{{- end -}}
+{{- end -}}
 
 {{/*
 Inject common + component-specific env vars.
