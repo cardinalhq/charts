@@ -487,28 +487,6 @@ alertEvaluator:
   affinity: {}
   env: []
 
-# Notification sender configuration
-notificationSender:
-  enabled: true
-  replicas: 1
-  image:
-    repository: ghcr.io/cardinalhq/lakerunner
-    tag: ""
-    pullPolicy: ""
-  resources:
-    requests:
-      cpu: "500m"
-      memory: 512Mi
-    limits:
-      cpu: "500m"
-      memory: 512Mi
-  labels: {}
-  annotations: {}
-  nodeSelector: {}
-  tolerations: []
-  affinity: {}
-  env: []
-
 # Monitoring service configuration
 monitoring:
   enabled: true
