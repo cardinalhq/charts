@@ -50,7 +50,7 @@ spec:
         env:
           {{ include "maestro.databaseEnv" . | nindent 10 }}
           - name: MCP_GATEWAY_URL
-            value: "http://{{ include "maestro.fullname" . }}-mcp-gateway:{{ .Values.mcpGateway.port }}/lakerunner/mcp"
+            value: "http://{{ include "maestro.fullname" . }}-mcp-gateway:{{ .Values.mcpGateway.port }}"
           - name: PORT
             value: {{ .Values.maestro.port | quote }}
           {{- with .Values.global.env }}
