@@ -433,6 +433,18 @@ get_lakerunner_credentials() {
 
     get_input "Enter organization ID (or press Enter for default)" "151f346b-967e-4c94-b97a-581898b5b457" "ORG_ID"
     get_input "Enter API key (or press Enter for default)" "test-key" "API_KEY"
+
+    # License key - use env var if set, otherwise prompt
+    if [ -z "$LAKERUNNER_LICENSE_KEY" ]; then
+        echo
+        echo "A license key is required to run Lakerunner."
+        echo "You can also set LAKERUNNER_LICENSE_KEY environment variable."
+        read -rp "Enter license key: " LAKERUNNER_LICENSE_KEY
+        if [ -z "$LAKERUNNER_LICENSE_KEY" ]; then
+            print_error "License key is required. Set LAKERUNNER_LICENSE_KEY or provide it when prompted."
+            exit 1
+        fi
+    fi
 }
 
 
@@ -886,10 +898,10 @@ cloudProvider:
     accessKeyId: "$MINIO_ACCESS_KEY"
     secretAccessKey: "$MINIO_SECRET_KEY"
 
-# License configuration (soft license check is enabled via global env)
+# License configuration
 license:
   create: true
-  data: "{}"
+  data: "$LAKERUNNER_LICENSE_KEY"
 
 # Global configuration
 global:
@@ -1623,6 +1635,13 @@ show_help() {
     echo "  --version VERSION         Pin a specific Lakerunner helm chart version (default: latest)"
     echo "  --help, -h               Show this help message"
     echo
+    echo "Environment variables:"
+    echo "  LAKERUNNER_LICENSE_KEY   License key for Lakerunner (required)"
+    echo
+    echo "Examples:"
+    echo "  LAKERUNNER_LICENSE_KEY=<key> $0 --standalone"
+    echo "  LAKERUNNER_LICENSE_KEY=<key> $0 --standalone --signals all"
+    echo
 }
 
 # Parse signals from the --signals flag
@@ -1715,6 +1734,13 @@ configure_standalone() {
 
     # Demo apps - disabled by default in standalone mode
     INSTALL_OTEL_DEMO=false
+
+    # License key - must be provided via environment variable in standalone mode
+    if [ -z "$LAKERUNNER_LICENSE_KEY" ]; then
+        print_error "License key is required. Set LAKERUNNER_LICENSE_KEY environment variable."
+        print_error "Usage: LAKERUNNER_LICENSE_KEY=<key> $0 --standalone"
+        exit 1
+    fi
 
     print_status "Standalone mode configured:"
     print_status "  Namespace: $NAMESPACE"
