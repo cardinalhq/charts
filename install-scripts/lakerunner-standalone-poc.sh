@@ -236,8 +236,6 @@ check_helm_repositories() {
         needed_repos+=("minio https://charts.min.io/")
     fi
 
-    # Kafka uses raw manifests now, no helm repo needed
-
     if [ "$INSTALL_OTEL_DEMO" = true ]; then
         needed_repos+=("open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts")
     fi
@@ -341,20 +339,6 @@ get_infrastructure_preferences() {
         get_input "Enter S3 region" "us-east-1" "S3_REGION"
         get_input "Enter S3 bucket name" "lakerunner" "S3_BUCKET"
 
-    fi
-
-    get_input "Do you want to install Kafka locally? (Y/n)" "Y" "INSTALL_KAFKA"
-    if [[ "$INSTALL_KAFKA" =~ ^[Yy]$ ]] || [ -z "$INSTALL_KAFKA" ]; then
-        INSTALL_KAFKA=true
-        print_status "Will install Kafka locally"
-    else
-        INSTALL_KAFKA=false
-        print_status "Will use existing Kafka"
-        get_input "Enter Kafka bootstrap servers" "localhost:9092" "KAFKA_BOOTSTRAP_SERVERS"
-        get_input "Enter Kafka username (leave empty if no auth)" "" "KAFKA_USERNAME"
-        if [ -n "$KAFKA_USERNAME" ]; then
-            get_input "Enter Kafka password" "" "KAFKA_PASSWORD"
-        fi
     fi
 
     echo
@@ -653,188 +637,6 @@ install_postgresql() {
     fi
 }
 
-generate_redpanda_manifests() {
-    print_status "Generating Redpanda manifests..."
-
-    mkdir -p generated
-
-    cat > generated/redpanda-manifests.yaml << 'EOF'
----
-# Headless service for StatefulSet DNS (required for pod DNS resolution)
-apiVersion: v1
-kind: Service
-metadata:
-  name: redpanda-headless
-  labels:
-    app: redpanda
-spec:
-  type: ClusterIP
-  clusterIP: None
-  publishNotReadyAddresses: true
-  ports:
-    - port: 9092
-      targetPort: 9092
-      protocol: TCP
-      name: kafka
-    - port: 8081
-      targetPort: 8081
-      protocol: TCP
-      name: schema-registry
-    - port: 8082
-      targetPort: 8082
-      protocol: TCP
-      name: http-proxy
-    - port: 9644
-      targetPort: 9644
-      protocol: TCP
-      name: admin
-    - port: 33145
-      targetPort: 33145
-      protocol: TCP
-      name: rpc
-  selector:
-    app: redpanda
----
-# ClusterIP service for client access
-apiVersion: v1
-kind: Service
-metadata:
-  name: redpanda
-  labels:
-    app: redpanda
-spec:
-  type: ClusterIP
-  ports:
-    - port: 9092
-      targetPort: 9092
-      protocol: TCP
-      name: kafka
-    - port: 8081
-      targetPort: 8081
-      protocol: TCP
-      name: schema-registry
-    - port: 8082
-      targetPort: 8082
-      protocol: TCP
-      name: http-proxy
-    - port: 9644
-      targetPort: 9644
-      protocol: TCP
-      name: admin
-  selector:
-    app: redpanda
----
-# StatefulSet for Redpanda (single binary, Kafka-compatible)
-apiVersion: apps/v1
-kind: StatefulSet
-metadata:
-  name: redpanda
-  labels:
-    app: redpanda
-spec:
-  serviceName: redpanda-headless
-  replicas: 1
-  selector:
-    matchLabels:
-      app: redpanda
-  template:
-    metadata:
-      labels:
-        app: redpanda
-    spec:
-      securityContext:
-        fsGroup: 101
-      containers:
-        - name: redpanda
-          image: docker.redpanda.com/redpandadata/redpanda:v24.2.4
-          args:
-            - redpanda
-            - start
-            - --kafka-addr=internal://0.0.0.0:9092
-            - --advertise-kafka-addr=internal://redpanda-0.redpanda-headless:9092
-            - --pandaproxy-addr=internal://0.0.0.0:8082
-            - --advertise-pandaproxy-addr=internal://redpanda-0.redpanda-headless:8082
-            - --schema-registry-addr=internal://0.0.0.0:8081
-            - --rpc-addr=0.0.0.0:33145
-            - --advertise-rpc-addr=redpanda-0.redpanda-headless:33145
-            - --mode=dev-container
-            - --smp=1
-            - --memory=1G
-            - --overprovisioned
-            - --default-log-level=info
-          ports:
-            - containerPort: 9092
-              name: kafka
-            - containerPort: 8081
-              name: schema-registry
-            - containerPort: 8082
-              name: http-proxy
-            - containerPort: 9644
-              name: admin
-            - containerPort: 33145
-              name: rpc
-          volumeMounts:
-            - name: redpanda-data
-              mountPath: /var/lib/redpanda/data
-          resources:
-            requests:
-              memory: "1Gi"
-              cpu: "500m"
-            limits:
-              memory: "2Gi"
-              cpu: "1"
-          readinessProbe:
-            httpGet:
-              path: /v1/status/ready
-              port: 9644
-            initialDelaySeconds: 10
-            periodSeconds: 10
-          livenessProbe:
-            httpGet:
-              path: /v1/status/ready
-              port: 9644
-            initialDelaySeconds: 30
-            periodSeconds: 15
-  volumeClaimTemplates:
-    - metadata:
-        name: redpanda-data
-      spec:
-        accessModes: ["ReadWriteOnce"]
-        resources:
-          requests:
-            storage: 8Gi
-EOF
-
-    print_success "Redpanda manifests generated"
-}
-
-install_kafka() {
-    if [ "$INSTALL_KAFKA" = true ]; then
-        print_status "Installing Redpanda (Kafka-compatible)..."
-
-        # Check if Redpanda is already installed
-        if kubectl get statefulset redpanda -n "$NAMESPACE" >/dev/null 2>&1; then
-            print_warning "Redpanda is already installed. Skipping..."
-            return
-        fi
-
-        # Generate and apply manifests
-        generate_redpanda_manifests
-
-        kubectl apply -f generated/redpanda-manifests.yaml -n "$NAMESPACE" | output_redirect
-
-        wait_for_pods "Waiting for Redpanda to be ready" "app=redpanda" "$NAMESPACE" 300
-
-        # Disable auto topic creation so only the setup job creates topics
-        print_status "Configuring Redpanda (disabling auto topic creation)..."
-        kubectl exec -n "$NAMESPACE" redpanda-0 -- rpk cluster config set auto_create_topics_enabled false | output_redirect
-
-        print_success "Redpanda installed successfully"
-    else
-        print_status "Skipping Kafka/Redpanda installation (using existing Kafka)"
-    fi
-}
-
 
 generate_collector_manifests() {
     print_status "Generating OpenTelemetry Collector manifests..."
@@ -1084,23 +886,10 @@ cloudProvider:
     accessKeyId: "$MINIO_ACCESS_KEY"
     secretAccessKey: "$MINIO_SECRET_KEY"
 
-# Kafka topics configuration
-kafkaTopics:
-  config:
-    version: 2
-    defaults:
-      partitionCount: 1
-      replicationFactor: 1
-
-# Kafka configuration
-kafka:
-$([ "$INSTALL_KAFKA" = true ] && echo "  brokers: \"redpanda.$NAMESPACE.svc.cluster.local:9092\"" || echo "  brokers: \"$KAFKA_BOOTSTRAP_SERVERS\"")
-  sasl:
-$([ -n "$KAFKA_USERNAME" ] && [ -n "$KAFKA_PASSWORD" ] && echo "    enabled: true" || echo "    enabled: false")
-$([ -n "$KAFKA_USERNAME" ] && echo "    username: \"$KAFKA_USERNAME\"" || echo "#   username: \"\"")
-$([ -n "$KAFKA_PASSWORD" ] && echo "    password: \"$KAFKA_PASSWORD\"" || echo "#   password: \"\"")
-  tls:
-    enabled: $([ "$INSTALL_KAFKA" = true ] && echo "false" || echo "true")
+# License configuration (soft license check is enabled via global env)
+license:
+  create: true
+  data: "{}"
 
 # Global configuration
 global:
@@ -1128,50 +917,19 @@ pubsub:
 
 collector:
   enabled: false
-#   resources:
-#     requests:
-#       cpu: 2000m
-#       memory: 2Gi
-#     limits:
-#       cpu: 2000m
-#       memory: 2Gi
 
 setup:
   enabled: true
 
-ingestLogs:
+# Combined process workers (ingest + compact per signal type)
+processLogs:
   enabled: $([ "$ENABLE_LOGS" = true ] && echo "true" || echo "false")
 
-ingestMetrics:
+processMetrics:
   enabled: $([ "$ENABLE_METRICS" = true ] && echo "true" || echo "false")
 
-ingestTraces:
+processTraces:
   enabled: $([ "$ENABLE_TRACES" = true ] && echo "true" || echo "false")
-
-compactLogs:
-  enabled: $([ "$ENABLE_LOGS" = true ] && echo "true" || echo "false")
-
-compactMetrics:
-  enabled: $([ "$ENABLE_METRICS" = true ] && echo "true" || echo "false")
-
-compactTraces:
-  enabled: $([ "$ENABLE_TRACES" = true ] && echo "true" || echo "false")
-
-rollupMetrics:
-  enabled: $([ "$ENABLE_METRICS" = true ] && echo "true" || echo "false")
-
-# Boxer configuration - single instance running all tasks
-boxers:
-  instances:
-    - name: common
-      tasks:
-$([ "$ENABLE_LOGS" = true ] && echo "        - compact-logs" || echo "")
-$([ "$ENABLE_LOGS" = true ] && echo "        - ingest-logs" || echo "")
-$([ "$ENABLE_METRICS" = true ] && echo "        - compact-metrics" || echo "")
-$([ "$ENABLE_METRICS" = true ] && echo "        - ingest-metrics" || echo "")
-$([ "$ENABLE_METRICS" = true ] && echo "        - rollup-metrics" || echo "")
-$([ "$ENABLE_TRACES" = true ] && echo "        - compact-traces" || echo "")
-$([ "$ENABLE_TRACES" = true ] && echo "        - ingest-traces" || echo "")
 
 sweeper:
   enabled: true
@@ -1271,13 +1029,10 @@ install_lakerunner() {
 # Function to wait for services to be ready
 wait_for_services() {
     print_status "Waiting for Lakerunner services to be ready in namespace: $NAMESPACE"
-    # Check if setup job exists and wait for it to complete
+    # The setup job runs as a helm hook (post-install/post-upgrade) and must complete
+    # before services can function. Wait for it to finish.
     if kubectl get job lakerunner-setup -n "$NAMESPACE" >/dev/null 2>&1; then
         show_progress "Waiting for setup job to complete" "kubectl wait --for=condition=complete job/lakerunner-setup -n '$NAMESPACE' --timeout=600s" 600
-        # Restart boxer to pick up Kafka topics created by setup job
-        print_status "Restarting boxer to pick up Kafka topics..."
-        kubectl rollout restart deployment/lakerunner-boxer-common -n "$NAMESPACE" 2>/dev/null || true
-        kubectl rollout status deployment/lakerunner-boxer-common -n "$NAMESPACE" --timeout=120s 2>/dev/null || true
     else
         print_status "Setup job not found (may have already completed or not needed for upgrade)"
     fi
@@ -1322,9 +1077,6 @@ display_connection_info() {
         echo "  Storage: External S3 ($S3_BUCKET)"
     fi
 
-    if [ "$INSTALL_KAFKA" = true ]; then
-        echo "  Kafka: Redpanda Installed (demo mode)"
-    fi
     echo
 
     # Demo App Information (only if installed)
@@ -1396,9 +1148,6 @@ display_connection_info() {
     echo "  - lakerunner-values.yaml: Main Lakerunner configuration"
     if [ "$INSTALL_POSTGRES" = true ]; then
         echo "  - postgres-manifests.yaml: PostgreSQL Kubernetes manifests"
-    fi
-    if [ "$INSTALL_KAFKA" = true ]; then
-        echo "  - redpanda-manifests.yaml: Redpanda Kubernetes manifests"
     fi
     if [ "$INSTALL_OTEL_DEMO" = true ]; then
         echo "  - otel-demo-values.yaml: OpenTelemetry demo configuration"
@@ -1477,12 +1226,6 @@ display_configuration_summary() {
         echo "  Storage: Local MinIO (demo mode - no redundancy)"
     else
         echo "  Storage: External S3 ($S3_BUCKET)"
-    fi
-
-    if [ "$INSTALL_KAFKA" = true ]; then
-        echo "  Kafka: Local Redpanda (demo mode - no redundancy)"
-    else
-        echo "  Kafka: External ($KAFKA_BOOTSTRAP_SERVERS)"
     fi
 
     if [ "$USE_SQS" = true ]; then
@@ -1868,7 +1611,7 @@ show_help() {
     echo "                                     --signals logs,metrics,traces"
     echo "  --standalone              Install in standalone mode with minimal interaction"
     echo "                            Automatically enables logs and metrics, installs all"
-    echo "                            local infrastructure (PostgreSQL, MinIO, Kafka)"
+    echo "                            local infrastructure (PostgreSQL, MinIO)"
     echo "                            Uses default namespace 'lakerunner-demo' and default credentials"
     echo "  --skip-helm-repo-updates  Skip running 'helm repo update' commands during installation"
     echo "                            Useful when helm repos are already up to date or when"
@@ -1949,7 +1692,6 @@ configure_standalone() {
     # Infrastructure - install everything locally
     INSTALL_POSTGRES=true
     INSTALL_MINIO=true
-    INSTALL_KAFKA=true
 
     # Telemetry - use --signals flag if provided, otherwise default to logs and metrics
     if [ -n "$SIGNALS_FLAG" ]; then
@@ -1976,7 +1718,7 @@ configure_standalone() {
 
     print_status "Standalone mode configured:"
     print_status "  Namespace: $NAMESPACE"
-    print_status "  Infrastructure: PostgreSQL, MinIO, Kafka (all local)"
+    print_status "  Infrastructure: PostgreSQL, MinIO (all local)"
 
     # Build telemetry status message
     telemetry_status=""
@@ -2052,7 +1794,6 @@ main() {
 
     install_minio
     install_postgresql
-    install_kafka
     install_collector
 
     generate_values_file
