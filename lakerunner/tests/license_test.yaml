@@ -5,6 +5,7 @@ set:
   cloudProvider.aws.region: us-west-2
 templates:
   - license-secret.yaml
+  - license-validation.yaml
   - process-logs-deployment.yaml
   - sweeper-deployment.yaml
   - setup-job.yaml
@@ -23,27 +24,47 @@ tests:
           path: metadata.name
           value: RELEASE-NAME-lakerunner-lakerunner-license
 
-  - it: should not create license secret when create is true but data is empty
+  - it: should fail when create is true but data is empty
     set:
       license.create: true
       license.data: ""
     templates:
-      - license-secret.yaml
+      - license-validation.yaml
     asserts:
-      - hasDocuments:
-          count: 0
+      - failedTemplate:
+          errorMessage: "license.data is required when license.create is true. Provide the raw license.json content or set license.create=false and specify an existing secret via license.secretName."
+
+  - it: should fail with default values (create true, no data)
+    templates:
+      - license-validation.yaml
+    asserts:
+      - failedTemplate:
+          errorMessage: "license.data is required when license.create is true. Provide the raw license.json content or set license.create=false and specify an existing secret via license.secretName."
 
   - it: should not create license secret when create is false
     set:
       license.create: false
+      license.secretName: "my-external-license"
     templates:
       - license-secret.yaml
     asserts:
       - hasDocuments:
           count: 0
 
+  - it: should fail when create is false and secretName is empty
+    set:
+      license.create: false
+      license.secretName: ""
+    templates:
+      - license-validation.yaml
+    asserts:
+      - failedTemplate:
+          errorMessage: "license.secretName is required when license.create is false. Provide the name of an existing Kubernetes secret containing the license."
+
   # Volume mount tests
   - it: should have license volume mount in process-logs
+    set:
+      license.data: '{"key":"value"}'
     templates:
       - process-logs-deployment.yaml
     asserts:
@@ -56,6 +77,8 @@ tests:
 
   # Volume tests
   - it: should have license volume in process-logs
+    set:
+      license.data: '{"key":"value"}'
     templates:
       - process-logs-deployment.yaml
     asserts:
@@ -67,6 +90,8 @@ tests:
               secretName: RELEASE-NAME-lakerunner-lakerunner-license
 
   - it: should have license volume mount in sweeper
+    set:
+      license.data: '{"key":"value"}'
     templates:
       - sweeper-deployment.yaml
     asserts:
@@ -78,6 +103,8 @@ tests:
             readOnly: true
 
   - it: should have license volume in setup-job
+    set:
+      license.data: '{"key":"value"}'
     templates:
       - setup-job.yaml
     asserts:
@@ -108,6 +135,7 @@ tests:
     set:
       license.create: true
       license.secretName: "custom-license"
+      license.data: '{"key":"value"}'
     templates:
       - process-logs-deployment.yaml
     asserts:

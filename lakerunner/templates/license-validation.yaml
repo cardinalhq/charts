@@ -1,0 +1,5 @@
+{{/*
+License validation — ensures a valid license configuration is provided.
+This template always renders (as a comment) but fails early if the license is misconfigured.
+*/}}
+{{- include "lakerunner.validateLicense" . -}}

@@ -183,6 +183,23 @@ Empty override values fall back to the global config.
 {{- end }}
 
 {{/*
+Generate OpenTelemetry trace sampling env vars from global.monitoring.traces config.
+Usage: {{ include "lakerunner.tracesEnv" . }}
+*/}}
+{{- define "lakerunner.tracesEnv" -}}
+{{- if .Values.global.monitoring }}
+{{- if .Values.global.monitoring.traces }}
+{{- with .Values.global.monitoring.traces }}
+- name: OTEL_TRACES_SAMPLER
+  value: {{ .sampler | quote }}
+- name: OTEL_TRACES_SAMPLER_ARG
+  value: {{ .arg | quote }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end -}}
+
+{{/*
 Inject setup env vars (with database overrides) + component-specific env vars.
 Takes two args:
   0: the root chart context
@@ -195,6 +212,7 @@ Usage:
 {{- $comp := index . 1 -}}
 {{- include "lakerunner.setupEnv" $root | nindent 2 -}}
 {{- include "lakerunner.goRuntimeEnv" (list $root $comp $comp.env) | nindent 2 -}}
+{{- include "lakerunner.tracesEnv" $root | nindent 2 -}}
 {{- with $root.Values.global.env -}}
 {{ toYaml . | nindent 2 -}}
 {{- end -}}
@@ -216,6 +234,7 @@ Usage:
 {{- $comp := index . 1 -}}
 {{- include "lakerunner.commonEnv" $root | nindent 2 -}}
 {{- include "lakerunner.goRuntimeEnv" (list $root $comp $comp.env) | nindent 2 -}}
+{{- include "lakerunner.tracesEnv" $root | nindent 2 -}}
 {{- with $root.Values.global.env -}}
 {{ toYaml . | nindent 2 -}}
 {{- end -}}
@@ -238,6 +257,7 @@ Usage:
 {{- $comp := index . 1 -}}
 {{- include "lakerunner.commonEnv" $root | nindent 2 -}}
 {{- include "lakerunner.duckdbRuntimeEnv" (list $root $comp $comp.env) | nindent 2 -}}
+{{- include "lakerunner.tracesEnv" $root | nindent 2 -}}
 {{- with $root.Values.global.env -}}
 {{ toYaml . | nindent 2 -}}
 {{- end -}}
@@ -675,6 +695,21 @@ Always included when using Azure workload identity auth type.
 {{- end }}
 
 {{/*
+Validate license configuration. Called from license-validation.yaml to fail early.
+*/}}
+{{- define "lakerunner.validateLicense" -}}
+{{- if .Values.license.create }}
+{{- if not .Values.license.data }}
+{{- fail "license.data is required when license.create is true. Provide the raw license.json content or set license.create=false and specify an existing secret via license.secretName." }}
+{{- end }}
+{{- else }}
+{{- if not .Values.license.secretName }}
+{{- fail "license.secretName is required when license.create is false. Provide the name of an existing Kubernetes secret containing the license." }}
+{{- end }}
+{{- end }}
+{{- end }}
+
+{{/*
 Return the secret name for the license. If create is true, prefix with release name.
 */}}
 {{- define "lakerunner.licenseSecretName" -}}
@@ -1006,6 +1041,7 @@ Usage:
 {{- $comp := index . 1 -}}
 {{- include "lakerunner.commonEnv" $root | nindent 2 -}}
 {{- include "lakerunner.queryWorkerRuntimeEnv" (list $root $comp $comp.env) | nindent 2 -}}
+{{- include "lakerunner.tracesEnv" $root | nindent 2 -}}
 {{- with $root.Values.global.env -}}
 {{ toYaml . | nindent 2 -}}
 {{- end -}}

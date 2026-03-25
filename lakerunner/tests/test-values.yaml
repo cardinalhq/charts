@@ -1,2 +1,4 @@
 aws:
   region: us-west-2
+license:
+  data: '{"key":"test"}'

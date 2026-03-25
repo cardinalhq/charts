@@ -45,6 +45,13 @@ global:
       labels:
         {}
         # type: my-frontend-volume
+  # Monitoring and observability configuration
+  monitoring:
+    traces:
+      # OpenTelemetry trace sampler to use
+      sampler: "parentbased_traceidratio"
+      # Sampler argument (e.g., sampling ratio for ratio-based samplers)
+      arg: "0.01"
   # Global health probe configuration
   # These defaults can be overridden per service
   healthProbes:
@@ -63,13 +70,7 @@ global:
   # Common environment variables to inject into all containers.
   # This is a key: value map.
   # Optional.
-  env:
-    - name: SOFT_LICENSE_CHECK
-      value: "true"
-    - name: OTEL_TRACES_SAMPLER
-      value: "parentbased_traceidratio"
-    - name: OTEL_TRACES_SAMPLER_ARG
-      value: "0.01"
+  env: []
     # - name: ENVAR1
     #   value: "value1"
     # - name: ENVAR2

@@ -9,6 +9,7 @@ values:
   - ../values.yaml
 set:
   cloudProvider.aws.region: us-west-2
+  license.data: '{"key":"test"}'
   queryApi.enabled: true
   queryWorker.enabled: true
 tests:
