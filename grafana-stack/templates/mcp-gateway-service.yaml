@@ -1,0 +1,20 @@
+{{- if .Values.mcpGateway.enabled -}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "grafana-stack.fullname" . }}-mcp-gateway
+  labels:
+    {{- include "grafana-stack.labels" . | nindent 4 }}
+    app.kubernetes.io/component: mcp-gateway
+  {{- include "grafana-stack.annotations" . | nindent 2 }}
+spec:
+  type: ClusterIP
+  ports:
+    - port: {{ .Values.mcpGateway.port }}
+      targetPort: {{ .Values.mcpGateway.port }}
+      name: mcp
+      protocol: TCP
+  selector:
+    {{- include "grafana-stack.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: mcp-gateway
+{{- end }}

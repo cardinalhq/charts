@@ -1,0 +1,44 @@
+suite: test service configuration
+values:
+  - ../values.yaml
+templates:
+  - mcp-gateway-service.yaml
+  - conductor-server-service.yaml
+  - maestro-server-service.yaml
+tests:
+  - it: mcp-gateway service should expose port 8080
+    templates:
+      - mcp-gateway-service.yaml
+    asserts:
+      - equal:
+          path: spec.ports[0].port
+          value: 8080
+      - equal:
+          path: spec.type
+          value: ClusterIP
+
+  - it: conductor-server service should expose port 4100
+    templates:
+      - conductor-server-service.yaml
+    asserts:
+      - equal:
+          path: spec.ports[0].port
+          value: 4100
+
+  - it: maestro-server service should expose port 3000
+    templates:
+      - maestro-server-service.yaml
+    asserts:
+      - equal:
+          path: spec.ports[0].port
+          value: 3000
+
+  - it: mcp-gateway service should use custom port
+    set:
+      mcpGateway.port: 9999
+    templates:
+      - mcp-gateway-service.yaml
+    asserts:
+      - equal:
+          path: spec.ports[0].port
+          value: 9999

@@ -1,0 +1,160 @@
+# Default values for grafana-stack
+# Deploys MCP Gateway, Conductor Server, and Maestro Server alongside Grafana.
+
+nameOverride: ""
+fullnameOverride: ""
+
+# --- MCP Gateway ---
+# Uses the maestro image with the mcp-gateway entrypoint.
+mcpGateway:
+  enabled: true
+  replicas: 1
+  image:
+    repository: public.ecr.aws/cardinalhq.io/maestro
+    tag: ""          # defaults to mcpGateway appVersion below
+    pullPolicy: Always
+  appVersion: "v0.7.8"
+  port: 8080
+  debugPort: 9090
+  resources:
+    requests:
+      cpu: 1000m
+      memory: 512Mi
+    limits:
+      cpu: 1000m
+      memory: 512Mi
+  env:
+    - name: HOME
+      value: "/tmp"
+    - name: AWS_REGION
+      value: "us-east-1"
+  # URL for the LakeRunner query API.
+  lakerunnerApiUrl: ""
+  labels: {}
+  annotations: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  serviceAccount:
+    create: true
+    name: ""
+    annotations: {}
+
+  # Secrets for MCP Gateway (CARDINALHQ_API_KEY, LAKERUNNER_API_KEY, MCP_API_KEY, OPENAI_API_KEY).
+  # Set create: true and provide values, OR set create: false and reference an existing secret.
+  secrets:
+    secretName: "mcp-gateway-secrets"
+    create: true
+    # Only used when create: true
+    data:
+      CARDINALHQ_API_KEY: ""
+      LAKERUNNER_API_KEY: ""
+      MCP_API_KEY: ""
+      OPENAI_API_KEY: ""
+
+# --- Conductor Server ---
+conductorServer:
+  enabled: true
+  replicas: 1
+  image:
+    repository: public.ecr.aws/cardinalhq.io/conductor-server
+    tag: ""
+    pullPolicy: Always
+  appVersion: "v0.1.28"
+  port: 4100
+  resources:
+    requests:
+      cpu: 500m
+      memory: 512Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  env: []
+  # LLM configuration
+  llm:
+    provider: "bedrock"
+    bedrockModel: "us.anthropic.claude-sonnet-4-20250514-v1:0"
+    awsRegion: "us-east-2"
+  labels: {}
+  annotations: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  serviceAccount:
+    create: true
+    name: ""
+    annotations: {}
+
+  # Secrets for Conductor Server (CARDINALHQ_API_KEY, LAKERUNNER_API_KEY, MCP_API_KEY).
+  # Set create: true and provide values, OR set create: false and reference an existing secret.
+  secrets:
+    secretName: "conductor-server-secrets"
+    create: true
+    data:
+      CARDINALHQ_API_KEY: ""
+      LAKERUNNER_API_KEY: ""
+      MCP_API_KEY: ""
+
+  # LLM API keys (OPENAI_API_KEY).
+  # Set create: true and provide values, OR set create: false and reference an existing secret.
+  llmSecrets:
+    secretName: "llm-api-keys"
+    create: true
+    data:
+      OPENAI_API_KEY: ""
+
+# --- Maestro Server ---
+maestroServer:
+  enabled: true
+  replicas: 1
+  image:
+    repository: public.ecr.aws/cardinalhq.io/maestro
+    tag: ""
+    pullPolicy: Always
+  appVersion: "v0.1.0"
+  port: 3000
+  resources:
+    requests:
+      cpu: 500m
+      memory: 512Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  env: []
+  # LLM configuration (same as conductor)
+  llm:
+    provider: "bedrock"
+    bedrockModel: "us.anthropic.claude-sonnet-4-20250514-v1:0"
+    awsRegion: "us-east-2"
+  labels: {}
+  annotations: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  serviceAccount:
+    create: true
+    name: ""
+    annotations: {}
+
+  # Secrets: reuses conductor-server-secrets and llm-api-keys by default.
+  # Override secretName to use different secrets.
+  secrets:
+    secretName: "conductor-server-secrets"
+    create: false   # false by default since conductor creates this
+    data:
+      CARDINALHQ_API_KEY: ""
+      LAKERUNNER_API_KEY: ""
+      MCP_API_KEY: ""
+
+  llmSecrets:
+    secretName: "llm-api-keys"
+    create: false   # false by default since conductor creates this
+    data:
+      OPENAI_API_KEY: ""
+
+# Global settings
+global:
+  imagePullSecrets: []
+  env: []
+  labels: {}
+  annotations: {}

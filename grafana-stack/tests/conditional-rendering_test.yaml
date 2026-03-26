@@ -1,0 +1,91 @@
+suite: test conditional rendering
+values:
+  - ../values.yaml
+templates:
+  - mcp-gateway-deployment.yaml
+  - mcp-gateway-service.yaml
+  - conductor-server-deployment.yaml
+  - conductor-server-service.yaml
+  - maestro-server-deployment.yaml
+  - maestro-server-service.yaml
+tests:
+  - it: should render mcp-gateway when enabled
+    set:
+      mcpGateway.enabled: true
+    templates:
+      - mcp-gateway-deployment.yaml
+    asserts:
+      - isKind:
+          of: Deployment
+
+  - it: should not render mcp-gateway when disabled
+    set:
+      mcpGateway.enabled: false
+    templates:
+      - mcp-gateway-deployment.yaml
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should not render mcp-gateway service when disabled
+    set:
+      mcpGateway.enabled: false
+    templates:
+      - mcp-gateway-service.yaml
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should render conductor-server when enabled
+    set:
+      conductorServer.enabled: true
+    templates:
+      - conductor-server-deployment.yaml
+    asserts:
+      - isKind:
+          of: Deployment
+
+  - it: should not render conductor-server when disabled
+    set:
+      conductorServer.enabled: false
+    templates:
+      - conductor-server-deployment.yaml
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should not render conductor-server service when disabled
+    set:
+      conductorServer.enabled: false
+    templates:
+      - conductor-server-service.yaml
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should render maestro-server when enabled
+    set:
+      maestroServer.enabled: true
+    templates:
+      - maestro-server-deployment.yaml
+    asserts:
+      - isKind:
+          of: Deployment
+
+  - it: should not render maestro-server when disabled
+    set:
+      maestroServer.enabled: false
+    templates:
+      - maestro-server-deployment.yaml
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should not render maestro-server service when disabled
+    set:
+      maestroServer.enabled: false
+    templates:
+      - maestro-server-service.yaml
+    asserts:
+      - hasDocuments:
+          count: 0
