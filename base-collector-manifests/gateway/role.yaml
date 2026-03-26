@@ -1,0 +1,28 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: collector-gateway
+  labels:
+    app.kubernetes.io/component: collector
+    app.kubernetes.io/instance: collector-gateway
+    app.kubernetes.io/name: cardinalhq-otel-collector
+rules:
+  - apiGroups: [""]
+    resources: [endpoints]
+    verbs: [get, list, watch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: collector-gateway
+  labels:
+    app.kubernetes.io/component: collector
+    app.kubernetes.io/instance: collector-gateway
+    app.kubernetes.io/name: cardinalhq-otel-collector
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: collector-gateway
+subjects:
+  - kind: ServiceAccount
+    name: collector-gateway

@@ -1,0 +1,32 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: collector-poller-k8scluster
+  labels:
+    app.kubernetes.io/component: collector
+    app.kubernetes.io/instance: collector-poller
+    app.kubernetes.io/name: cardinalhq-otel-collector
+rules:
+  - apiGroups: [""]
+    resources:
+      - events
+      - namespaces
+      - namespaces/status
+      - nodes
+      - nodes/spec
+      - pods
+      - pods/status
+      - services
+      - resourcequotas
+      - replicationcontrollers
+      - replicationcontrollers/status
+    verbs: [get, list, watch]
+  - apiGroups: [apps]
+    resources: [cronjobs, daemonsets, deployments, jobs, replicasets, statefulsets]
+    verbs: [get, list, watch]
+  - apiGroups: [autoscaling]
+    resources: [horizontalpodautoscalers]
+    verbs: [get, list, watch]
+  - apiGroups: [batch]
+    resources: [jobs, cronjobs]
+    verbs: [get, list, watch]

@@ -1,0 +1,32 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: collector
+
+resources:
+  - namespace.yaml
+  - gateway/secrets.yaml
+
+  # Agent (DaemonSet) - per-node collector
+  - agent/serviceaccount.yaml
+  - agent/clusterrole.yaml
+  - agent/clusterrolebinding.yaml
+  - agent/service.yaml
+  - agent/configmap.yaml
+  - agent/daemonset.yaml
+
+  # Poller (Deployment, 1 replica) - cluster-level k8s metrics
+  - poller/serviceaccount.yaml
+  - poller/clusterrole.yaml
+  - poller/clusterrolebinding.yaml
+  - poller/configmap.yaml
+  - poller/deployment.yaml
+
+  # Gateway (Deployment, 2 replicas) - aggregation and S3 export
+  - gateway/serviceaccount.yaml
+  - gateway/role.yaml
+  - gateway/service-headless.yaml
+  - gateway/service-interproc.yaml
+  - gateway/service-external.yaml
+  - gateway/configmap.yaml
+  - gateway/deployment.yaml

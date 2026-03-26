@@ -1,0 +1,16 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: collector-poller-k8scluster
+  labels:
+    app.kubernetes.io/component: collector
+    app.kubernetes.io/instance: collector-poller
+    app.kubernetes.io/name: cardinalhq-otel-collector
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: collector-poller-k8scluster
+subjects:
+  - kind: ServiceAccount
+    name: collector-poller
+    namespace: collector

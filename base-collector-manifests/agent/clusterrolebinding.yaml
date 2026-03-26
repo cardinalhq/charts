@@ -1,0 +1,33 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: collector-agent-k8sattributes
+  labels:
+    app.kubernetes.io/component: collector
+    app.kubernetes.io/instance: collector-agent
+    app.kubernetes.io/name: cardinalhq-otel-collector
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: collector-agent-k8sattributes
+subjects:
+  - kind: ServiceAccount
+    name: collector-agent
+    namespace: collector
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: collector-agent-kubeletstats
+  labels:
+    app.kubernetes.io/component: collector
+    app.kubernetes.io/instance: collector-agent
+    app.kubernetes.io/name: cardinalhq-otel-collector
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: collector-agent-kubeletstats
+subjects:
+  - kind: ServiceAccount
+    name: collector-agent
+    namespace: collector
