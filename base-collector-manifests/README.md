@@ -3,7 +3,7 @@
 Kustomize-based manifests for deploying the CardinalHQ OTel collector stack. Three components:
 
 | Component | Kind | Purpose |
-|-----------|------|---------|
+| ----------- | ------ | --------- |
 | **agent** | DaemonSet | Runs on every node. Receives OTLP (4317/4318), scrapes kubelet stats, enriches with k8s attributes, forwards to gateway. Uses `hostNetwork`. |
 | **poller** | Deployment (1 replica) | Watches cluster-level k8s objects (pods, nodes, deployments, HPAs, etc.) and forwards metrics to gateway. |
 | **gateway** | Deployment (2 replicas) | Receives from agent/poller and external OTLP sources, load-balances external metrics across pods, exports everything to S3. Also generates service graph metrics from traces. |
@@ -11,6 +11,7 @@ Kustomize-based manifests for deploying the CardinalHQ OTel collector stack. Thr
 ## Prerequisites
 
 ### S3-Compatible Object Storage
+
 - **Endpoint URL** — e.g. `https://s3.us-east-2.amazonaws.com` or a MinIO/Ceph endpoint
 - **Bucket name** — the bucket for raw OTEL data
 - **Region** — the S3 region (or a logical name for non-AWS)
@@ -18,6 +19,7 @@ Kustomize-based manifests for deploying the CardinalHQ OTel collector stack. Thr
 - **Role ARN** (optional) — if using IAM role assumption, set this; otherwise leave empty
 
 ### Cluster
+
 - A Kubernetes cluster with kustomize available (`kubectl apply -k`)
 
 ## Configuration
@@ -34,16 +36,16 @@ AWS_SECRET_ACCESS_KEY: "your-secret-key"
 
 ### 2. Environment Variables
 
-#### All three components (`agent/daemonset.yaml`, `poller/deployment.yaml`, `gateway/deployment.yaml`):
+#### All three components (`agent/daemonset.yaml`, `poller/deployment.yaml`, `gateway/deployment.yaml`)
 
 | Variable | Description | Example |
-|----------|-------------|---------|
+| ---------- | ------------- | --------- |
 | `K8S_CLUSTER_NAME` | Logical name for your cluster | `production-us-east` |
 
-#### Gateway only (`gateway/deployment.yaml`):
+#### Gateway only (`gateway/deployment.yaml`)
 
 | Variable | Description | Example |
-|----------|-------------|---------|
+| ---------- | ------------- | --------- |
 | `AWS_REGION` | S3 region | `us-east-2` |
 | `AWS_S3_ENDPOINT` | S3 endpoint URL | `https://s3.us-east-2.amazonaws.com` |
 | `AWS_S3_BUCKET` | Bucket name | `datalake-my-org` |
@@ -53,7 +55,7 @@ AWS_SECRET_ACCESS_KEY: "your-secret-key"
 ### 3. Optional Tuning
 
 | What | Where | Default |
-|------|-------|---------|
+| ------ | ------- | --------- |
 | Agent memory limit | `agent/daemonset.yaml` resources | 500Mi |
 | Poller memory limit | `poller/deployment.yaml` resources | 500Mi |
 | Gateway replicas | `gateway/deployment.yaml` `.spec.replicas` | 2 |
@@ -78,7 +80,7 @@ kubectl apply -k base-collector-manifests/
 
 To customize per-environment without editing base files, create an overlay:
 
-```
+```text
 overlays/
   production/
     kustomization.yaml
@@ -103,11 +105,11 @@ patches:
 
 ## Architecture
 
-```
+```text
   Workloads (OTLP 4317/4318)
         │
         ▼
-  ┌─────────────┐     ┌──────────────┐
+  ┌──────────────┐     ┌──────────────┐
   │  agent (DS)  │     │ poller (1x)  │
   │  per-node    │     │ k8s_cluster  │
   └──────┬───────┘     └──────┬───────┘
@@ -125,10 +127,12 @@ patches:
 ## Data Flow
 
 **Agent/Poller → Gateway (interproc, port 24318)**:
+
 - Agent and poller pre-convert cumulative metrics to delta before sending.
 - Gateway receives pre-delta'd data and writes straight to S3 (no load-balancing needed).
 
 **External OTLP → Gateway (ports 4317/4318)**:
+
 - External sources may send cumulative metrics.
 - Gateway load-balances external metrics by stream ID across pods, then applies cumulative-to-delta conversion before writing to S3.
 - External logs and traces go straight to S3.
