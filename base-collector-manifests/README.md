@@ -54,10 +54,10 @@ AWS_SECRET_ACCESS_KEY: "your-secret-key"
 
 | What | Where | Default |
 |------|-------|---------|
-| Agent memory limit | `agent/daemonset.yaml` resources + `GOMEMLIMIT` | 500Mi / 200MiB |
-| Poller memory limit | `poller/deployment.yaml` resources + `GOMEMLIMIT` | 500Mi / 400MiB |
+| Agent memory limit | `agent/daemonset.yaml` resources | 500Mi |
+| Poller memory limit | `poller/deployment.yaml` resources | 500Mi |
 | Gateway replicas | `gateway/deployment.yaml` `.spec.replicas` | 2 |
-| Gateway memory limit | `gateway/deployment.yaml` resources + `GOMEMLIMIT` | 2Gi / 1638MiB |
+| Gateway memory limit | `gateway/deployment.yaml` resources | 2Gi |
 | Collector image tag | All three `image:` fields | `v1.5.0-rc1` |
 
 ### 4. Namespace

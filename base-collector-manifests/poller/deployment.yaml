@@ -42,8 +42,6 @@ spec:
           env:
             - name: OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE
               value: Delta
-            - name: GOMEMLIMIT
-              value: "400MiB"
             - name: HOST_IP
               valueFrom:
                 fieldRef:
