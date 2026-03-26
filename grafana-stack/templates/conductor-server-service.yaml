@@ -1,0 +1,19 @@
+{{- if .Values.conductorServer.enabled -}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "grafana-stack.fullname" . }}-conductor-server
+  labels:
+    {{- include "grafana-stack.labels" . | nindent 4 }}
+    app.kubernetes.io/component: conductor-server
+  {{- include "grafana-stack.annotations" . | nindent 2 }}
+spec:
+  type: ClusterIP
+  ports:
+    - port: {{ .Values.conductorServer.port }}
+      targetPort: {{ .Values.conductorServer.port }}
+      name: http
+  selector:
+    {{- include "grafana-stack.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: conductor-server
+{{- end }}
