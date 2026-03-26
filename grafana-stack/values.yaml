@@ -73,7 +73,7 @@ conductorServer:
   # LLM configuration
   llm:
     provider: "bedrock"
-    bedrockModel: "us.anthropic.claude-sonnet-4-20250514-v1:0"
+    bedrockModel: "us.anthropic.claude-sonnet-4-6"
     awsRegion: "us-east-2"
   labels: {}
   annotations: {}
@@ -124,7 +124,7 @@ maestroServer:
   # LLM configuration (same as conductor)
   llm:
     provider: "bedrock"
-    bedrockModel: "us.anthropic.claude-sonnet-4-20250514-v1:0"
+    bedrockModel: "us.anthropic.claude-sonnet-4-6"
     awsRegion: "us-east-2"
   labels: {}
   annotations: {}
