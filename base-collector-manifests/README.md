@@ -22,9 +22,9 @@ Kustomize-based manifests for deploying the CardinalHQ OTel collector stack. Thr
 
 ## Configuration
 
-### 1. Secrets (`secrets.yaml`)
+### 1. Secrets (`gateway/secrets.yaml`)
 
-Edit `secrets.yaml` and replace the placeholder values:
+Edit `gateway/secrets.yaml` and replace the placeholder values:
 
 ```yaml
 # aws-credentials secret
