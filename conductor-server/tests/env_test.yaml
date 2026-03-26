@@ -14,7 +14,7 @@ tests:
           path: spec.template.spec.containers[0].env
           content:
             name: MCP_GATEWAY_URL
-            value: "http://RELEASE-NAME-grafana-stack-mcp-gateway:8080"
+            value: "http://RELEASE-NAME-conductor-server-mcp-gateway:8080"
 
   - it: maestro-server should have MCP_GATEWAY_URL pointing to mcp-gateway service
     templates:
@@ -24,7 +24,7 @@ tests:
           path: spec.template.spec.containers[0].env
           content:
             name: MCP_GATEWAY_URL
-            value: "http://RELEASE-NAME-grafana-stack-mcp-gateway:8080"
+            value: "http://RELEASE-NAME-conductor-server-mcp-gateway:8080"
 
   - it: conductor-server should have LLM config
     templates:

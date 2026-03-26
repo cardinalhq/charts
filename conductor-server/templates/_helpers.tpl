@@ -1,14 +1,14 @@
 {{/*
 Expand the name of the chart.
 */}}
-{{- define "grafana-stack.name" -}}
+{{- define "conductor-server.name" -}}
 {{- default .Chart.Name .Values.nameOverride | trunc 63 | trimSuffix "-" }}
 {{- end }}
 
 {{/*
 Create a default fully qualified app name.
 */}}
-{{- define "grafana-stack.fullname" -}}
+{{- define "conductor-server.fullname" -}}
 {{- if .Values.fullnameOverride }}
 {{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" }}
 {{- else }}
@@ -24,18 +24,18 @@ Create a default fully qualified app name.
 {{/*
 Create chart name and version as used by the chart label.
 */}}
-{{- define "grafana-stack.chart" -}}
+{{- define "conductor-server.chart" -}}
 {{- printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" }}
 {{- end }}
 
 {{/*
 Common labels.
 */}}
-{{- define "grafana-stack.labels" -}}
+{{- define "conductor-server.labels" -}}
   {{- $global := .Values.global.labels | default dict -}}
   {{- $labels := merge
-      (dict "helm.sh/chart" (include "grafana-stack.chart" .))
-      (include "grafana-stack.selectorLabels" . | fromYaml)
+      (dict "helm.sh/chart" (include "conductor-server.chart" .))
+      (include "conductor-server.selectorLabels" . | fromYaml)
   -}}
   {{- if .Chart.AppVersion -}}
     {{- $labels = merge $labels (dict "app.kubernetes.io/version" (.Chart.AppVersion)) -}}
@@ -48,15 +48,15 @@ Common labels.
 {{/*
 Selector labels.
 */}}
-{{- define "grafana-stack.selectorLabels" -}}
-app.kubernetes.io/name: {{ include "grafana-stack.name" . }}
+{{- define "conductor-server.selectorLabels" -}}
+app.kubernetes.io/name: {{ include "conductor-server.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
 
 {{/*
 Render imagePullSecrets.
 */}}
-{{- define "grafana-stack.imagePullSecrets" -}}
+{{- define "conductor-server.imagePullSecrets" -}}
 {{- if .Values.global.imagePullSecrets }}
 imagePullSecrets:
 {{- range .Values.global.imagePullSecrets }}
@@ -68,7 +68,7 @@ imagePullSecrets:
 {{/*
 Global annotations helper.
 */}}
-{{- define "grafana-stack.annotations" -}}
+{{- define "conductor-server.annotations" -}}
 {{- if and .Values.global.annotations (gt (len .Values.global.annotations) 0) -}}
 annotations:
   {{ toYaml .Values.global.annotations | indent 2 }}
@@ -77,17 +77,17 @@ annotations:
 
 {{/* ---- Image helpers ---- */}}
 
-{{- define "grafana-stack.mcpGateway.image" -}}
+{{- define "conductor-server.mcpGateway.image" -}}
 {{- $tag := .Values.mcpGateway.image.tag | default .Values.mcpGateway.appVersion -}}
 {{- printf "%s:%s" .Values.mcpGateway.image.repository $tag -}}
 {{- end -}}
 
-{{- define "grafana-stack.conductorServer.image" -}}
+{{- define "conductor-server.conductorServer.image" -}}
 {{- $tag := .Values.conductorServer.image.tag | default .Values.conductorServer.appVersion -}}
 {{- printf "%s:%s" .Values.conductorServer.image.repository $tag -}}
 {{- end -}}
 
-{{- define "grafana-stack.maestroServer.image" -}}
+{{- define "conductor-server.maestroServer.image" -}}
 {{- $tag := .Values.maestroServer.image.tag | default .Values.maestroServer.appVersion -}}
 {{- printf "%s:%s" .Values.maestroServer.image.repository $tag -}}
 {{- end -}}
@@ -97,9 +97,9 @@ annotations:
 {{/*
 MCP Gateway secret name. Prefixed with fullname when create: true.
 */}}
-{{- define "grafana-stack.mcpGateway.secretName" -}}
+{{- define "conductor-server.mcpGateway.secretName" -}}
 {{- if .Values.mcpGateway.secrets.create }}
-{{- printf "%s-%s" (include "grafana-stack.fullname" .) .Values.mcpGateway.secrets.secretName | trunc 63 | trimSuffix "-" }}
+{{- printf "%s-%s" (include "conductor-server.fullname" .) .Values.mcpGateway.secrets.secretName | trunc 63 | trimSuffix "-" }}
 {{- else }}
 {{- .Values.mcpGateway.secrets.secretName | trunc 63 | trimSuffix "-" }}
 {{- end }}
@@ -108,9 +108,9 @@ MCP Gateway secret name. Prefixed with fullname when create: true.
 {{/*
 Conductor Server secret name.
 */}}
-{{- define "grafana-stack.conductorServer.secretName" -}}
+{{- define "conductor-server.conductorServer.secretName" -}}
 {{- if .Values.conductorServer.secrets.create }}
-{{- printf "%s-%s" (include "grafana-stack.fullname" .) .Values.conductorServer.secrets.secretName | trunc 63 | trimSuffix "-" }}
+{{- printf "%s-%s" (include "conductor-server.fullname" .) .Values.conductorServer.secrets.secretName | trunc 63 | trimSuffix "-" }}
 {{- else }}
 {{- .Values.conductorServer.secrets.secretName | trunc 63 | trimSuffix "-" }}
 {{- end }}
@@ -119,9 +119,9 @@ Conductor Server secret name.
 {{/*
 LLM API keys secret name (used by conductor and maestro).
 */}}
-{{- define "grafana-stack.conductorServer.llmSecretName" -}}
+{{- define "conductor-server.conductorServer.llmSecretName" -}}
 {{- if .Values.conductorServer.llmSecrets.create }}
-{{- printf "%s-%s" (include "grafana-stack.fullname" .) .Values.conductorServer.llmSecrets.secretName | trunc 63 | trimSuffix "-" }}
+{{- printf "%s-%s" (include "conductor-server.fullname" .) .Values.conductorServer.llmSecrets.secretName | trunc 63 | trimSuffix "-" }}
 {{- else }}
 {{- .Values.conductorServer.llmSecrets.secretName | trunc 63 | trimSuffix "-" }}
 {{- end }}
@@ -130,9 +130,9 @@ LLM API keys secret name (used by conductor and maestro).
 {{/*
 Maestro Server secret name.
 */}}
-{{- define "grafana-stack.maestroServer.secretName" -}}
+{{- define "conductor-server.maestroServer.secretName" -}}
 {{- if .Values.maestroServer.secrets.create }}
-{{- printf "%s-%s" (include "grafana-stack.fullname" .) .Values.maestroServer.secrets.secretName | trunc 63 | trimSuffix "-" }}
+{{- printf "%s-%s" (include "conductor-server.fullname" .) .Values.maestroServer.secrets.secretName | trunc 63 | trimSuffix "-" }}
 {{- else }}
 {{- .Values.maestroServer.secrets.secretName | trunc 63 | trimSuffix "-" }}
 {{- end }}
@@ -141,9 +141,9 @@ Maestro Server secret name.
 {{/*
 Maestro Server LLM secret name.
 */}}
-{{- define "grafana-stack.maestroServer.llmSecretName" -}}
+{{- define "conductor-server.maestroServer.llmSecretName" -}}
 {{- if .Values.maestroServer.llmSecrets.create }}
-{{- printf "%s-%s" (include "grafana-stack.fullname" .) .Values.maestroServer.llmSecrets.secretName | trunc 63 | trimSuffix "-" }}
+{{- printf "%s-%s" (include "conductor-server.fullname" .) .Values.maestroServer.llmSecrets.secretName | trunc 63 | trimSuffix "-" }}
 {{- else }}
 {{- .Values.maestroServer.llmSecrets.secretName | trunc 63 | trimSuffix "-" }}
 {{- end }}
@@ -151,25 +151,25 @@ Maestro Server LLM secret name.
 
 {{/* ---- Service account helpers ---- */}}
 
-{{- define "grafana-stack.mcpGateway.serviceAccountName" -}}
+{{- define "conductor-server.mcpGateway.serviceAccountName" -}}
 {{- if .Values.mcpGateway.serviceAccount.create }}
-{{- default (printf "%s-mcp-gateway" (include "grafana-stack.fullname" .)) .Values.mcpGateway.serviceAccount.name | trunc 63 | trimSuffix "-" }}
+{{- default (printf "%s-mcp-gateway" (include "conductor-server.fullname" .)) .Values.mcpGateway.serviceAccount.name | trunc 63 | trimSuffix "-" }}
 {{- else }}
 {{- .Values.mcpGateway.serviceAccount.name }}
 {{- end }}
 {{- end }}
 
-{{- define "grafana-stack.conductorServer.serviceAccountName" -}}
+{{- define "conductor-server.conductorServer.serviceAccountName" -}}
 {{- if .Values.conductorServer.serviceAccount.create }}
-{{- default (printf "%s-conductor-server" (include "grafana-stack.fullname" .)) .Values.conductorServer.serviceAccount.name | trunc 63 | trimSuffix "-" }}
+{{- default (printf "%s-conductor-server" (include "conductor-server.fullname" .)) .Values.conductorServer.serviceAccount.name | trunc 63 | trimSuffix "-" }}
 {{- else }}
 {{- .Values.conductorServer.serviceAccount.name }}
 {{- end }}
 {{- end }}
 
-{{- define "grafana-stack.maestroServer.serviceAccountName" -}}
+{{- define "conductor-server.maestroServer.serviceAccountName" -}}
 {{- if .Values.maestroServer.serviceAccount.create }}
-{{- default (printf "%s-maestro-server" (include "grafana-stack.fullname" .)) .Values.maestroServer.serviceAccount.name | trunc 63 | trimSuffix "-" }}
+{{- default (printf "%s-maestro-server" (include "conductor-server.fullname" .)) .Values.maestroServer.serviceAccount.name | trunc 63 | trimSuffix "-" }}
 {{- else }}
 {{- .Values.maestroServer.serviceAccount.name }}
 {{- end }}

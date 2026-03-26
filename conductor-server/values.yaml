@@ -1,4 +1,4 @@
-# Default values for grafana-stack
+# Default values for conductor-server
 # Deploys MCP Gateway, Conductor Server, and Maestro Server alongside Grafana.
 
 nameOverride: ""

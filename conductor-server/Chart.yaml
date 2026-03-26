@@ -1,5 +1,5 @@
 apiVersion: v2
-name: grafana-stack
+name: conductor-server
 description: A Helm chart for the CardinalHQ Grafana stack - MCP Gateway, Conductor Server, and Maestro Server
 type: application
 version: "0.1.0"

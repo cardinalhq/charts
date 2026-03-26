@@ -2,40 +2,40 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "grafana-stack.fullname" . }}-conductor-server
+  name: {{ include "conductor-server.fullname" . }}-conductor-server
   labels:
-    {{- include "grafana-stack.labels" . | nindent 4 }}
+    {{- include "conductor-server.labels" . | nindent 4 }}
     app.kubernetes.io/component: conductor-server
-  {{- include "grafana-stack.annotations" . | nindent 2 }}
+  {{- include "conductor-server.annotations" . | nindent 2 }}
 spec:
   replicas: {{ .Values.conductorServer.replicas }}
   revisionHistoryLimit: 2
   selector:
     matchLabels:
-      {{- include "grafana-stack.selectorLabels" . | nindent 6 }}
+      {{- include "conductor-server.selectorLabels" . | nindent 6 }}
       app.kubernetes.io/component: conductor-server
   template:
     metadata:
       labels:
-        {{- include "grafana-stack.labels" . | nindent 8 }}
+        {{- include "conductor-server.labels" . | nindent 8 }}
         app.kubernetes.io/component: conductor-server
-      {{- include "grafana-stack.annotations" . | nindent 6 }}
+      {{- include "conductor-server.annotations" . | nindent 6 }}
     spec:
-      serviceAccountName: {{ include "grafana-stack.conductorServer.serviceAccountName" . }}
+      serviceAccountName: {{ include "conductor-server.conductorServer.serviceAccountName" . }}
       securityContext:
         runAsUser: 65532
         runAsGroup: 65532
         runAsNonRoot: true
         seccompProfile:
           type: RuntimeDefault
-      {{- include "grafana-stack.imagePullSecrets" . | nindent 6 }}
+      {{- include "conductor-server.imagePullSecrets" . | nindent 6 }}
       containers:
       - name: conductor-server
         securityContext:
           allowPrivilegeEscalation: false
           capabilities:
             drop: ["ALL"]
-        image: {{ include "grafana-stack.conductorServer.image" . }}
+        image: {{ include "conductor-server.conductorServer.image" . }}
         imagePullPolicy: {{ .Values.conductorServer.image.pullPolicy }}
         ports:
         - containerPort: {{ .Values.conductorServer.port }}
@@ -58,25 +58,25 @@ spec:
           - name: OPENAI_API_KEY
             valueFrom:
               secretKeyRef:
-                name: {{ include "grafana-stack.conductorServer.llmSecretName" . }}
+                name: {{ include "conductor-server.conductorServer.llmSecretName" . }}
                 key: OPENAI_API_KEY
           - name: LAKERUNNER_API_KEY
             valueFrom:
               secretKeyRef:
-                name: {{ include "grafana-stack.conductorServer.secretName" . }}
+                name: {{ include "conductor-server.conductorServer.secretName" . }}
                 key: LAKERUNNER_API_KEY
           - name: CARDINALHQ_API_KEY
             valueFrom:
               secretKeyRef:
-                name: {{ include "grafana-stack.conductorServer.secretName" . }}
+                name: {{ include "conductor-server.conductorServer.secretName" . }}
                 key: CARDINALHQ_API_KEY
           - name: MCP_API_KEY
             valueFrom:
               secretKeyRef:
-                name: {{ include "grafana-stack.conductorServer.secretName" . }}
+                name: {{ include "conductor-server.conductorServer.secretName" . }}
                 key: MCP_API_KEY
           - name: MCP_GATEWAY_URL
-            value: "http://{{ include "grafana-stack.fullname" . }}-mcp-gateway:{{ .Values.mcpGateway.port }}"
+            value: "http://{{ include "conductor-server.fullname" . }}-mcp-gateway:{{ .Values.mcpGateway.port }}"
           - name: WORKFLOW_LLM_PROVIDER
             value: {{ .Values.conductorServer.llm.provider | quote }}
           - name: WORKFLOW_BEDROCK_INFERENCE_MODEL

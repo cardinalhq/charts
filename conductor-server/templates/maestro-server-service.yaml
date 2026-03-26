@@ -2,11 +2,11 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "grafana-stack.fullname" . }}-maestro-server
+  name: {{ include "conductor-server.fullname" . }}-maestro-server
   labels:
-    {{- include "grafana-stack.labels" . | nindent 4 }}
+    {{- include "conductor-server.labels" . | nindent 4 }}
     app.kubernetes.io/component: maestro-server
-  {{- include "grafana-stack.annotations" . | nindent 2 }}
+  {{- include "conductor-server.annotations" . | nindent 2 }}
 spec:
   type: ClusterIP
   ports:
@@ -14,6 +14,6 @@ spec:
       targetPort: {{ .Values.maestroServer.port }}
       name: http
   selector:
-    {{- include "grafana-stack.selectorLabels" . | nindent 4 }}
+    {{- include "conductor-server.selectorLabels" . | nindent 4 }}
     app.kubernetes.io/component: maestro-server
 {{- end }}

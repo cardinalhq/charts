@@ -1,6 +1,6 @@
-# Makefile for Grafana Stack Helm Chart
+# Makefile for Conductor Server Helm Chart
 
-CHART_NAME := grafana-stack
+CHART_NAME := conductor-server
 TEST_RELEASE_NAME := test-release
 
 .PHONY: help test check lint template unittest clean package publish

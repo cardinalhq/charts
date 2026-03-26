@@ -2,31 +2,31 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "grafana-stack.fullname" . }}-mcp-gateway
+  name: {{ include "conductor-server.fullname" . }}-mcp-gateway
   labels:
-    {{- include "grafana-stack.labels" . | nindent 4 }}
+    {{- include "conductor-server.labels" . | nindent 4 }}
     app.kubernetes.io/component: mcp-gateway
-  {{- include "grafana-stack.annotations" . | nindent 2 }}
+  {{- include "conductor-server.annotations" . | nindent 2 }}
 spec:
   replicas: {{ .Values.mcpGateway.replicas }}
   selector:
     matchLabels:
-      {{- include "grafana-stack.selectorLabels" . | nindent 6 }}
+      {{- include "conductor-server.selectorLabels" . | nindent 6 }}
       app.kubernetes.io/component: mcp-gateway
   template:
     metadata:
       labels:
-        {{- include "grafana-stack.labels" . | nindent 8 }}
+        {{- include "conductor-server.labels" . | nindent 8 }}
         app.kubernetes.io/component: mcp-gateway
-      {{- include "grafana-stack.annotations" . | nindent 6 }}
+      {{- include "conductor-server.annotations" . | nindent 6 }}
     spec:
-      serviceAccountName: {{ include "grafana-stack.mcpGateway.serviceAccountName" . }}
+      serviceAccountName: {{ include "conductor-server.mcpGateway.serviceAccountName" . }}
       securityContext:
         runAsNonRoot: true
         runAsUser: 65532
         runAsGroup: 65532
         fsGroup: 65532
-      {{- include "grafana-stack.imagePullSecrets" . | nindent 6 }}
+      {{- include "conductor-server.imagePullSecrets" . | nindent 6 }}
       containers:
       - name: mcp-gateway
         securityContext:
@@ -36,7 +36,7 @@ spec:
             drop: ["ALL"]
           seccompProfile:
             type: RuntimeDefault
-        image: {{ include "grafana-stack.mcpGateway.image" . }}
+        image: {{ include "conductor-server.mcpGateway.image" . }}
         imagePullPolicy: {{ .Values.mcpGateway.image.pullPolicy }}
         command: ["/app/entrypoint.sh"]
         args: ["mcp-gateway"]
@@ -80,7 +80,7 @@ spec:
           {{- end }}
         envFrom:
           - secretRef:
-              name: {{ include "grafana-stack.mcpGateway.secretName" . }}
+              name: {{ include "conductor-server.mcpGateway.secretName" . }}
         resources:
           {{- toYaml .Values.mcpGateway.resources | nindent 10 }}
         volumeMounts:
