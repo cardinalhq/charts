@@ -1,0 +1,55 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: collector-poller-config
+data:
+  collector.yaml: |
+    receivers:
+      k8s_cluster:
+        auth_type: serviceAccount
+        node_conditions_to_report: [Ready, MemoryPressure, DiskPressure, PIDPressure]
+        allocatable_types_to_report: [cpu, memory, ephemeral-storage, storage]
+
+    exporters:
+      otlphttp/upstream:
+        endpoint: "http://collector-gateway-interproc:24318"
+        tls:
+          insecure: true
+
+    processors:
+      resource/core:
+        attributes:
+          - {action: upsert, from_attribute: k8s.job.name, key: service.name}
+          - {action: upsert, from_attribute: k8s.cronjob.name, key: service.name}
+          - {action: upsert, from_attribute: k8s.deployment.name, key: service.name}
+          - {action: upsert, from_attribute: k8s.daemonset.name, key: service.name}
+          - {action: upsert, from_attribute: k8s.statefulset.name, key: service.name}
+          - {action: upsert, key: k8s.cluster.name, value: "${env:K8S_CLUSTER_NAME}"}
+      cumulativetodelta:
+        max_staleness: 15m
+      batch:
+        send_batch_max_size: 30000
+        send_batch_size: 10000
+        timeout: 10s
+
+    extensions:
+      cgroupruntime:
+        gomemlimit:
+          ratio: 0.7
+      health_check:
+        endpoint: "0.0.0.0:13133"
+        path: /healthz
+
+    service:
+      extensions: [cgroupruntime, health_check]
+      pipelines:
+        metrics:
+          receivers: [k8s_cluster]
+          processors: [resource/core, cumulativetodelta, batch]
+          exporters: [otlphttp/upstream]
+
+      telemetry:
+        logs:
+          level: INFO
+        metrics:
+          level: normal

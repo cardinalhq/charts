@@ -1,0 +1,139 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: collector-gateway-config
+data:
+  collector.yaml: |
+    connectors:
+      forward/aggregation: {}
+      servicegraph:
+        dimensions:
+          - k8s.cluster.name
+          - k8s.namespace.name
+        metrics_flush_interval: 10s
+        store:
+          ttl: 10s
+
+    receivers:
+      # Pre-delta'd data from agent/poller
+      otlp/interproc:
+        protocols:
+          http:
+            endpoint: "0.0.0.0:24318"
+      # External OTLP sources (may send cumulative metrics)
+      otlp/external:
+        protocols:
+          grpc:
+            endpoint: "0.0.0.0:4317"
+          http:
+            endpoint: "0.0.0.0:4318"
+      # Load-balanced metrics from other gateway pods
+      otlp/l2:
+        protocols:
+          grpc:
+            endpoint: "0.0.0.0:14317"
+      route: {}
+
+    exporters:
+      awss3:
+        marshaler: otlp_proto
+        s3uploader:
+          compression: gzip
+          enable_gcs_compatibility: false
+          endpoint: "${env:AWS_S3_ENDPOINT}"
+          region: "${env:AWS_REGION}"
+          role_arn: "${env:AWS_ROLE_ARN}"
+          s3_bucket: "${env:AWS_S3_BUCKET}"
+          s3_force_path_style: true
+          s3_prefix: "otel-raw/${env:LAKERUNNER_ORGANIZATION_ID}/${env:K8S_CLUSTER_NAME}"
+      # Load-balancing across gateway pods for external metrics (by streamID)
+      loadbalancing/metrics:
+        protocol:
+          otlp:
+            timeout: 10s
+            tls:
+              insecure: true
+        resolver:
+          k8s:
+            ports: [14317]
+            service: "${env:HEADLESS_SERVICE_NAME}.${env:POD_NAMESPACE}"
+        routing_key: streamID
+
+    processors:
+      cumulativetodelta:
+        exclude:
+          match_type: strict
+          metrics: [container.uptime, k8s.pod.uptime]
+        max_staleness: 15m
+      aggregation/s3:
+        additional_attributes:
+          aggregation_processor_instance: "${env:POD_IP}"
+      aggregation/route:
+        additional_attributes:
+          aggregation_processor_instance: "${env:POD_IP}"
+      batch:
+        send_batch_max_size: 30000
+        send_batch_size: 10000
+        timeout: 10s
+
+    extensions:
+      cgroupruntime:
+        gomemlimit:
+          ratio: 0.7
+      health_check:
+        endpoint: "0.0.0.0:13133"
+        path: /healthz
+
+    service:
+      extensions: [cgroupruntime, health_check]
+      pipelines:
+        # --- Interproc: pre-delta'd from agent/poller, straight to S3 ---
+        logs:
+          receivers: [otlp/interproc]
+          processors: [batch]
+          exporters: [awss3]
+        metrics/interproc:
+          receivers: [otlp/interproc]
+          processors: [batch]
+          exporters: [awss3]
+        traces/interproc:
+          receivers: [otlp/interproc]
+          processors: [batch]
+          exporters: [servicegraph, awss3]
+
+        # --- External OTLP: logs and traces straight through ---
+        logs/external:
+          receivers: [otlp/external]
+          processors: [batch]
+          exporters: [awss3]
+        traces/external:
+          receivers: [otlp/external]
+          processors: [batch]
+          exporters: [servicegraph, awss3]
+
+        # --- External OTLP metrics: need load-balancing for cumulativetodelta ---
+        metrics/external:
+          receivers: [otlp/external, forward/aggregation]
+          exporters: [loadbalancing/metrics]
+        metrics/balanced:
+          receivers: [otlp/l2]
+          processors: [cumulativetodelta, aggregation/s3, batch]
+          exporters: [awss3]
+
+        # --- Metric aggregation route (feeds back into external input) ---
+        metrics/route:
+          receivers: [route]
+          processors: [aggregation/route]
+          exporters: [forward/aggregation]
+
+        # --- Servicegraph: span-derived metrics from traces ---
+        metrics/servicegraph:
+          receivers: [servicegraph]
+          processors: [cumulativetodelta, batch]
+          exporters: [awss3]
+
+      telemetry:
+        logs:
+          level: INFO
+        metrics:
+          level: normal

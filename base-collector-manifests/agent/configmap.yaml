@@ -1,0 +1,150 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: collector-agent-config
+data:
+  collector.yaml: |
+    connectors:
+      forward/enriched: {}
+
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: "0.0.0.0:4317"
+          http:
+            endpoint: "0.0.0.0:4318"
+      kubeletstats:
+        auth_type: serviceAccount
+        collection_interval: 10s
+        endpoint: "${env:HOST_IP}:10250"
+        insecure_skip_verify: true
+        node: "${env:K8S_NODE_NAME}"
+        metric_groups: [node, pod, container, volume]
+        metrics:
+          container.cpu.usage: {enabled: true}
+          container.uptime: {enabled: true}
+          k8s.container.cpu.node.utilization: {enabled: true}
+          k8s.container.cpu_limit_utilization: {enabled: true}
+          k8s.container.cpu_request_utilization: {enabled: true}
+          k8s.container.memory.node.utilization: {enabled: true}
+          k8s.container.memory_limit_utilization: {enabled: true}
+          k8s.container.memory_request_utilization: {enabled: true}
+          k8s.node.cpu.usage: {enabled: true}
+          k8s.pod.cpu.node.utilization: {enabled: true}
+          k8s.pod.cpu.usage: {enabled: true}
+          k8s.pod.memory.node.utilization: {enabled: true}
+          k8s.pod.uptime: {enabled: true}
+
+    exporters:
+      otlphttp/upstream:
+        endpoint: "http://collector-gateway-interproc:24318"
+        tls:
+          insecure: true
+
+    processors:
+      memory_limiter:
+        check_interval: 10s
+        limit_percentage: 80
+        spike_limit_percentage: 20
+      k8sattributes:
+        extract:
+          labels:
+            - from: pod
+              key_regex: "(.*)"
+              tag_name: "$1"
+          metadata:
+            - k8s.node.name
+            - k8s.namespace.name
+            - k8s.deployment.name
+            - k8s.replicaset.name
+            - k8s.daemonset.name
+            - k8s.statefulset.name
+            - k8s.cronjob.name
+            - k8s.job.name
+            - k8s.pod.name
+            - k8s.pod.ip
+            - k8s.container.name
+            - container.id
+            - container.image.name
+            - container.image.tag
+        filter:
+          node_from_env_var: K8S_NODE_NAME
+        passthrough: false
+        pod_association:
+          - sources: [{from: connection}]
+          - sources: [{from: resource_attribute, name: k8s.pod.uid}]
+          - sources: [{from: resource_attribute, name: k8s.pod.ip}]
+        wait_for_metadata: true
+        wait_for_metadata_timeout: 20s
+      resource/core:
+        attributes:
+          - {action: upsert, from_attribute: k8s.job.name, key: service.name}
+          - {action: upsert, from_attribute: k8s.cronjob.name, key: service.name}
+          - {action: upsert, from_attribute: k8s.deployment.name, key: service.name}
+          - {action: upsert, from_attribute: k8s.daemonset.name, key: service.name}
+          - {action: upsert, from_attribute: k8s.statefulset.name, key: service.name}
+          - {action: upsert, key: k8s.cluster.name, value: "${env:K8S_CLUSTER_NAME}"}
+      resource/kubelet:
+        attributes:
+          - {action: insert, key: service.name, value: kubelet}
+      cumulativetodelta:
+        exclude:
+          match_type: strict
+          metrics: [container.uptime, k8s.pod.uptime]
+        max_staleness: 15m
+      batch:
+        send_batch_max_size: 30000
+        send_batch_size: 10000
+        timeout: 10s
+
+    extensions:
+      cgroupruntime:
+        gomemlimit:
+          ratio: 0.7
+      health_check:
+        endpoint: "0.0.0.0:13133"
+        path: /healthz
+
+    service:
+      extensions: [cgroupruntime, health_check]
+      pipelines:
+        # --- Enrich: OTLP input ---
+        logs/enrich:
+          receivers: [otlp]
+          processors: [memory_limiter, k8sattributes, resource/core]
+          exporters: [forward/enriched]
+        metrics/enrich:
+          receivers: [otlp]
+          processors: [memory_limiter, k8sattributes, resource/core]
+          exporters: [forward/enriched]
+        traces/enrich:
+          receivers: [otlp]
+          processors: [memory_limiter, k8sattributes, resource/core]
+          exporters: [forward/enriched]
+
+        # --- Enrich: kubeletstats input ---
+        metrics/kubelet:
+          receivers: [kubeletstats]
+          processors: [k8sattributes, resource/core, resource/kubelet]
+          exporters: [forward/enriched]
+
+        # --- Export to gateway ---
+        logs/export:
+          receivers: [forward/enriched]
+          processors: [batch]
+          exporters: [otlphttp/upstream]
+        metrics/export:
+          receivers: [forward/enriched]
+          processors: [cumulativetodelta, batch]
+          exporters: [otlphttp/upstream]
+        traces/export:
+          receivers: [forward/enriched]
+          processors: [batch]
+          exporters: [otlphttp/upstream]
+
+      telemetry:
+        logs:
+          level: INFO
+        metrics:
+          level: normal
