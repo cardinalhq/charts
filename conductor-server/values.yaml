@@ -13,7 +13,7 @@ mcpGateway:
     repository: public.ecr.aws/cardinalhq.io/maestro
     tag: ""          # defaults to mcpGateway appVersion below
     pullPolicy: Always
-  appVersion: "v0.7.8"
+  appVersion: "v0.7.22"
   port: 8080
   debugPort: 9090
   resources:
@@ -60,7 +60,7 @@ conductorServer:
     repository: public.ecr.aws/cardinalhq.io/conductor-server
     tag: ""
     pullPolicy: Always
-  appVersion: "v0.1.28"
+  appVersion: "v0.1.35"
   port: 4100
   resources:
     requests:
@@ -105,7 +105,7 @@ conductorServer:
 
 # --- Maestro Server ---
 maestroServer:
-  enabled: true
+  enabled: false
   replicas: 1
   image:
     repository: public.ecr.aws/cardinalhq.io/maestro
