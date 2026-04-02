@@ -75,10 +75,16 @@ spec:
         volumeMounts:
         - name: tmp
           mountPath: /tmp
+        {{- with .Values.maestro.extraVolumeMounts }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
       {{- include "maestro.sched.nodeSelector" (list .Values.global.nodeSelector .Values.maestro.nodeSelector) | nindent 6 }}
       {{- include "maestro.sched.tolerations"  (list .Values.global.tolerations  .Values.maestro.tolerations)  | nindent 6 }}
       {{- include "maestro.sched.affinity"     (list .Values.global.affinity     .Values.maestro.affinity)     | nindent 6 }}
       volumes:
       - name: tmp
         emptyDir: {}
+      {{- with .Values.maestro.extraVolumes }}
+      {{- toYaml . | nindent 6 }}
+      {{- end }}
 {{- end }}

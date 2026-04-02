@@ -23,6 +23,8 @@ maestro:
   tolerations: []
   affinity: {}
   env: []            # additional env vars
+  extraVolumes: []       # additional volumes
+  extraVolumeMounts: []  # additional volume mounts
 
 # MCP Gateway configuration
 mcpGateway:
