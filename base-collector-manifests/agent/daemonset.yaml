@@ -33,7 +33,7 @@ spec:
       terminationGracePeriodSeconds: 30
       containers:
         - name: collector
-          image: public.ecr.aws/cardinalhq.io/cardinalhq-otel-collector:v1.5.0-rc1
+          image: public.ecr.aws/cardinalhq.io/cardinalhq-otel-collector:v1.5.0
           imagePullPolicy: IfNotPresent
           command:
             - /app/bin/cardinalhq-otel-collector

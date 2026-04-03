@@ -60,7 +60,7 @@ AWS_SECRET_ACCESS_KEY: "your-secret-key"
 | Poller memory limit | `poller/deployment.yaml` resources | 500Mi |
 | Gateway replicas | `gateway/deployment.yaml` `.spec.replicas` | 2 |
 | Gateway memory limit | `gateway/deployment.yaml` resources | 2Gi |
-| Collector image tag | All three `image:` fields | `v1.5.0-rc1` |
+| Collector image tag | All three `image:` fields | `v1.5.0` |
 
 ### 4. Namespace
 
