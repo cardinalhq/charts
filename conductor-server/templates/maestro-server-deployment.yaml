@@ -55,6 +55,7 @@ spec:
           timeoutSeconds: 10
           failureThreshold: 3
         env:
+          {{- include "conductor-server.maestroServer.databaseEnv" . | nindent 10 }}
           - name: OPENAI_API_KEY
             valueFrom:
               secretKeyRef:

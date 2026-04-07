@@ -65,10 +65,10 @@ conductorServer:
   resources:
     requests:
       cpu: 500m
-      memory: 512Mi
+      memory: 2Gi
     limits:
       cpu: 500m
-      memory: 512Mi
+      memory: 2Gi
   env: []
   # LLM configuration
   llm:
@@ -135,6 +135,19 @@ maestroServer:
     create: true
     name: ""
     annotations: {}
+
+  # Database configuration for Maestro Server.
+  # Set create: true and provide password, OR set create: false and reference an existing secret.
+  database:
+    secretName: "pg-credentials"
+    create: true
+    passwordKey: "MAESTRO_DB_PASSWORD"
+    host: ""
+    port: 5432
+    name: "maestro"
+    username: "maestro"
+    password: ""          # Only used when create: true
+    sslMode: "require"
 
   # Secrets: reuses conductor-server-secrets and llm-api-keys by default.
   # Override secretName to use different secrets.
