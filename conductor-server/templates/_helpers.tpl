@@ -139,40 +139,6 @@ Maestro Server secret name.
 {{- end }}
 
 {{/*
-Maestro Server database secret name.
-*/}}
-{{- define "conductor-server.maestroServer.databaseSecretName" -}}
-{{- if .Values.maestroServer.database.create }}
-{{- printf "%s-%s" (include "conductor-server.fullname" .) .Values.maestroServer.database.secretName | trunc 63 | trimSuffix "-" }}
-{{- else }}
-{{- .Values.maestroServer.database.secretName | trunc 63 | trimSuffix "-" }}
-{{- end }}
-{{- end }}
-
-{{/*
-Maestro Server database environment variables.
-*/}}
-{{- define "conductor-server.maestroServer.databaseEnv" -}}
-- name: MAESTRO_DB_HOST
-  value: {{ .Values.maestroServer.database.host | quote }}
-- name: MAESTRO_DB_PORT
-  value: {{ .Values.maestroServer.database.port | quote }}
-- name: MAESTRO_DB_USER
-  value: {{ .Values.maestroServer.database.username | quote }}
-- name: MAESTRO_DB_PASSWORD
-  valueFrom:
-    secretKeyRef:
-      name: {{ include "conductor-server.maestroServer.databaseSecretName" . }}
-      key: {{ .Values.maestroServer.database.passwordKey }}
-- name: MAESTRO_DB_NAME
-  value: {{ .Values.maestroServer.database.name | quote }}
-- name: MAESTRO_DB_SSLMODE
-  value: {{ .Values.maestroServer.database.sslMode | quote }}
-- name: MAESTRO_DATABASE_URL
-  value: "postgresql://$(MAESTRO_DB_USER):$(MAESTRO_DB_PASSWORD)@$(MAESTRO_DB_HOST):$(MAESTRO_DB_PORT)/$(MAESTRO_DB_NAME)?sslmode=$(MAESTRO_DB_SSLMODE)"
-{{- end }}
-
-{{/*
 Maestro Server LLM secret name.
 */}}
 {{- define "conductor-server.maestroServer.llmSecretName" -}}
