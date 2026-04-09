@@ -531,7 +531,8 @@ perch:
   clusterId: ""
   maestro:
     url: ""
-    apiKey: ""
+    integrationId: ""
+    webhookSecret: ""
     reportInterval: "5m"
   registry:
     pollInterval: "10m"

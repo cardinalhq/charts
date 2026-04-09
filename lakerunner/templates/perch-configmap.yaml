@@ -12,7 +12,8 @@ data:
     cluster_id: {{ .Values.perch.clusterId | default "" | quote }}
     maestro:
       url: {{ .Values.perch.maestro.url | quote }}
-      api_key_env: "PERCH_MAESTRO_API_KEY"
+      integration_id: {{ .Values.perch.maestro.integrationId | quote }}
+      webhook_secret_env: "PERCH_WEBHOOK_SECRET"
       report_interval: {{ .Values.perch.maestro.reportInterval | default "5m" }}
     registry:
       poll_interval: {{ .Values.perch.registry.pollInterval | default "10m" }}
