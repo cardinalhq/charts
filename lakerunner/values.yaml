@@ -524,6 +524,50 @@ monitoring:
   tolerations: []
   affinity: {}
 
+# Perch operator — version control and collector management
+perch:
+  enabled: false
+  # Cluster identifier (auto-derived from kube-system UID if empty)
+  clusterId: ""
+  maestro:
+    url: ""
+    apiKey: ""
+    reportInterval: "5m"
+  registry:
+    pollInterval: "10m"
+  # Components to track — upstream repos and update policies are configured
+  # per-org in the Maestro UI, not here. Only names and namespaces are needed.
+  components:
+    - name: lakerunner
+      namespaces:
+        - lakerunner
+      labelSelector: "app.kubernetes.io/name=lakerunner"
+    - name: maestro
+      namespaces:
+        - conductor
+    - name: grafana-plugin
+      namespaces:
+        - monitoring
+    - name: conductor-server
+      namespaces:
+        - conductor
+  image:
+    repository: ghcr.io/cardinalhq/lakerunner
+    tag: ""
+    pullPolicy: ""
+  resources:
+    requests:
+      cpu: "100m"
+      memory: 128Mi
+    limits:
+      cpu: "500m"
+      memory: 256Mi
+  labels: {}
+  annotations: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
 # Admin API configuration
 adminApi:
   enabled: true
