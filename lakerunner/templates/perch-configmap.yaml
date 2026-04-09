@@ -1,0 +1,32 @@
+{{- if .Values.perch.enabled -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "lakerunner.fullname" . }}-perch
+  labels:
+    {{- include "lakerunner.labels" . | nindent 4 }}
+    app.kubernetes.io/component: perch
+  {{ include "lakerunner.annotations" . | nindent 2 }}
+data:
+  config.yaml: |
+    cluster_id: {{ .Values.perch.clusterId | default "" | quote }}
+    maestro:
+      url: {{ .Values.perch.maestro.url | quote }}
+      api_key_env: "PERCH_MAESTRO_API_KEY"
+      report_interval: {{ .Values.perch.maestro.reportInterval | default "5m" }}
+    registry:
+      poll_interval: {{ .Values.perch.registry.pollInterval | default "10m" }}
+    components:
+    {{- range .Values.perch.components }}
+      - name: {{ .name | quote }}
+        namespaces:
+        {{- range .namespaces }}
+          - {{ . | quote }}
+        {{- end }}
+        {{- if .labelSelector }}
+        label_selector: {{ .labelSelector | quote }}
+        {{- end }}
+    {{- end }}
+    health:
+      port: {{ .Values.global.healthProbes.healthcheckPort }}
+{{- end }}
