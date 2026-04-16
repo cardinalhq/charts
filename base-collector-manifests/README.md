@@ -4,7 +4,7 @@ Kustomize-based manifests for deploying the CardinalHQ OTel collector stack. Thr
 
 | Component | Kind | Purpose |
 | ----------- | ------ | --------- |
-| **agent** | DaemonSet | Runs on every node. Receives OTLP (4317/4318), scrapes kubelet stats, enriches with k8s attributes, forwards to gateway. Uses `hostNetwork`. |
+| **agent** | DaemonSet | Runs on every node. Receives OTLP (4317/4318) via the `collector-agent` Service (`internalTrafficPolicy: Local`), scrapes kubelet stats, enriches with k8s attributes, forwards to gateway. |
 | **poller** | Deployment (1 replica) | Watches cluster-level k8s objects (pods, nodes, deployments, HPAs, etc.) and forwards metrics to gateway. |
 | **gateway** | Deployment (2 replicas) | Receives from agent/poller and external OTLP sources, load-balances external metrics across pods, exports everything to S3. Also generates service graph metrics from traces. |
 
