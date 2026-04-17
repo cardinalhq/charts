@@ -58,6 +58,20 @@ data:
             ports: [14317]
             service: "${env:HEADLESS_SERVICE_NAME}.${env:POD_NAMESPACE}"
         routing_key: streamID
+      # Load-balancing across gateway pods for traces (by traceID) so that
+      # both sides of a span pair land on the same pod for the servicegraph
+      # connector to match them.
+      loadbalancing/traces:
+        protocol:
+          otlp:
+            timeout: 10s
+            tls:
+              insecure: true
+        resolver:
+          k8s:
+            ports: [14317]
+            service: "${env:HEADLESS_SERVICE_NAME}.${env:POD_NAMESPACE}"
+        routing_key: traceID
 
     processors:
       cumulativetodelta:
@@ -99,7 +113,7 @@ data:
         traces/interproc:
           receivers: [otlp/interproc]
           processors: [batch]
-          exporters: [servicegraph, awss3]
+          exporters: [loadbalancing/traces, awss3]
 
         # --- External OTLP: logs and traces straight through ---
         logs/external:
@@ -109,7 +123,14 @@ data:
         traces/external:
           receivers: [otlp/external]
           processors: [batch]
-          exporters: [servicegraph, awss3]
+          exporters: [loadbalancing/traces, awss3]
+
+        # --- Load-balanced traces: traceID-sharded across gateway pods so
+        #     the servicegraph connector sees both sides of a span pair ---
+        traces/balanced:
+          receivers: [otlp/l2]
+          processors: [batch]
+          exporters: [servicegraph]
 
         # --- External OTLP metrics: need load-balancing for cumulativetodelta ---
         metrics/external:
