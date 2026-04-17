@@ -61,8 +61,10 @@ spec:
           {{- with .Values.mcpGateway.env }}
           {{- toYaml . | nindent 10 }}
           {{- end }}
+        {{- if .Values.global.resources.enabled }}
         resources:
           {{- toYaml .Values.mcpGateway.resources | nindent 10 }}
+        {{- end }}
       {{- include "maestro.sched.nodeSelector" (list .Values.global.nodeSelector .Values.mcpGateway.nodeSelector) | nindent 6 }}
       {{- include "maestro.sched.tolerations"  (list .Values.global.tolerations  .Values.mcpGateway.tolerations)  | nindent 6 }}
       {{- include "maestro.sched.affinity"     (list .Values.global.affinity     .Values.mcpGateway.affinity)     | nindent 6 }}

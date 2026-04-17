@@ -16,7 +16,12 @@ maestro:
   enabled: true
   replicas: 1
   port: 4200
-  resources: {}
+  resources:
+    requests:
+      cpu: 500m
+      memory: 256Mi
+    limits:
+      memory: 512Mi
   labels: {}
   annotations: {}
   nodeSelector: {}
@@ -33,7 +38,12 @@ mcpGateway:
   port: 8080
   debugPort: 9090
   apiKey: ""
-  resources: {}
+  resources:
+    requests:
+      cpu: 500m
+      memory: 128Mi
+    limits:
+      memory: 256Mi
   labels: {}
   annotations: {}
   nodeSelector: {}
@@ -80,6 +90,12 @@ serviceAccount:
 
 # Global settings
 global:
+  # Global resource configuration
+  resources:
+    # Whether to render resource limits and requests in deployments
+    # Set to false to omit resource specifications entirely from rendered templates
+    # Default: true
+    enabled: true
   imagePullSecrets: []
   # Common environment variables to inject into all containers.
   env: []
