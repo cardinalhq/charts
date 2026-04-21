@@ -3,13 +3,13 @@
 CHART_NAME := maestro
 TEST_RELEASE_NAME := test-release
 
-.PHONY: help test check lint template clean package publish
+.PHONY: help test check lint template unittest clean package publish
 
 help:  ## Show this help message
 	@echo "Available targets:"
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2}'
 
-test: lint template  ## Run all tests
+test: lint template unittest  ## Run all tests
 
 check: test  ## Alias for test
 
@@ -21,6 +21,10 @@ template:  ## Test template rendering
 	@echo "Testing template rendering..."
 	@helm template $(TEST_RELEASE_NAME) . --dry-run > /dev/null 2>&1
 	@echo "Template rendering passed"
+
+unittest:  ## Run helm unittest tests
+	@echo "Running unit tests..."
+	helm unittest .
 
 clean:  ## Clean up test artifacts and packaged charts
 	@echo "Cleaning up..."
