@@ -1,0 +1,146 @@
+suite: test environment variable handling
+templates:
+  - maestro-deployment.yaml
+  - mcp-gateway-deployment.yaml
+tests:
+  - it: should render maestro.env into the maestro container
+    set:
+      maestro.env:
+        - name: MAESTRO_FOO
+          value: "bar"
+        - name: MAESTRO_FROM_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: my-secret
+              key: token
+    template: maestro-deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: MAESTRO_FOO
+            value: "bar"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: MAESTRO_FROM_SECRET
+            valueFrom:
+              secretKeyRef:
+                name: my-secret
+                key: token
+
+  - it: should not render maestro.env into the mcp-gateway container
+    set:
+      maestro.env:
+        - name: MAESTRO_FOO
+          value: "bar"
+    template: mcp-gateway-deployment.yaml
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: MAESTRO_FOO
+            value: "bar"
+
+  - it: should render mcpGateway.env into the mcp-gateway container
+    set:
+      mcpGateway.env:
+        - name: MCP_FOO
+          value: "mbar"
+        - name: MCP_FROM_CM
+          valueFrom:
+            configMapKeyRef:
+              name: my-cm
+              key: cfg
+    template: mcp-gateway-deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: MCP_FOO
+            value: "mbar"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: MCP_FROM_CM
+            valueFrom:
+              configMapKeyRef:
+                name: my-cm
+                key: cfg
+
+  - it: should not render mcpGateway.env into the maestro container
+    set:
+      mcpGateway.env:
+        - name: MCP_FOO
+          value: "mbar"
+    template: maestro-deployment.yaml
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: MCP_FOO
+            value: "mbar"
+
+  - it: should render global.env into both containers
+    set:
+      global.env:
+        - name: GLOBAL_X
+          value: "gx"
+    asserts:
+      - template: maestro-deployment.yaml
+        contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GLOBAL_X
+            value: "gx"
+      - template: mcp-gateway-deployment.yaml
+        contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GLOBAL_X
+            value: "gx"
+
+  - it: should order built-ins before user env so built-ins win on duplicates
+    set:
+      database.host: "db.example.com"
+      global.env:
+        - name: PORT
+          value: "9999"
+      maestro.env:
+        - name: MCP_GATEWAY_URL
+          value: "http://override"
+    template: maestro-deployment.yaml
+    asserts:
+      # Built-in PORT appears, then user's duplicate afterwards.
+      # Kubernetes uses the first occurrence, so the built-in wins.
+      - equal:
+          path: spec.template.spec.containers[0].env[8].name
+          value: PORT
+      - equal:
+          path: spec.template.spec.containers[0].env[8].value
+          value: "4200"
+      - equal:
+          path: spec.template.spec.containers[0].env[7].name
+          value: MCP_GATEWAY_URL
+      - equal:
+          path: spec.template.spec.containers[0].env[7].value
+          value: "http://RELEASE-NAME-maestro-mcp-gateway:8080"
+
+  - it: should handle empty and null env lists
+    set:
+      global.env: []
+      maestro.env: null
+      mcpGateway.env: []
+    asserts:
+      - template: maestro-deployment.yaml
+        contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: PORT
+            value: "4200"
+      - template: mcp-gateway-deployment.yaml
+        contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: MCP_PORT
+            value: "8080"
