@@ -794,8 +794,23 @@ grafana:
   # This plugin is REQUIRED for LakeRunner to function properly
   cardinalPlugin:
     # URL to the CardinalHQ LakeRunner datasource plugin
-    # air-gapped deployments should download the plugin and provide a local path
+    # Used only when initContainer.enabled is false (legacy HTTP-pull mode):
+    # Grafana downloads the plugin zip at startup via GF_INSTALL_PLUGINS.
+    # Air-gapped deployments should either host the zip internally and point
+    # this at it, or enable initContainer mode below.
     url: "https://github.com/cardinalhq/cardinalhq-lakerunner-datasource/releases/download/v2.4.0/cardinalhq-lakerunner-datasource.zip;cardinalhq-lakerunner-datasource"
+    # Pre-install the Cardinal datasource plugin via an init container that
+    # carries the plugin baked into its image, instead of relying on Grafana
+    # pulling it over HTTP at startup. Recommended for air-gapped clusters
+    # and for reproducible deployments where the plugin version is pinned
+    # to the chart release.
+    initContainer:
+      enabled: false
+      image:
+        repository: public.ecr.aws/cardinalhq.io/lakerunner/initcontainer-grafana
+        # Tag defaults to the chart's appVersion if left empty
+        tag: ""
+        pullPolicy: ""
   # Additional optional Grafana plugins (semicolon-separated list)
   # These will be installed in addition to the required CardinalHQ plugin
   additionalPlugins: ""

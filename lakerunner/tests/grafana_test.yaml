@@ -239,3 +239,119 @@ tests:
     asserts:
       - hasDocuments:
           count: 0
+
+  - it: should not add plugin init container by default
+    templates:
+      - grafana-deployment.yaml
+    set:
+      grafana.enabled: true
+    asserts:
+      - isNull:
+          path: spec.template.spec.initContainers
+      - notContains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: grafana-plugins
+            mountPath: /var/lib/grafana/plugins
+      - notContains:
+          path: spec.template.spec.volumes
+          content:
+            name: grafana-plugins
+            emptyDir: {}
+
+  - it: should add plugin init container when enabled
+    templates:
+      - grafana-deployment.yaml
+    set:
+      grafana.enabled: true
+      grafana.cardinalPlugin.initContainer.enabled: true
+    asserts:
+      - equal:
+          path: spec.template.spec.initContainers[0].name
+          value: install-plugins
+      - contains:
+          path: spec.template.spec.initContainers[0].env
+          content:
+            name: MODE
+            value: install-plugins
+      - contains:
+          path: spec.template.spec.initContainers[0].env
+          content:
+            name: GF_PATHS_PLUGINS
+            value: /var/lib/grafana/plugins
+      - contains:
+          path: spec.template.spec.initContainers[0].volumeMounts
+          content:
+            name: grafana-plugins
+            mountPath: /var/lib/grafana/plugins
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: grafana-plugins
+            mountPath: /var/lib/grafana/plugins
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: grafana-plugins
+            emptyDir: {}
+
+  - it: should drop cardinal plugin from GF_INSTALL_PLUGINS when init container enabled
+    templates:
+      - grafana-deployment.yaml
+    set:
+      grafana.enabled: true
+      grafana.cardinalPlugin.initContainer.enabled: true
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GF_INSTALL_PLUGINS
+          any: true
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GF_PATHS_PLUGINS
+            value: /var/lib/grafana/plugins
+
+  - it: should keep GF_INSTALL_PLUGINS for additionalPlugins when init container enabled
+    templates:
+      - grafana-deployment.yaml
+    set:
+      grafana.enabled: true
+      grafana.cardinalPlugin.initContainer.enabled: true
+      grafana.additionalPlugins: "grafana-clock-panel"
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GF_INSTALL_PLUGINS
+            value: "grafana-clock-panel"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GF_PATHS_PLUGINS
+            value: /var/lib/grafana/plugins
+
+  - it: should use chart appVersion as default init container tag
+    templates:
+      - grafana-deployment.yaml
+    set:
+      grafana.enabled: true
+      grafana.cardinalPlugin.initContainer.enabled: true
+    asserts:
+      - matchRegex:
+          path: spec.template.spec.initContainers[0].image
+          pattern: "^public\\.ecr\\.aws/cardinalhq\\.io/lakerunner/initcontainer-grafana:.+$"
+
+  - it: should honor override of init container image repository and tag
+    templates:
+      - grafana-deployment.yaml
+    set:
+      grafana.enabled: true
+      grafana.cardinalPlugin.initContainer.enabled: true
+      grafana.cardinalPlugin.initContainer.image.repository: "internal-registry.company.com/grafana-init"
+      grafana.cardinalPlugin.initContainer.image.tag: "v9.9.9"
+    asserts:
+      - equal:
+          path: spec.template.spec.initContainers[0].image
+          value: "internal-registry.company.com/grafana-init:v9.9.9"
