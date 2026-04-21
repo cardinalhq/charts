@@ -47,6 +47,26 @@ spec:
       {{- include "lakerunner.sched.nodeSelector" (list .Values.global.nodeSelector .Values.grafana.nodeSelector) | nindent 6 }}
       {{- include "lakerunner.sched.tolerations"  (list .Values.global.tolerations  .Values.grafana.tolerations)  | nindent 6 }}
       {{- include "lakerunner.sched.affinity"     (list .Values.global.affinity     .Values.grafana.affinity)     | nindent 6 }}
+      {{- if .Values.grafana.cardinalPlugin.initContainer.enabled }}
+      initContainers:
+      - name: install-plugins
+        image: {{ include "lakerunner.image" (list .Values.grafana.cardinalPlugin.initContainer.image .) }}
+        imagePullPolicy: {{ .Values.grafana.cardinalPlugin.initContainer.image.pullPolicy | default .Values.global.image.pullPolicy }}
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop: ["ALL"]
+          seccompProfile:
+            type: RuntimeDefault
+        env:
+        - name: MODE
+          value: install-plugins
+        - name: GF_PATHS_PLUGINS
+          value: /var/lib/grafana/plugins
+        volumeMounts:
+        - name: grafana-plugins
+          mountPath: /var/lib/grafana/plugins
+      {{- end }}
       containers:
       - name: grafana
         securityContext:
@@ -73,8 +93,17 @@ spec:
             value: "3000"
           - name: GF_SECURITY_ALLOW_EMBEDDING
             value: "true"
+          {{- if .Values.grafana.cardinalPlugin.initContainer.enabled }}
+          {{- if .Values.grafana.additionalPlugins }}
+          - name: GF_INSTALL_PLUGINS
+            value: {{ .Values.grafana.additionalPlugins | quote }}
+          {{- end }}
+          - name: GF_PATHS_PLUGINS
+            value: /var/lib/grafana/plugins
+          {{- else }}
           - name: GF_INSTALL_PLUGINS
             value: {{ if .Values.grafana.additionalPlugins }}{{ printf "%s,%s" .Values.grafana.cardinalPlugin.url .Values.grafana.additionalPlugins | quote }}{{ else }}{{ .Values.grafana.cardinalPlugin.url | quote }}{{ end }}
+          {{- end }}
           - name: GF_SERVER_ROOT_URL
             value: "%(protocol)s://%(domain)s:%(http_port)s"
           {{- include "lakerunner.injectEnv" (list . .Values.grafana) | nindent 8 }}
@@ -86,11 +115,19 @@ spec:
         volumeMounts:
         - name: grafana-storage
           mountPath: /var/lib/grafana
+        {{- if .Values.grafana.cardinalPlugin.initContainer.enabled }}
+        - name: grafana-plugins
+          mountPath: /var/lib/grafana/plugins
+        {{- end }}
         - name: grafana-datasources
           mountPath: /etc/grafana/provisioning/datasources
           readOnly: true
       volumes:
       {{- include "lakerunner.ephemeralVolumeBasic" (list "grafana-storage" .) | nindent 6 }}
+      {{- if .Values.grafana.cardinalPlugin.initContainer.enabled }}
+      - name: grafana-plugins
+        emptyDir: {}
+      {{- end }}
       - name: grafana-datasources
         configMap:
           name: {{ include "lakerunner.fullname" . }}-grafana-datasources
