@@ -34,6 +34,7 @@ spec:
       - name: perch
         securityContext:
           allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
           capabilities:
             drop: ["ALL"]
           seccompProfile:
@@ -71,12 +72,15 @@ spec:
           {{- toYaml .Values.perch.resources | nindent 10 }}
         {{- end }}
         volumeMounts:
+        - name: scratch
+          mountPath: /scratch
         - name: perch-config
           mountPath: /etc/perch/config.yaml
           subPath: config.yaml
           readOnly: true
         {{- include "lakerunner.licenseVolumeMount" . | nindent 8 }}
       volumes:
+      {{- include "lakerunner.ephemeralVolumeBasic" (list "scratch" .) | nindent 6 }}
       - name: perch-config
         configMap:
           name: {{ include "lakerunner.fullname" . }}-perch

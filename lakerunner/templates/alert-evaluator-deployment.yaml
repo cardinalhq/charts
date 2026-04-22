@@ -37,6 +37,7 @@ spec:
       - name: alert-evaluator
         securityContext:
           allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
           capabilities:
             drop: ["ALL"]
           seccompProfile:
@@ -90,7 +91,10 @@ spec:
           {{- toYaml .Values.alertEvaluator.resources | nindent 10 }}
         {{- end }}
         volumeMounts:
+        - name: scratch
+          mountPath: /scratch
         {{- include "lakerunner.licenseVolumeMount" . | nindent 8 }}
       volumes:
+      {{- include "lakerunner.ephemeralVolumeBasic" (list "scratch" .) | nindent 6 }}
       {{- include "lakerunner.licenseVolume" . | nindent 6 }}
 {{- end }}
