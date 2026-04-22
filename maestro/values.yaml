@@ -27,7 +27,34 @@ maestro:
   nodeSelector: {}
   tolerations: []
   affinity: {}
-  env: []            # additional env vars
+  # Additional env vars applied to the maestro container. OIDC and
+  # per-integration credentials live here (LLM creds live in the database
+  # and are managed from the admin UI). Commonly-set OIDC claim-mapping
+  # vars — all optional, defaults preserve Keycloak-shaped behavior; see
+  # https://docs.cardinalhq.io/maestro/install/oidc#claim-mapping
+  #
+  # env:
+  #   - name: OIDC_ISSUER_URL
+  #     value: https://auth.example.com/realms/cardinal
+  #   - name: OIDC_AUDIENCE
+  #     value: maestro-ui
+  #   - name: OIDC_SUPERADMIN_EMAILS
+  #     value: admin@example.com
+  #   # Claim mapping (override only when your IdP's token shape differs from
+  #   # Keycloak defaults — e.g. Okta access tokens, Auth0, Azure AD).
+  #   - name: OIDC_EMAIL_CLAIM              # default: email
+  #     value: sub
+  #   - name: OIDC_EMAIL_VERIFIED_CLAIM     # default: email_verified
+  #     value: email_verified
+  #   - name: OIDC_DISPLAY_NAME_CLAIMS      # default: name,preferred_username,email
+  #     value: name,preferred_username,sub
+  #   - name: OIDC_GROUPS_CLAIM             # default: groups
+  #     value: groups
+  #   - name: OIDC_EXTERNAL_ID_CLAIM        # default: sub — persistent account key;
+  #     value: uid                          # changing on a live install is a migration event
+  #   - name: OIDC_TRUST_UNVERIFIED_EMAILS  # default: false — pair carefully with a
+  #     value: "true"                       # remapped OIDC_EMAIL_CLAIM (see docs)
+  env: []
   extraVolumes: []       # additional volumes
   extraVolumeMounts: []  # additional volume mounts
 
