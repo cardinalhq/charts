@@ -1,4 +1,5 @@
 {{- if .Values.ingress.enabled -}}
+{{- $cfg := include "maestro.dexConfig" . | fromYaml -}}
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -21,6 +22,18 @@ spec:
   - host: {{ .Values.ingress.host | quote }}
     http:
       paths:
+      {{- if $cfg.enabled }}
+      # NGINX-ingress and Traefik select by longest-prefix match, so
+      # path order here doesn't change which backend serves /dex/*.
+      # Listed first only for readability.
+      - path: {{ $cfg.pathPrefix }}
+        pathType: Prefix
+        backend:
+          service:
+            name: {{ include "maestro.dexFullname" . }}
+            port:
+              name: http
+      {{- end }}
       - path: /
         pathType: Prefix
         backend:

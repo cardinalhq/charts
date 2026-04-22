@@ -1,0 +1,85 @@
+{{- $cfg := include "maestro.dexConfig" . | fromYaml -}}
+{{- if $cfg.enabled -}}
+{{- include "maestro.dexValidate" . -}}
+{{- $d := .Values.dex | default dict -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "maestro.dexFullname" . }}
+  labels:
+    {{- include "maestro.labels" . | nindent 4 }}
+    app.kubernetes.io/component: dex
+  {{ include "maestro.annotations" . | nindent 2 }}
+spec:
+  replicas: {{ $cfg.replicas }}
+  selector:
+    matchLabels:
+      {{- include "maestro.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: dex
+  template:
+    metadata:
+      labels:
+        {{- include "maestro.labels" . | nindent 8 }}
+        app.kubernetes.io/component: dex
+      annotations:
+        # Roll the pod when the rendered Dex config changes so static
+        # users / clients edits don't require a manual restart.
+        checksum/config: {{ include (print $.Template.BasePath "/dex-configmap.yaml") . | sha256sum }}
+        {{- with .Values.global.annotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      serviceAccountName: {{ include "maestro.serviceAccountName" . }}
+      {{- include "maestro.podSecurityContext" (dict "root" . "override" (dig "podSecurityContext" dict $d)) | nindent 6 }}
+      {{- include "maestro.imagePullSecrets" . | nindent 6 }}
+      containers:
+      - name: dex
+        {{- include "maestro.containerSecurityContext" (dict "root" . "override" (dig "containerSecurityContext" dict $d)) | nindent 8 }}
+        image: "{{ $cfg.image.repository }}:{{ $cfg.image.tag }}"
+        imagePullPolicy: {{ $cfg.image.pullPolicy }}
+        command: ["/usr/local/bin/dex"]
+        args: ["serve", "/etc/dex/config.yaml"]
+        ports:
+        - containerPort: {{ $cfg.port }}
+          name: http
+        env:
+          {{- with .Values.global.env }}
+          {{- toYaml . | nindent 10 }}
+          {{- end }}
+        # Dex 2.x serves /healthz at the issuer path root (/<pathPrefix>/healthz).
+        # Pin the dex image tag carefully — older or much newer versions may
+        # change this path.
+        readinessProbe:
+          httpGet:
+            path: {{ printf "%s/healthz" $cfg.pathPrefix | quote }}
+            port: http
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: {{ printf "%s/healthz" $cfg.pathPrefix | quote }}
+            port: http
+          initialDelaySeconds: 15
+          periodSeconds: 10
+        {{- if .Values.global.resources.enabled }}
+        resources:
+          {{- toYaml (dig "resources" (dict "requests" (dict "cpu" "100m" "memory" "64Mi") "limits" (dict "memory" "128Mi")) $d) | nindent 10 }}
+        {{- end }}
+        volumeMounts:
+        - name: config
+          mountPath: /etc/dex
+          readOnly: true
+        # Dex writes templated web assets to /tmp at startup, so it
+        # needs a writable scratch dir under the chart's default
+        # readOnlyRootFilesystem: true container security context.
+        - name: tmp
+          mountPath: /tmp
+      {{- include "maestro.sched.nodeSelector" (list .Values.global.nodeSelector (dig "nodeSelector" dict $d)) | nindent 6 }}
+      {{- include "maestro.sched.tolerations"  (list .Values.global.tolerations  (dig "tolerations" list $d))  | nindent 6 }}
+      {{- include "maestro.sched.affinity"     (list .Values.global.affinity     (dig "affinity" dict $d))     | nindent 6 }}
+      volumes:
+      - name: config
+        configMap:
+          name: {{ include "maestro.dexFullname" . }}
+      - name: tmp
+        emptyDir: {}
+{{- end }}

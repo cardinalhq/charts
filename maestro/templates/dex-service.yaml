@@ -1,0 +1,20 @@
+{{- $cfg := include "maestro.dexConfig" . | fromYaml -}}
+{{- if $cfg.enabled -}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "maestro.dexFullname" . }}
+  labels:
+    {{- include "maestro.labels" . | nindent 4 }}
+    app.kubernetes.io/component: dex
+  {{ include "maestro.annotations" . | nindent 2 }}
+spec:
+  type: ClusterIP
+  ports:
+    - port: {{ $cfg.port }}
+      targetPort: http
+      name: http
+  selector:
+    {{- include "maestro.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: dex
+{{- end }}

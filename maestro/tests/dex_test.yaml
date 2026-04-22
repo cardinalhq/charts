@@ -1,0 +1,278 @@
+suite: bundled dex install
+templates:
+  - dex-configmap.yaml
+  - dex-deployment.yaml
+  - dex-service.yaml
+  - ingress.yaml
+  - maestro-deployment.yaml
+tests:
+  - it: emits no dex resources and no OIDC env when disabled
+    set:
+      ingress.enabled: true
+      ingress.host: m.example.com
+    asserts:
+      - template: dex-configmap.yaml
+        hasDocuments: { count: 0 }
+      - template: dex-deployment.yaml
+        hasDocuments: { count: 0 }
+      - template: dex-service.yaml
+        hasDocuments: { count: 0 }
+      - template: maestro-deployment.yaml
+        notContains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: OIDC_ISSUER_URL
+
+  - it: derives https issuer from ingress.host + ingress.tls
+    set:
+      dex.enabled: true
+      ingress.enabled: true
+      ingress.host: m.example.com
+      ingress.tls:
+        - hosts: [m.example.com]
+          secretName: tls
+      dex.staticUsers:
+        - email: a@example.com
+          username: a
+          userID: u1
+          hash: "$2a$10$abc"
+    template: maestro-deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: OIDC_ISSUER_URL
+            value: https://m.example.com/dex
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: MAESTRO_BASE_URL
+            value: https://m.example.com
+
+  - it: derives http issuer when ingress.tls absent
+    set:
+      dex.enabled: true
+      ingress.enabled: true
+      ingress.host: m.example.com
+      dex.staticUsers:
+        - email: a@example.com
+          username: a
+          userID: u1
+          hash: "$2a$10$abc"
+    template: maestro-deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: OIDC_ISSUER_URL
+            value: http://m.example.com/dex
+
+  - it: explicit maestro.baseUrl wins over ingress.host
+    set:
+      dex.enabled: true
+      maestro.baseUrl: https://override.example.com/
+      ingress.enabled: true
+      ingress.host: ignored.example.com
+      ingress.tls:
+        - hosts: [ignored.example.com]
+          secretName: tls
+      dex.staticUsers:
+        - email: a@example.com
+          username: a
+          userID: u1
+          hash: "$2a$10$abc"
+    template: maestro-deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: OIDC_ISSUER_URL
+            value: https://override.example.com/dex
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: MAESTRO_BASE_URL
+            value: https://override.example.com
+
+  - it: normalizes a scheme prefix in ingress.host
+    set:
+      dex.enabled: true
+      ingress.enabled: true
+      ingress.host: https://m.example.com/
+      dex.staticUsers:
+        - email: a@example.com
+          username: a
+          userID: u1
+          hash: "$2a$10$abc"
+    template: maestro-deployment.yaml
+    asserts:
+      # scheme stripped, trailing / stripped, scheme reapplied from
+      # ingress.tls (absent here, so http)
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: OIDC_ISSUER_URL
+            value: http://m.example.com/dex
+
+  - it: fails when dex enabled with no base URL
+    set:
+      dex.enabled: true
+      dex.staticUsers:
+        - email: a@example.com
+          username: a
+          userID: u1
+          hash: "$2a$10$abc"
+    template: maestro-deployment.yaml
+    asserts:
+      - failedTemplate:
+          errorMessage: "dex.enabled=true requires either maestro.baseUrl to be set or ingress.host to be set so the Dex issuer URL can be derived"
+
+  - it: fails when dex enabled with empty staticUsers
+    set:
+      dex.enabled: true
+      ingress.enabled: true
+      ingress.host: m.example.com
+    template: maestro-deployment.yaml
+    asserts:
+      - failedTemplate:
+          errorMessage: "dex.enabled=true requires dex.staticUsers to be a non-empty list (otherwise the bundled Dex starts with no login options)"
+
+  - it: fails when dex.replicas > 1
+    set:
+      dex.enabled: true
+      dex.replicas: 2
+      ingress.enabled: true
+      ingress.host: m.example.com
+      dex.staticUsers:
+        - email: a@example.com
+          username: a
+          userID: u1
+          hash: "$2a$10$abc"
+    template: maestro-deployment.yaml
+    asserts:
+      - failedTemplate:
+          errorMessage: "dex.replicas > 1 is incompatible with the bundled Dex's in-memory storage; sessions and signing keys diverge across pods. Use a single replica or replace the bundled Dex with an external OIDC provider for HA."
+
+  - it: built-in OIDC_ISSUER_URL wins over a user maestro.env duplicate
+    set:
+      dex.enabled: true
+      ingress.enabled: true
+      ingress.host: m.example.com
+      dex.staticUsers:
+        - email: a@example.com
+          username: a
+          userID: u1
+          hash: "$2a$10$abc"
+      maestro.env:
+        - name: OIDC_ISSUER_URL
+          value: https://attacker.example.com/dex
+    template: maestro-deployment.yaml
+    asserts:
+      # Both entries exist; built-in is emitted first so Kubernetes
+      # picks it over the user-supplied duplicate.
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: OIDC_ISSUER_URL
+            value: http://m.example.com/dex
+      # Lock in the ordering: built-in OIDC_ISSUER_URL is emitted
+      # immediately after PORT (env[8]), so it lands at env[9] —
+      # comfortably before any user maestro.env entry, and Kubernetes
+      # picks the first occurrence on duplicates.
+      - equal:
+          path: spec.template.spec.containers[0].env[9].name
+          value: OIDC_ISSUER_URL
+      - equal:
+          path: spec.template.spec.containers[0].env[9].value
+          value: http://m.example.com/dex
+
+  - it: ingress lists /dex before / when dex enabled
+    set:
+      dex.enabled: true
+      ingress.enabled: true
+      ingress.host: m.example.com
+      dex.staticUsers:
+        - email: a@example.com
+          username: a
+          userID: u1
+          hash: "$2a$10$abc"
+    template: ingress.yaml
+    asserts:
+      - equal:
+          path: spec.rules[0].http.paths[0].path
+          value: /dex
+      - equal:
+          path: spec.rules[0].http.paths[0].backend.service.name
+          value: RELEASE-NAME-maestro-dex
+      - equal:
+          path: spec.rules[0].http.paths[1].path
+          value: /
+      - equal:
+          path: spec.rules[0].http.paths[1].backend.service.name
+          value: RELEASE-NAME-maestro-maestro
+
+  - it: ingress omits /dex path when dex disabled
+    set:
+      ingress.enabled: true
+      ingress.host: m.example.com
+    template: ingress.yaml
+    asserts:
+      - lengthEqual:
+          path: spec.rules[0].http.paths
+          count: 1
+      - equal:
+          path: spec.rules[0].http.paths[0].path
+          value: /
+
+  - it: embeds the static user in the dex configmap
+    set:
+      dex.enabled: true
+      ingress.enabled: true
+      ingress.host: m.example.com
+      dex.staticUsers:
+        - email: admin@example.com
+          hash: "$2a$10$abc"
+          userID: 00000000-0000-0000-0000-000000000001
+          username: admin
+          groups:
+            - maestro-superadmin
+    template: dex-configmap.yaml
+    asserts:
+      - matchRegex:
+          path: data["config.yaml"]
+          pattern: "issuer: http://m.example.com/dex"
+      - matchRegex:
+          path: data["config.yaml"]
+          pattern: "redirectURIs:\\s*\\n\\s*- http://m.example.com/"
+      - matchRegex:
+          path: data["config.yaml"]
+          pattern: "email: admin@example.com"
+      - matchRegex:
+          path: data["config.yaml"]
+          pattern: "userID: 00000000-0000-0000-0000-000000000001"
+      - matchRegex:
+          path: data["config.yaml"]
+          pattern: "- maestro-superadmin"
+
+  - it: dex deployment mounts a writable /tmp emptyDir
+    set:
+      dex.enabled: true
+      ingress.enabled: true
+      ingress.host: m.example.com
+      dex.staticUsers:
+        - email: a@example.com
+          username: a
+          userID: u1
+          hash: "$2a$10$abc"
+    template: dex-deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: tmp
+            mountPath: /tmp
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: tmp
+            emptyDir: {}
