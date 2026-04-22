@@ -1,0 +1,39 @@
+{{- $cfg := include "maestro.dexConfig" . | fromYaml -}}
+{{- if $cfg.enabled -}}
+{{- include "maestro.dexValidate" . -}}
+{{- $d := .Values.dex | default dict -}}
+{{- $users := dig "staticUsers" list $d -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "maestro.dexFullname" . }}
+  labels:
+    {{- include "maestro.labels" . | nindent 4 }}
+    app.kubernetes.io/component: dex
+  {{ include "maestro.annotations" . | nindent 2 }}
+data:
+  config.yaml: |
+    issuer: {{ include "maestro.dexIssuerUrl" . }}
+    # In-memory storage is per-pod. Sessions and signing keys do not
+    # survive pod restart and will diverge across replicas, so this
+    # setup is single-replica POC only — see dex.replicas guard above.
+    storage:
+      type: memory
+    web:
+      http: 0.0.0.0:{{ $cfg.port }}
+    oauth2:
+      skipApprovalScreen: true
+    enablePasswordDB: true
+    staticClients:
+      # public:true means PKCE-only (no client secret); matches what
+      # the SPA uses via react-oidc-context. Do NOT switch to a
+      # confidential client without also wiring a client_secret on
+      # the SPA side.
+      - id: {{ $cfg.clientId }}
+        name: "Maestro UI"
+        public: true
+        redirectURIs:
+          - {{ include "maestro.dexRedirectUri" . }}
+    staticPasswords:
+      {{- toYaml $users | nindent 6 }}
+{{- end }}
