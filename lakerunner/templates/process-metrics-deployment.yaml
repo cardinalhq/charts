@@ -33,6 +33,7 @@ spec:
       - name: process-metrics
         securityContext:
           allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
           capabilities:
             drop: ["ALL"]
           seccompProfile:
