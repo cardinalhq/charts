@@ -38,11 +38,7 @@ spec:
       {{- include "lakerunner.annotations" . | nindent 6 }}
     spec:
       serviceAccountName: {{ include "lakerunner.serviceAccountName" . }}
-      securityContext:
-        runAsNonRoot: true
-        runAsUser: 472
-        runAsGroup: 472
-        fsGroup: 472
+      {{- include "lakerunner.podSecurityContext" (dict "root" . "override" .Values.grafana.podSecurityContext) | nindent 6 }}
       {{- include "lakerunner.imagePullSecrets" . | nindent 6 }}
       {{- include "lakerunner.sched.nodeSelector" (list .Values.global.nodeSelector .Values.grafana.nodeSelector) | nindent 6 }}
       {{- include "lakerunner.sched.tolerations"  (list .Values.global.tolerations  .Values.grafana.tolerations)  | nindent 6 }}
@@ -52,12 +48,7 @@ spec:
       - name: install-plugins
         image: {{ include "lakerunner.image" (list .Values.grafana.cardinalPlugin.initContainer.image .) }}
         imagePullPolicy: {{ .Values.grafana.cardinalPlugin.initContainer.image.pullPolicy | default .Values.global.image.pullPolicy }}
-        securityContext:
-          allowPrivilegeEscalation: false
-          capabilities:
-            drop: ["ALL"]
-          seccompProfile:
-            type: RuntimeDefault
+        {{- include "lakerunner.containerSecurityContext" (dict "root" . "override" .Values.grafana.containerSecurityContext) | nindent 8 }}
         env:
         - name: MODE
           value: install-plugins
@@ -69,12 +60,7 @@ spec:
       {{- end }}
       containers:
       - name: grafana
-        securityContext:
-          allowPrivilegeEscalation: false
-          capabilities:
-            drop: ["ALL"]
-          seccompProfile:
-            type: RuntimeDefault
+        {{- include "lakerunner.containerSecurityContext" (dict "root" . "override" .Values.grafana.containerSecurityContext) | nindent 8 }}
         image: {{ include "lakerunner.image" (list .Values.grafana.image .) }}
         imagePullPolicy: {{ .Values.grafana.image.pullPolicy | default .Values.global.image.pullPolicy }}
         ports:

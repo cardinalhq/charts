@@ -23,21 +23,11 @@ spec:
       {{- include "lakerunner.annotationsWithComponent" (list . .Values.processMetrics.annotations) | nindent 6 }}
     spec:
       serviceAccountName: {{ include "lakerunner.serviceAccountName" . }}
-      securityContext:
-        runAsNonRoot: true
-        runAsUser: 65532
-        runAsGroup: 65532
-        fsGroup: 65532
+      {{- include "lakerunner.podSecurityContext" (dict "root" . "override" .Values.processMetrics.podSecurityContext) | nindent 6 }}
       {{- include "lakerunner.imagePullSecrets" . | nindent 6 }}
       containers:
       - name: process-metrics
-        securityContext:
-          allowPrivilegeEscalation: false
-          readOnlyRootFilesystem: true
-          capabilities:
-            drop: ["ALL"]
-          seccompProfile:
-            type: RuntimeDefault
+        {{- include "lakerunner.containerSecurityContext" (dict "root" . "override" .Values.processMetrics.containerSecurityContext) | nindent 8 }}
         image: {{ include "lakerunner.image" (list .Values.processMetrics.image .) }}
         imagePullPolicy: {{ .Values.processMetrics.image.pullPolicy | default .Values.global.image.pullPolicy }}
         command: ["/app/bin/lakerunner"]
