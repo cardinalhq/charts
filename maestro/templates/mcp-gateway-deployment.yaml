@@ -21,21 +21,11 @@ spec:
       {{- include "maestro.annotations" . | nindent 6 }}
     spec:
       serviceAccountName: {{ include "maestro.serviceAccountName" . }}
-      securityContext:
-        runAsNonRoot: true
-        runAsUser: 65532
-        runAsGroup: 65532
-        fsGroup: 65532
+      {{- include "maestro.podSecurityContext" (dict "root" . "override" .Values.mcpGateway.podSecurityContext) | nindent 6 }}
       {{- include "maestro.imagePullSecrets" . | nindent 6 }}
       containers:
       - name: mcp-gateway
-        securityContext:
-          allowPrivilegeEscalation: false
-          readOnlyRootFilesystem: true
-          capabilities:
-            drop: ["ALL"]
-          seccompProfile:
-            type: RuntimeDefault
+        {{- include "maestro.containerSecurityContext" (dict "root" . "override" .Values.mcpGateway.containerSecurityContext) | nindent 8 }}
         image: {{ include "maestro.image" . }}
         imagePullPolicy: {{ .Values.image.pullPolicy }}
         command: ["/app/entrypoint.sh"]

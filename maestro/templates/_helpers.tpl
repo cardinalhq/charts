@@ -192,3 +192,66 @@ affinity:
 {{ toYaml $m | indent 2 }}
   {{- end -}}
 {{- end -}}
+
+{{/*
+Pod-level securityContext for a workload.
+Shallow-merges global.podSecurityContext with an optional per-component override;
+component fields win over global. Uses explicit `set` instead of sprig's `merge`
+to avoid mergo's quirk where falsy zero values (false, 0, "") get overwritten.
+Emits nothing when the resulting map is empty.
+Usage:
+  {{- include "maestro.podSecurityContext" (dict "root" . "override" .Values.maestro.podSecurityContext) | nindent 6 }}
+*/}}
+{{- define "maestro.podSecurityContext" -}}
+{{- $root := .root -}}
+{{- $override := .override | default dict -}}
+{{- $global := $root.Values.global.podSecurityContext | default dict -}}
+{{- $merged := dict -}}
+{{- range $k, $v := $global -}}
+{{- $_ := set $merged $k $v -}}
+{{- end -}}
+{{- range $k, $v := $override -}}
+{{- $_ := set $merged $k $v -}}
+{{- end -}}
+{{- if $merged }}
+securityContext:
+  {{- toYaml $merged | nindent 2 }}
+{{- end -}}
+{{- end }}
+
+{{/*
+Container-level securityContext for a container.
+Same shallow-merge semantics as maestro.podSecurityContext.
+*/}}
+{{- define "maestro.containerSecurityContext" -}}
+{{- $root := .root -}}
+{{- $override := .override | default dict -}}
+{{- $global := $root.Values.global.containerSecurityContext | default dict -}}
+{{- $merged := dict -}}
+{{- range $k, $v := $global -}}
+{{- $_ := set $merged $k $v -}}
+{{- end -}}
+{{- range $k, $v := $override -}}
+{{- $_ := set $merged $k $v -}}
+{{- end -}}
+{{- if $merged }}
+securityContext:
+  {{- toYaml $merged | nindent 2 }}
+{{- end -}}
+{{- end }}
+
+{{/*
+Reference image for the wait-for-mcp-gateway init container.
+Appends the multi-arch manifest list digest when set so image resolution is
+reproducible but still picks the right per-arch variant at pull time.
+*/}}
+{{- define "maestro.waitContainerImage" -}}
+{{- $repo := .Values.waitContainer.image.repository -}}
+{{- $tag := .Values.waitContainer.image.tag -}}
+{{- $digest := .Values.waitContainer.image.digest -}}
+{{- if $digest -}}
+{{ printf "%s:%s@%s" $repo $tag $digest }}
+{{- else -}}
+{{ printf "%s:%s" $repo $tag }}
+{{- end -}}
+{{- end }}
