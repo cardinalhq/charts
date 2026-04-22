@@ -75,6 +75,27 @@ global:
     #   value: "value1"
     # - name: ENVAR2
     #   value: "value2"
+  # Pod-level securityContext applied to every workload by default.
+  # Components may override individual fields via <component>.podSecurityContext
+  # (component fields win, missing fields fall back to these globals).
+  # For OpenShift's restricted-v2 SCC, set this to {runAsNonRoot: true} (or {})
+  # so the SCC can inject runAsUser/runAsGroup/fsGroup from the namespace's
+  # assigned UID range.
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 65532
+    runAsGroup: 65532
+    fsGroup: 65532
+  # Container-level securityContext applied to every container by default.
+  # Components may override individual fields via <component>.containerSecurityContext.
+  containerSecurityContext:
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
+    capabilities:
+      drop:
+        - ALL
+    seccompProfile:
+      type: RuntimeDefault
   # A node selector to apply to all pods.
   # This is standard Kubernetes node selector syntax.
   # Optional.
@@ -755,6 +776,21 @@ queryWorker:
 grafana:
   enabled: false
   replicas: 1 # For replicas > 1, configure external database via grafana.env (see Grafana docs)
+  # Grafana's upstream image requires UID 472 (owns /var/lib/grafana), so it
+  # overrides the chart-wide global.podSecurityContext. On OpenShift the
+  # assigned namespace UID range typically does not include 472; add a custom
+  # SCC (e.g. `oc adm policy add-scc-to-user nonroot-v2 <serviceaccount>`) or
+  # replace this override with {runAsNonRoot: true} and use an OpenShift-
+  # compatible Grafana image.
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 472
+    runAsGroup: 472
+    fsGroup: 472
+  # Grafana writes to /var/lib/grafana, so readOnlyRootFilesystem is disabled
+  # here. All other hardening from global.containerSecurityContext is preserved.
+  containerSecurityContext:
+    readOnlyRootFilesystem: false
   # CardinalHQ LakeRunner datasource configuration
   # This provides a simplified way to configure the Cardinal datasource
   # Required.

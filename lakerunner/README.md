@@ -341,3 +341,55 @@ The following table summarizes the default resource requirements for each LakeRu
 * Components with autoscaling enabled can scale between configured min/max replicas
 * Temporary storage is used for processing intermediate data and caching and will benefit from fast local epheremal storage.
 * PubSub components are mutually exclusive - typically only one is enabled based on your cloud provider
+
+## Security context / Pod Security Standards
+
+Every workload runs under a hardened `securityContext` by default:
+
+* `runAsNonRoot: true`, `runAsUser`/`runAsGroup`/`fsGroup: 65532` at the pod level (Grafana overrides these to `472` because its upstream image requires that user)
+* `allowPrivilegeEscalation: false`, `capabilities.drop: [ALL]`, `seccompProfile.type: RuntimeDefault`, and `readOnlyRootFilesystem: true` at the container level (Grafana sets `readOnlyRootFilesystem: false` because it writes to `/var/lib/grafana`)
+
+The defaults satisfy Kubernetes Pod Security Standards `restricted`. The full map lives in `values.yaml` under `global.podSecurityContext` and `global.containerSecurityContext`; per-component overrides can be added as `<component>.podSecurityContext` / `<component>.containerSecurityContext` and the chart will shallow-merge (component wins over global).
+
+## Deploying on OpenShift
+
+The chart renders cleanly under the `restricted-v2` SCC with two adjustments:
+
+### 1. Let the SCC assign UIDs
+
+OpenShift's `restricted-v2` SCC rejects pods whose `runAsUser`/`runAsGroup`/`fsGroup` fall outside the namespace's assigned UID range (it wants to inject them from the range itself). Null the fields in your `values-local.yaml`:
+
+```yaml
+global:
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: null
+    runAsGroup: null
+    fsGroup: null
+grafana:
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: null
+    runAsGroup: null
+    fsGroup: null
+```
+
+With those in place, the pod `securityContext` emits only `runAsNonRoot: true` and the SCC fills in the rest. All other hardening (no-privilege-escalation, drop ALL, RuntimeDefault seccomp, read-only rootfs) stays in effect.
+
+### 2. Grafana needs an SCC that permits UID 472
+
+The upstream `grafana/grafana` image expects UID 472 to own `/var/lib/grafana`. Because that UID almost never falls inside a namespace's restricted-v2 range, Grafana needs either a custom SCC or an OpenShift-compatible image. The simplest path is:
+
+```sh
+oc adm policy add-scc-to-user nonroot-v2 -z <release>-lakerunner -n <namespace>
+```
+
+and then keep Grafana's defaults (UID 472). If you prefer to avoid the SCC grant, swap `grafana.image.repository` for an image that supports random UIDs.
+
+### 3. Perch needs elevated RBAC
+
+The Perch component already ships with a `ClusterRole` that includes `patch` on `apps/deployments` cluster-wide — this is its legitimate function (cross-namespace deployment management), but it counts as a privileged grant. On clusters with strict RBAC review you may need admin approval or an `oc adm policy add-role-to-user edit` against the chart's ServiceAccount.
+
+### 4. Ingress / Routes
+
+The chart uses standard `networking.k8s.io/v1` `Ingress` resources. They work with the OpenShift HAProxy router out of the box; no nginx-specific annotations are emitted.

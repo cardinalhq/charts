@@ -35,6 +35,10 @@ tests:
           errorMessage: "license.data is required when license.create is true. Provide the raw license.json content or set license.create=false and specify an existing secret via license.secretName."
 
   - it: should fail with default values (create true, no data)
+    # Explicitly clear license.data in case the suite-level -v test-values.yaml
+    # supplies one; this test asserts behavior on the chart defaults.
+    set:
+      license.data: ""
     templates:
       - license-validation.yaml
     asserts:

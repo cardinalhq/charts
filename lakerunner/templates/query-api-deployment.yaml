@@ -24,21 +24,11 @@ spec:
       {{- include "lakerunner.annotations" . | nindent 6 }}
     spec:
       serviceAccountName: {{ include "lakerunner.serviceAccountName" . }}
-      securityContext:
-        runAsNonRoot: true
-        runAsUser: 65532
-        runAsGroup: 65532
-        fsGroup: 65532
+      {{- include "lakerunner.podSecurityContext" (dict "root" . "override" .Values.queryApi.podSecurityContext) | nindent 6 }}
       {{- include "lakerunner.imagePullSecrets" . | nindent 6 }}
       containers:
       - name: query-api
-        securityContext:
-          allowPrivilegeEscalation: false
-          readOnlyRootFilesystem: true
-          capabilities:
-            drop: ["ALL"]
-          seccompProfile:
-            type: RuntimeDefault
+        {{- include "lakerunner.containerSecurityContext" (dict "root" . "override" .Values.queryApi.containerSecurityContext) | nindent 8 }}
         image: {{ include "lakerunner.image" (list .Values.queryApi.image .) }}
         imagePullPolicy: {{ .Values.queryApi.image.pullPolicy | default .Values.global.image.pullPolicy }}
         command: ["/app/bin/lakerunner"]
