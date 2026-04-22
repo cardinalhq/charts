@@ -52,3 +52,35 @@ With that in place, the rendered pod `securityContext` emits only `runAsNonRoot:
 ### Ingress / Routes
 
 The chart uses a standard `networking.k8s.io/v1` `Ingress` resource with a configurable `ingressClassName`. The OpenShift HAProxy router handles it out of the box; no nginx-specific annotations are emitted.
+
+## Bundled Dex (POC only)
+
+For demos and proof-of-concept installs, the chart can spin up a [Dex](https://dexidp.io) OIDC provider alongside Maestro. **This is not for production** — Dex is configured with in-memory storage, so signing keys rotate and all sessions drop on every Dex pod restart, and only a single replica is supported. Use a real IdP (Keycloak, Okta, Auth0, etc.) for anything beyond a POC.
+
+When enabled, the chart renders a Dex `Deployment` + `Service` + `ConfigMap`, routes the path under `dex.pathPrefix` (default `/dex`) on the maestro `Ingress` to Dex, and auto-injects the OIDC env vars on the maestro container so OIDC works end-to-end without a separate IdP. Static users live in `dex.staticUsers` with bcrypt-hashed passwords; users in the group named by `dex.superadminGroup` (default `maestro-superadmin`) become Maestro superadmins.
+
+Minimal overlay:
+
+```yaml
+maestro:
+  baseUrl: https://maestro.example.com   # or set ingress.host and the chart derives this
+ingress:
+  enabled: true
+  host: maestro.example.com
+  tls:
+    - hosts: [maestro.example.com]
+      secretName: maestro-tls
+dex:
+  enabled: true
+  staticUsers:
+    - email: admin@example.com
+      username: admin
+      userID: "08a8684b-db88-4b73-90a9-3cd1661f5466"
+      hash: "$2a$10$..."   # htpasswd -bnBC 10 "" yourpass | tr -d ':\n'
+      groups:
+        - maestro-superadmin
+```
+
+Install will fail loudly if you set `dex.enabled: true` without a usable base URL, without any static users, or with `dex.replicas > 1`.
+
+Note: `dex.superadminGroup` only takes effect once the SPA requests the OIDC `groups` scope (tracked in [conductor#370](https://github.com/cardinalhq/conductor/issues/370)). Until that ships in a Maestro release, grant superadmin via `OIDC_SUPERADMIN_EMAILS` in `maestro.env` instead.

@@ -45,6 +45,7 @@ spec:
             value: "http://{{ include "maestro.fullname" . }}-mcp-gateway:{{ .Values.mcpGateway.port }}"
           - name: PORT
             value: {{ .Values.maestro.port | quote }}
+          {{- include "maestro.oidcEnv" . | nindent 10 }}
           {{- with .Values.global.env }}
           {{- toYaml . | nindent 10 }}
           {{- end }}
