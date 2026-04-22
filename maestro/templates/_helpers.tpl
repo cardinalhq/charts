@@ -392,6 +392,8 @@ and locked in for OIDC_ISSUER_URL specifically by dex_test.yaml).
   value: {{ include "maestro.dexInternalJwksUrl" . | quote }}
 - name: OIDC_AUDIENCE
   value: {{ $cfg.clientId | quote }}
+- name: OIDC_CLIENT_ID
+  value: {{ $cfg.clientId | quote }}
 - name: OIDC_SUPERADMIN_GROUP
   value: {{ $cfg.superadminGroup | quote }}
 - name: MAESTRO_BASE_URL

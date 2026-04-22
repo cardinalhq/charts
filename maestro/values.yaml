@@ -36,8 +36,12 @@ maestro:
   # env:
   #   - name: OIDC_ISSUER_URL
   #     value: https://auth.example.com/realms/cardinal
-  #   - name: OIDC_AUDIENCE
+  #   - name: OIDC_AUDIENCE                   # expected `aud` claim on issued tokens
   #     value: maestro-ui
+  #   - name: OIDC_CLIENT_ID                   # OAuth client_id the SPA sends in authorize
+  #     value: maestro-ui                      # requests; for Okta custom auth servers this
+  #                                            # differs from OIDC_AUDIENCE. Defaults to
+  #                                            # OIDC_AUDIENCE when unset.
   #   - name: OIDC_SUPERADMIN_EMAILS
   #     value: admin@example.com
   #   # Claim mapping (override only when your IdP's token shape differs from
