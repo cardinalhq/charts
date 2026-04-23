@@ -1,0 +1,44 @@
+{{- if and .Values.perch.enabled .Values.perch.collectors.enabled -}}
+{{- /*
+  One namespace-scoped Role + RoleBinding per watched namespace. Customers see
+  exactly which namespaces Perch can read ConfigMaps in and can reject the
+  chart if the list is unexpected. Cluster-wide ConfigMap read is NOT granted.
+*/}}
+{{- range $ns := .Values.perch.collectors.namespaces }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "lakerunner.fullname" $ }}-perch-collectors
+  namespace: {{ $ns }}
+  labels:
+    {{- include "lakerunner.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: perch-collectors
+  {{ include "lakerunner.annotations" $ | nindent 2 }}
+rules:
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "daemonsets", "statefulsets"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "lakerunner.fullname" $ }}-perch-collectors
+  namespace: {{ $ns }}
+  labels:
+    {{- include "lakerunner.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: perch-collectors
+  {{ include "lakerunner.annotations" $ | nindent 2 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ include "lakerunner.fullname" $ }}-perch-collectors
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "lakerunner.serviceAccountName" $ }}
+    namespace: {{ $.Release.Namespace }}
+{{- end }}
+{{- end }}
