@@ -44,5 +44,4 @@ When making changes to the chart:
 1. Update tests as needed in the `tests/` directory
 2. Run `make test` to ensure all tests pass
 3. Update documentation if configuration options change
-4. Test with both HPA and KEDA scaling modes
-5. Verify backward compatibility for existing configurations
+4. Verify backward compatibility for existing configurations
