@@ -1,0 +1,38 @@
+{{- if and .Values.perch.enabled .Values.perch.collectors.enabled .Values.perch.collectors.watchCRs -}}
+{{- /*
+  Cluster-scoped read of OpenTelemetryCollector CRs. The OTel Operator's CR is
+  cluster-scoped in the sense that CRD discovery is not namespaced — we need
+  this binding so Perch can enumerate operator-managed collectors across
+  namespaces without one RoleBinding per namespace (which wouldn't even work
+  for CR list/watch). Read-only.
+*/}}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "lakerunner.fullname" . }}-perch-collectors-cr
+  labels:
+    {{- include "lakerunner.labels" . | nindent 4 }}
+    app.kubernetes.io/component: perch-collectors
+  {{ include "lakerunner.annotations" . | nindent 2 }}
+rules:
+  - apiGroups: ["opentelemetry.io"]
+    resources: ["opentelemetrycollectors"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "lakerunner.fullname" . }}-perch-collectors-cr
+  labels:
+    {{- include "lakerunner.labels" . | nindent 4 }}
+    app.kubernetes.io/component: perch-collectors
+  {{ include "lakerunner.annotations" . | nindent 2 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "lakerunner.fullname" . }}-perch-collectors-cr
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "lakerunner.serviceAccountName" . }}
+    namespace: {{ .Release.Namespace }}
+{{- end }}

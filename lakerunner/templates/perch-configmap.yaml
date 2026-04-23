@@ -26,6 +26,24 @@ data:
         label_selector: {{ .labelSelector | quote }}
         {{- end }}
     {{- end }}
+    {{- if .Values.perch.collectors.enabled }}
+    collectors:
+      enabled: true
+      ship_config_body: {{ .Values.perch.collectors.shipConfigBody }}
+      watch_crs: {{ .Values.perch.collectors.watchCRs }}
+      heartbeat_interval: {{ .Values.perch.collectors.heartbeatInterval | default "5m" }}
+      reconcile_interval: {{ .Values.perch.collectors.reconcileInterval | default "15m" }}
+      namespaces:
+      {{- range .Values.perch.collectors.namespaces }}
+        - {{ . | quote }}
+      {{- end }}
+      {{- with .Values.perch.collectors.imageAllowlist }}
+      image_allowlist:
+      {{- range . }}
+        - {{ . | quote }}
+      {{- end }}
+      {{- end }}
+    {{- end }}
     health:
       port: {{ .Values.global.healthProbes.healthcheckPort }}
 {{- end }}

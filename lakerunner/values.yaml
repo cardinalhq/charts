@@ -587,6 +587,31 @@ perch:
   nodeSelector: {}
   tolerations: []
   affinity: {}
+  # Read-only OpenTelemetry collector discovery. Disabled by default — customers
+  # opt in by setting enabled=true and listing the namespaces Perch should
+  # watch for collector workloads. When enabled, Perch discovers collectors via
+  # three paths (CR / image allowlist / label opt-in), reads their ConfigMap
+  # bodies, redacts obvious secrets, and ships them to Maestro for read-only
+  # DAG visualization at /settings/collectors. No write path is enabled.
+  collectors:
+    enabled: false
+    # Namespaces to watch for collector workloads. Each entry gets its own
+    # namespace-scoped Role + RoleBinding; cluster-wide ConfigMap read is NOT
+    # granted.
+    namespaces: []
+    # When true, Perch ships the redacted YAML body back to Maestro. When
+    # false, only topology (structural DAG data) is shipped — the UI shows the
+    # pipeline graph but no raw YAML view. Use false for regulated customers.
+    shipConfigBody: true
+    # Watch OpenTelemetryCollector CRs (from the upstream OTel Operator). Set
+    # to false if the CRD is installed but you don't want Perch to read CRs.
+    # CRD-absent clusters gracefully skip regardless of this flag.
+    watchCRs: true
+    # Extends (does not replace) the default image allowlist. Use this to add
+    # custom / internal collector distributions by repo prefix.
+    imageAllowlist: []
+    heartbeatInterval: "5m"
+    reconcileInterval: "15m"
 
 # Admin API configuration
 adminApi:
