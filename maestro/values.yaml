@@ -63,9 +63,10 @@ maestro:
   extraVolumes: []       # additional volumes
   extraVolumeMounts: []  # additional volume mounts
 
-# MCP Gateway configuration
+# MCP Gateway configuration.
+# mcp-gateway is a required companion to maestro and is always deployed;
+# there is no toggle to disable it.
 mcpGateway:
-  enabled: true
   replicas: 1
   port: 8080
   debugPort: 9090
@@ -122,10 +123,11 @@ serviceAccount:
   annotations: {}
 
 # Wait-for-mcp-gateway init container image (used by the maestro deployment
-# when mcpGateway.enabled is true). Pinned to the busybox:1.36 multi-arch
-# manifest list digest so image pulls are reproducible while still resolving
-# to the correct per-arch variant at pull time. Clear `digest` to use the
-# floating tag, or override any field to point at a mirror.
+# to poll mcp-gateway readiness before starting maestro). Pinned to the
+# busybox:1.36 multi-arch manifest list digest so image pulls are
+# reproducible while still resolving to the correct per-arch variant at
+# pull time. Clear `digest` to use the floating tag, or override any
+# field to point at a mirror.
 waitContainer:
   image:
     repository: busybox
