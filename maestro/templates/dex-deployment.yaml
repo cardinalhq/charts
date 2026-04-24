@@ -62,7 +62,7 @@ spec:
           periodSeconds: 10
         {{- if .Values.global.resources.enabled }}
         resources:
-          {{- toYaml (dig "resources" (dict "requests" (dict "cpu" "100m" "memory" "64Mi") "limits" (dict "memory" "128Mi")) $d) | nindent 10 }}
+          {{- toYaml (dig "resources" (dict "requests" (dict "cpu" "200m" "memory" "128Mi") "limits" (dict "cpu" "200m" "memory" "128Mi")) $d) | nindent 10 }}
         {{- end }}
         volumeMounts:
         - name: config

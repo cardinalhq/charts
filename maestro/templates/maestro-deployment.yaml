@@ -30,6 +30,15 @@ spec:
         imagePullPolicy: {{ .Values.waitContainer.image.pullPolicy }}
         {{- include "maestro.containerSecurityContext" (dict "root" . "override" .Values.maestro.containerSecurityContext) | nindent 8 }}
         command: ['sh', '-c', 'until nc -z {{ include "maestro.fullname" . }}-mcp-gateway {{ .Values.mcpGateway.port }}; do echo waiting for mcp-gateway; sleep 2; done']
+        {{- if .Values.global.resources.enabled }}
+        resources:
+          requests:
+            cpu: 50m
+            memory: 32Mi
+          limits:
+            cpu: 50m
+            memory: 32Mi
+        {{- end }}
       {{- end }}
       containers:
       - name: maestro
