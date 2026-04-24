@@ -263,11 +263,16 @@ The defaults satisfy Kubernetes Pod Security Standards `restricted`. The full ma
 
 ## Deploying on OpenShift
 
-The chart renders cleanly under the `restricted-v2` SCC with two adjustments:
+The chart renders cleanly under the `restricted-v2` SCC. One adjustment is
+always required; a second is required only when `grafana.enabled: true`.
 
-### 1. Let the SCC assign UIDs
+### 1. Let the SCC assign UIDs (always required)
 
-OpenShift's `restricted-v2` SCC rejects pods whose `runAsUser`/`runAsGroup`/`fsGroup` fall outside the namespace's assigned UID range (it wants to inject them from the range itself). Null the fields in your `values-local.yaml`:
+OpenShift's `restricted-v2` SCC rejects pods whose `runAsUser`/`runAsGroup`/
+`fsGroup` fall outside the namespace's assigned UID range — it wants to
+inject those values from the range itself. The chart defaults to UID 65532,
+which almost never falls inside that range. Null the fields in your
+`values-local.yaml`:
 
 ```yaml
 global:
@@ -276,25 +281,41 @@ global:
     runAsUser: null
     runAsGroup: null
     fsGroup: null
-grafana:
-  podSecurityContext:
-    runAsNonRoot: true
-    runAsUser: null
-    runAsGroup: null
-    fsGroup: null
 ```
 
-With those in place, the pod `securityContext` emits only `runAsNonRoot: true` and the SCC fills in the rest. All other hardening (no-privilege-escalation, drop ALL, RuntimeDefault seccomp, read-only rootfs) stays in effect.
+With those in place the pod `securityContext` emits only `runAsNonRoot:
+true` and the SCC fills in the rest. All other hardening (no-privilege-
+escalation, drop ALL, RuntimeDefault seccomp, read-only rootfs) stays in
+effect.
 
-### 2. Grafana needs an SCC that permits UID 472
+### 2. Grafana needs an SCC that permits UID 472 (only if `grafana.enabled: true`)
 
-The upstream `grafana/grafana` image expects UID 472 to own `/var/lib/grafana`. Because that UID almost never falls inside a namespace's restricted-v2 range, Grafana needs either a custom SCC or an OpenShift-compatible image. The simplest path is:
+> Skip this section if `grafana.enabled: false` (the chart default).
+
+The upstream `grafana/grafana` image expects UID 472 to own
+`/var/lib/grafana`. That UID almost never falls inside a namespace's
+restricted-v2 range, so Grafana needs either a custom SCC or an
+OpenShift-compatible image. The simplest path is to bind `nonroot-v2` (which
+allows any non-root UID) to the chart's ServiceAccount:
 
 ```sh
-oc adm policy add-scc-to-user nonroot-v2 -z <release>-lakerunner -n <namespace>
+oc adm policy add-scc-to-user nonroot-v2 \
+  -z $(helm get values <release> -n <namespace> -o json | jq -r '.serviceAccount.name // "lakerunner"') \
+  -n <namespace>
 ```
 
-and then keep Grafana's defaults (UID 472). If you prefer to avoid the SCC grant, swap `grafana.image.repository` for an image that supports random UIDs.
+For a stock install (`serviceAccount.name: lakerunner`, release name
+`lakerunner`) that's just:
+
+```sh
+oc adm policy add-scc-to-user nonroot-v2 -z lakerunner -n <namespace>
+```
+
+Grafana's `podSecurityContext` can then stay at its chart default (UID 472).
+If you prefer to avoid the SCC grant entirely, swap `grafana.image.repository`
+for an OpenShift-compatible image that supports random UIDs and also null
+`grafana.podSecurityContext.runAsUser`/`runAsGroup`/`fsGroup` the same way as
+section 1.
 
 ### 3. Perch needs elevated RBAC
 
