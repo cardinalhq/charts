@@ -1,4 +1,3 @@
-{{- if .Values.mcpGateway.enabled -}}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -58,4 +57,3 @@ spec:
       {{- include "maestro.sched.nodeSelector" (list .Values.global.nodeSelector .Values.mcpGateway.nodeSelector) | nindent 6 }}
       {{- include "maestro.sched.tolerations"  (list .Values.global.tolerations  .Values.mcpGateway.tolerations)  | nindent 6 }}
       {{- include "maestro.sched.affinity"     (list .Values.global.affinity     .Values.mcpGateway.affinity)     | nindent 6 }}
-{{- end }}
