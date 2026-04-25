@@ -52,6 +52,12 @@ spec:
             value: "http://{{ include "maestro.fullname" . }}-mcp-gateway:{{ .Values.mcpGateway.port }}"
           - name: PORT
             value: {{ .Values.maestro.port | quote }}
+          {{- if .Values.maestro.persistence.enabled }}
+          - name: ONTOLOGY_WORKSPACE_DIR
+            value: {{ printf "%s/git-checkouts" (.Values.maestro.persistence.mountPath | default "/var/lib/maestro") | quote }}
+          - name: ORCHESTRA_ARTIFACT_DIR
+            value: {{ printf "%s/artifacts" (.Values.maestro.persistence.mountPath | default "/var/lib/maestro") | quote }}
+          {{- end }}
           {{- include "maestro.oidcEnv" . | nindent 10 }}
           {{- with .Values.global.env }}
           {{- toYaml . | nindent 10 }}
@@ -77,6 +83,10 @@ spec:
         volumeMounts:
         - name: tmp
           mountPath: /tmp
+        {{- if .Values.maestro.persistence.enabled }}
+        - name: data
+          mountPath: {{ .Values.maestro.persistence.mountPath | default "/var/lib/maestro" | quote }}
+        {{- end }}
         {{- with .Values.maestro.extraVolumeMounts }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
@@ -86,6 +96,11 @@ spec:
       volumes:
       - name: tmp
         emptyDir: {}
+      {{- if .Values.maestro.persistence.enabled }}
+      - name: data
+        persistentVolumeClaim:
+          claimName: {{ include "maestro.fullname" . }}-data
+      {{- end }}
       {{- with .Values.maestro.extraVolumes }}
       {{- toYaml . | nindent 6 }}
       {{- end }}

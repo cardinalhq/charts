@@ -1,0 +1,22 @@
+{{- if and .Values.maestro.enabled .Values.maestro.persistence.enabled -}}
+{{- if and (gt (int .Values.maestro.replicas) 1) (ne .Values.maestro.persistence.accessMode "ReadWriteMany") -}}
+{{- fail "maestro.persistence is enabled with replicas > 1, but accessMode is not ReadWriteMany. Set maestro.persistence.accessMode=ReadWriteMany (e.g. EFS) or scale to 1 replica." -}}
+{{- end -}}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "maestro.fullname" . }}-data
+  labels:
+    {{- include "maestro.labels" . | nindent 4 }}
+    app.kubernetes.io/component: maestro
+  {{ include "maestro.annotations" . | nindent 2 }}
+spec:
+  accessModes:
+    - {{ .Values.maestro.persistence.accessMode | quote }}
+  resources:
+    requests:
+      storage: {{ .Values.maestro.persistence.size | quote }}
+  {{- with .Values.maestro.persistence.storageClass }}
+  storageClassName: {{ . | quote }}
+  {{- end }}
+{{- end }}

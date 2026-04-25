@@ -63,6 +63,20 @@ maestro:
   extraVolumes: []       # additional volumes
   extraVolumeMounts: []  # additional volume mounts
 
+  # Persistent storage for ephemeral working data: orchestra artifact
+  # payloads (per-run subdirs) and ontology git checkouts. Off by default
+  # — when enabled, mounts a PVC at `mountPath` and sets the env vars
+  # ORCHESTRA_ARTIFACT_DIR and ONTOLOGY_WORKSPACE_DIR so maestro routes
+  # both into the volume. Recommended for SaaS deployments where memory
+  # budgets are tight; not required for small/dev installs (orchestra
+  # falls back to its in-memory artifact store).
+  persistence:
+    enabled: false
+    size: 5Gi
+    accessMode: ReadWriteOnce
+    # storageClass: ""    # leave empty to use the cluster default
+    mountPath: /var/lib/maestro
+
 # MCP Gateway configuration.
 # mcp-gateway is a required companion to maestro and is always deployed;
 # there is no toggle to disable it.

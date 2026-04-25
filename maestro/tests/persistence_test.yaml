@@ -1,0 +1,105 @@
+suite: test persistent storage for artifacts and ontology checkouts
+templates:
+  - maestro-deployment.yaml
+  - maestro-pvc.yaml
+tests:
+  - it: omits PVC when persistence disabled
+    set:
+      maestro.persistence.enabled: false
+    template: maestro-pvc.yaml
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: omits volume mount and env vars when persistence disabled
+    set:
+      maestro.persistence.enabled: false
+    template: maestro-deployment.yaml
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: ORCHESTRA_ARTIFACT_DIR
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: ONTOLOGY_WORKSPACE_DIR
+
+  - it: renders PVC, mount, and env vars when persistence enabled
+    set:
+      maestro.persistence.enabled: true
+      maestro.persistence.size: 5Gi
+    template: maestro-pvc.yaml
+    asserts:
+      - hasDocuments:
+          count: 1
+      - equal:
+          path: kind
+          value: PersistentVolumeClaim
+      - equal:
+          path: spec.resources.requests.storage
+          value: 5Gi
+      - equal:
+          path: spec.accessModes[0]
+          value: ReadWriteOnce
+
+  - it: wires the volume mount and env vars when persistence enabled
+    set:
+      maestro.persistence.enabled: true
+    template: maestro-deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: ORCHESTRA_ARTIFACT_DIR
+            value: "/var/lib/maestro/artifacts"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: ONTOLOGY_WORKSPACE_DIR
+            value: "/var/lib/maestro/git-checkouts"
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: data
+            mountPath: "/var/lib/maestro"
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: data
+            persistentVolumeClaim:
+              claimName: RELEASE-NAME-maestro-data
+
+  - it: respects custom mountPath
+    set:
+      maestro.persistence.enabled: true
+      maestro.persistence.mountPath: /data/maestro
+    template: maestro-deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: ORCHESTRA_ARTIFACT_DIR
+            value: "/data/maestro/artifacts"
+
+  - it: fails when replicas > 1 with default RWO accessMode
+    set:
+      maestro.persistence.enabled: true
+      maestro.replicas: 2
+    template: maestro-pvc.yaml
+    asserts:
+      - failedTemplate:
+          errorMessage: "maestro.persistence is enabled with replicas > 1, but accessMode is not ReadWriteMany. Set maestro.persistence.accessMode=ReadWriteMany (e.g. EFS) or scale to 1 replica."
+
+  - it: allows replicas > 1 when accessMode is ReadWriteMany
+    set:
+      maestro.persistence.enabled: true
+      maestro.replicas: 2
+      maestro.persistence.accessMode: ReadWriteMany
+    template: maestro-pvc.yaml
+    asserts:
+      - hasDocuments:
+          count: 1
+      - equal:
+          path: spec.accessModes[0]
+          value: ReadWriteMany
