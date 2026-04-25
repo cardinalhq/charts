@@ -76,6 +76,13 @@ maestro:
     accessMode: ReadWriteOnce
     # storageClass: ""    # leave empty to use the cluster default
     mountPath: /var/lib/maestro
+    # SELinux MCS level pinned across pod restarts. Without a stable level,
+    # each new pod gets random MCS categories and cannot read files written
+    # by a previous pod (EACCES). The actual values are arbitrary as long as
+    # they're consistent — pick anything two-category and stick with it.
+    # Override only if it conflicts with another workload sharing the
+    # cluster's MCS namespace.
+    seLinuxLevel: "s0:c100,c200"
 
 # MCP Gateway configuration.
 # mcp-gateway is a required companion to maestro and is always deployed;

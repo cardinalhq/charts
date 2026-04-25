@@ -9,6 +9,13 @@ metadata:
   {{ include "maestro.annotations" . | nindent 2 }}
 spec:
   replicas: {{ .Values.maestro.replicas }}
+  {{- if and .Values.maestro.persistence.enabled (ne .Values.maestro.persistence.accessMode "ReadWriteMany") }}
+  # RWO volumes can only attach to one node at a time. Rolling update would
+  # deadlock the rollout (new pod scheduled to a different node, can't mount
+  # the in-use volume). Recreate forces tear-down → reattach → new pod.
+  strategy:
+    type: Recreate
+  {{- end }}
   selector:
     matchLabels:
       {{- include "maestro.selectorLabels" . | nindent 6 }}
@@ -21,7 +28,21 @@ spec:
       {{- include "maestro.annotations" . | nindent 6 }}
     spec:
       serviceAccountName: {{ include "maestro.serviceAccountName" . }}
-      {{- include "maestro.podSecurityContext" (dict "root" . "override" .Values.maestro.podSecurityContext) | nindent 6 }}
+      {{- /*
+        When persistence is enabled, pin SELinux MCS categories so the volume
+        is accessible across pod restarts. Default per-pod MCS rotation makes
+        ext4 PVC contents from a previous pod inaccessible to a new one
+        (EACCES on read/write). The user can override seLinuxOptions in
+        maestro.podSecurityContext to change the level or add type/role.
+      */}}
+      {{- $podSec := .Values.maestro.podSecurityContext | default dict -}}
+      {{- if and .Values.maestro.persistence.enabled (not (hasKey $podSec "seLinuxOptions")) -}}
+        {{- $merged := dict -}}
+        {{- range $k, $v := $podSec }}{{- $_ := set $merged $k $v -}}{{- end -}}
+        {{- $_ := set $merged "seLinuxOptions" (dict "level" .Values.maestro.persistence.seLinuxLevel) -}}
+        {{- $podSec = $merged -}}
+      {{- end }}
+      {{- include "maestro.podSecurityContext" (dict "root" . "override" $podSec) | nindent 6 }}
       {{- include "maestro.imagePullSecrets" . | nindent 6 }}
       initContainers:
       - name: wait-for-mcp-gateway
