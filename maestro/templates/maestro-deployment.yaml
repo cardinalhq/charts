@@ -70,12 +70,21 @@ spec:
             path: /api/health
             port: http
           periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        # Liveness is intentionally generous: the maestro process does
+        # bursts of CPU-bound work (ontology poller, large JSON parse,
+        # synchronous artifact writes) that briefly block the event loop.
+        # We only want liveness to fire when the process is genuinely
+        # stuck — ~3 minutes of unresponsiveness, not a transient stall.
         livenessProbe:
           httpGet:
             path: /api/health
             port: http
-          initialDelaySeconds: 15
-          periodSeconds: 10
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          timeoutSeconds: 5
+          failureThreshold: 6
         {{- if .Values.global.resources.enabled }}
         resources:
           {{- toYaml .Values.maestro.resources | nindent 10 }}
