@@ -276,3 +276,84 @@ tests:
           content:
             name: tmp
             emptyDir: {}
+
+  - it: emits DEX_PROXY_PATH and DEX_PROXY_TARGET when dex.enabled
+    set:
+      dex.enabled: true
+      maestro.baseUrl: https://m.example.com
+      dex.staticUsers:
+        - email: a@example.com
+          username: a
+          userID: u1
+          hash: "$2a$10$abc"
+    template: maestro-deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: DEX_PROXY_PATH
+            value: /dex
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: DEX_PROXY_TARGET
+            value: http://RELEASE-NAME-maestro-dex.NAMESPACE.svc:5556/dex
+
+  - it: respects custom dex.pathPrefix in DEX_PROXY env
+    set:
+      dex.enabled: true
+      dex.pathPrefix: /idp
+      maestro.baseUrl: https://m.example.com
+      dex.staticUsers:
+        - email: a@example.com
+          username: a
+          userID: u1
+          hash: "$2a$10$abc"
+    template: maestro-deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: DEX_PROXY_PATH
+            value: /idp
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: DEX_PROXY_TARGET
+            value: http://RELEASE-NAME-maestro-dex.NAMESPACE.svc:5556/idp
+
+  - it: omits DEX_PROXY env when dex.proxyEnabled is false
+    set:
+      dex.enabled: true
+      dex.proxyEnabled: false
+      maestro.baseUrl: https://m.example.com
+      dex.staticUsers:
+        - email: a@example.com
+          username: a
+          userID: u1
+          hash: "$2a$10$abc"
+    template: maestro-deployment.yaml
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: DEX_PROXY_PATH
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: DEX_PROXY_TARGET
+
+  - it: emits no DEX_PROXY env when dex.enabled is false
+    set:
+      ingress.enabled: true
+      ingress.host: m.example.com
+    template: maestro-deployment.yaml
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: DEX_PROXY_PATH
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: DEX_PROXY_TARGET

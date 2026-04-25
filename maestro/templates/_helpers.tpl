@@ -375,6 +375,23 @@ read jwks_uri) instead of hardcoding here.
 {{- end -}}
 
 {{/*
+In-cluster Dex base URL with path prefix, used as DEX_PROXY_TARGET when
+the maestro container reverse-proxies the Dex flow on behalf of the SPA.
+This makes the install reachable through any path that reaches the
+maestro Service alone — for example a single
+`kubectl port-forward --address 0.0.0.0 svc/<release>-maestro 8080:4200`
+on a bastion host — even when the cluster has no Ingress controller
+doing /dex path-routing. Harmless when an Ingress is also routing /dex
+directly: the Ingress path-match wins and requests never reach the
+in-pod proxy.
+*/}}
+{{- define "maestro.dexInternalProxyTarget" -}}
+{{- $svc := include "maestro.dexFullname" . -}}
+{{- $cfg := include "maestro.dexConfig" . | fromYaml -}}
+{{- printf "http://%s.%s.svc:%v%s" $svc .Release.Namespace $cfg.port $cfg.pathPrefix -}}
+{{- end -}}
+
+{{/*
 OIDC + base URL env vars to inject into the maestro container when the
 bundled Dex install is enabled. Emits nothing when dex.enabled is false.
 Built-ins are emitted before the user's `maestro.env` list; Kubernetes
@@ -398,6 +415,13 @@ and locked in for OIDC_ISSUER_URL specifically by dex_test.yaml).
   value: {{ $cfg.superadminGroup | quote }}
 - name: MAESTRO_BASE_URL
   value: {{ include "maestro.baseUrlOrFail" . | quote }}
+{{- /* Optional in-pod reverse proxy for Dex — see dexInternalProxyTarget. */}}
+{{- if dig "proxyEnabled" true (.Values.dex | default dict) }}
+- name: DEX_PROXY_PATH
+  value: {{ $cfg.pathPrefix | quote }}
+- name: DEX_PROXY_TARGET
+  value: {{ include "maestro.dexInternalProxyTarget" . | quote }}
+{{- end }}
 {{- end -}}
 {{- end -}}
 

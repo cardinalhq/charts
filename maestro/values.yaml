@@ -156,6 +156,17 @@ dex:
     limits:
       cpu: 200m
       memory: 128Mi
+  # When dex.enabled is true, also have the maestro container expose
+  # /<dex.pathPrefix> as a reverse proxy to the in-cluster Dex Service.
+  # This lets the SPA's OIDC flow complete through any path that reaches
+  # the maestro Service alone — for example a POC bastion port-forward
+  # against svc/<release>-maestro — without an Ingress controller doing
+  # /dex path-routing. Harmless when an Ingress is also routing /dex
+  # directly: the Ingress path-match wins and the in-pod proxy is never
+  # exercised. Set to false to opt out (env vars are not emitted; the
+  # maestro pod returns 404 for /<pathPrefix>/* and an Ingress is
+  # required for the OIDC flow to work).
+  # proxyEnabled: true
 
 # Global settings
 global:

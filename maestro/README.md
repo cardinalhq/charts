@@ -84,3 +84,11 @@ dex:
 Install will fail loudly if you set `dex.enabled: true` without a usable base URL, without any static users, or with `dex.replicas > 1`.
 
 Note: `dex.superadminGroup` only takes effect once the SPA requests the OIDC `groups` scope (tracked in [conductor#370](https://github.com/cardinalhq/conductor/issues/370)). Until that ships in a Maestro release, grant superadmin via `OIDC_SUPERADMIN_EMAILS` in `maestro.env` instead.
+
+### Single-endpoint deployments (POC bastion port-forwards)
+
+When `dex.enabled: true` (chart 0.5.24+ with maestro v1.7.16+), the chart wires the maestro pod to also serve the Dex `/<dex.pathPrefix>/*` paths by reverse-proxying to the in-cluster Dex Service. This makes the install reachable through any path that reaches the maestro Service alone — for example a single `kubectl port-forward --address 0.0.0.0 svc/<release>-maestro 8080:4200` on a bastion host. Set `maestro.baseUrl` to the URL the browser will use (e.g. `http://1-2-3-4.nip.io:8080` or `http://<bastion-ip>:8080`) and the OIDC issuer composes correctly without an Ingress.
+
+Ingress-based installs are unaffected: the Ingress's `/dex` path rule path-matches first and routes directly to the Dex Service, so the in-pod proxy is never exercised in that flow.
+
+Set `dex.proxyEnabled: false` to opt out (env vars are not emitted; the maestro pod returns 404 for `/<pathPrefix>/*` and an Ingress is required for the OIDC flow to work).
