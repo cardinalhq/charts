@@ -143,19 +143,6 @@ serviceAccount:
   name: ""
   annotations: {}
 
-# Wait-for-mcp-gateway init container image (used by the maestro deployment
-# to poll mcp-gateway readiness before starting maestro). Pinned to the
-# busybox:1.36 multi-arch manifest list digest so image pulls are
-# reproducible while still resolving to the correct per-arch variant at
-# pull time. Clear `digest` to use the floating tag, or override any
-# field to point at a mirror.
-waitContainer:
-  image:
-    repository: busybox
-    tag: "1.36"
-    digest: "sha256:73aaf090f3d85aa34ee199857f03fa3a95c8ede2ffd4cc2cdb5b94e566b11662"
-    pullPolicy: IfNotPresent
-
 # Bundled Dex OIDC provider. Most fields are kept out of this file on purpose
 # so that `--set dex.enabled=true` is enough to turn it on — defaults live in
 # templates/_helpers.tpl (maestro.dexConfig) and inline `dig` in the dex

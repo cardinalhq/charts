@@ -32,7 +32,7 @@ Both workloads (`maestro`, `mcp-gateway`) and the `wait-for-mcp-gateway` init co
 
 The defaults satisfy Kubernetes Pod Security Standards `restricted`. The map lives in `values.yaml` under `global.podSecurityContext` and `global.containerSecurityContext`; per-component overrides can be added as `maestro.podSecurityContext` / `mcpGateway.podSecurityContext` (and the `.containerSecurityContext` siblings) — the chart shallow-merges with component fields winning over global.
 
-The `wait-for-mcp-gateway` init container pulls `busybox:1.36` pinned to its multi-arch manifest list digest (`waitContainer.image.digest` in `values.yaml`), so pulls are reproducible but still resolve to the correct per-architecture variant at runtime. Clear the digest or point the repository at an internal mirror if needed.
+The `wait-for-mcp-gateway` init container reuses the unified maestro image and runs its built-in `wait-for-tcp` entrypoint subcommand, so the chart does not depend on a second image (no `busybox`/`netcat` pull) for readiness gating.
 
 ## Deploying on OpenShift
 

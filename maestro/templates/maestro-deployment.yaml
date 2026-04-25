@@ -45,19 +45,25 @@ spec:
       {{- include "maestro.podSecurityContext" (dict "root" . "override" $podSec) | nindent 6 }}
       {{- include "maestro.imagePullSecrets" . | nindent 6 }}
       initContainers:
+      # Reuses the unified maestro image so we don't need a separate
+      # busybox/netcat dependency. The entrypoint exposes a `wait-for-tcp`
+      # subcommand that polls until the target accepts a connection.
       - name: wait-for-mcp-gateway
-        image: {{ include "maestro.waitContainerImage" . }}
-        imagePullPolicy: {{ .Values.waitContainer.image.pullPolicy }}
+        image: {{ include "maestro.image" . }}
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
         {{- include "maestro.containerSecurityContext" (dict "root" . "override" .Values.maestro.containerSecurityContext) | nindent 8 }}
-        command: ['sh', '-c', 'until nc -z {{ include "maestro.fullname" . }}-mcp-gateway {{ .Values.mcpGateway.port }}; do echo waiting for mcp-gateway; sleep 2; done']
+        args:
+          - wait-for-tcp
+          - {{ include "maestro.fullname" . }}-mcp-gateway
+          - {{ .Values.mcpGateway.port | quote }}
         {{- if .Values.global.resources.enabled }}
         resources:
           requests:
             cpu: 50m
-            memory: 32Mi
+            memory: 64Mi
           limits:
             cpu: 50m
-            memory: 32Mi
+            memory: 64Mi
         {{- end }}
       containers:
       - name: maestro

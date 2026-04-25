@@ -401,18 +401,3 @@ and locked in for OIDC_ISSUER_URL specifically by dex_test.yaml).
 {{- end -}}
 {{- end -}}
 
-{{/*
-Reference image for the wait-for-mcp-gateway init container.
-Appends the multi-arch manifest list digest when set so image resolution is
-reproducible but still picks the right per-arch variant at pull time.
-*/}}
-{{- define "maestro.waitContainerImage" -}}
-{{- $repo := .Values.waitContainer.image.repository -}}
-{{- $tag := .Values.waitContainer.image.tag -}}
-{{- $digest := .Values.waitContainer.image.digest -}}
-{{- if $digest -}}
-{{ printf "%s:%s@%s" $repo $tag $digest }}
-{{- else -}}
-{{ printf "%s:%s" $repo $tag }}
-{{- end -}}
-{{- end }}
