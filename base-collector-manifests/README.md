@@ -60,11 +60,42 @@ AWS_SECRET_ACCESS_KEY: "your-secret-key"
 | Poller memory limit | `poller/deployment.yaml` resources | 500Mi |
 | Gateway replicas | `gateway/deployment.yaml` `.spec.replicas` | 2 |
 | Gateway memory limit | `gateway/deployment.yaml` resources | 2Gi |
-| Collector image tag | All three `image:` fields | `v1.5.0` |
+| Collector image tag | All three `image:` fields | `v1.7.0` |
 
 ### 4. Namespace
 
 The namespace defaults to `collector` (set in `kustomization.yaml`). To change it, update the `namespace:` field in `kustomization.yaml` and `namespace.yaml`. The agent and poller configs hardcode the gateway interproc service as `collector-gateway-interproc:24318` using short DNS — this works as long as all components are in the same namespace.
+
+### 4a. Self-telemetry
+
+Each component is configured to ship its own internal logs and metrics over
+OTLP/HTTP to the agent running on the same node (`http://${HOST_IP}:4318`).
+The agent enriches and forwards them upstream like any other workload's
+telemetry; stderr output is preserved so `kubectl logs` keeps working. Each
+component sets a distinct `service.name` (`collector-agent`,
+`collector-poller`, `collector-gateway`) so emitters can be told apart
+downstream.
+
+To opt out, delete the `processors:` and `readers:` blocks under
+`service.telemetry` in the relevant configmap.
+
+### 4b. S3 upload notifications (optional)
+
+The gateway's `awss3` exporter can POST an AWS-S3-event-shaped JSON
+envelope to an HTTP receiver after each successful upload. This is the
+intended hook for lakerunner's `pubsub-http` ingester and is disabled by
+default. To enable, uncomment the `notifications` block in
+`gateway/configmap.yaml` and set `endpoint` to your receiver, e.g.
+`http://lakerunner-pubsub-http.<ns>.svc.cluster.local:8080/`.
+
+Operator-facing metrics emitted by the notifier (under scope
+`github.com/open-telemetry/opentelemetry-collector-contrib/exporter/awss3exporter`):
+
+| Metric | Type | Attributes |
+| --- | --- | --- |
+| `notifications.sent` | counter, per record | `outcome=success` |
+| `notifications.dropped` | counter, per record | `reason={queue_full, permanent_4xx, retries_exhausted, shutdown}` |
+| `notifications.send.duration` | histogram, per HTTP attempt (seconds) | `status_class={2xx, 4xx, 5xx, network_error}` |
 
 ## Deploy
 

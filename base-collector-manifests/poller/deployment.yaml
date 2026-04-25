@@ -33,7 +33,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: collector
-          image: public.ecr.aws/cardinalhq.io/cardinalhq-otel-collector:v1.5.0
+          image: public.ecr.aws/cardinalhq.io/cardinalhq-otel-collector:v1.7.0
           imagePullPolicy: IfNotPresent
           command:
             - /app/bin/cardinalhq-otel-collector

@@ -46,6 +46,12 @@ data:
           s3_bucket: "${env:AWS_S3_BUCKET}"
           s3_force_path_style: true
           s3_prefix: "otel-raw/${env:LAKERUNNER_ORGANIZATION_ID}/${env:K8S_CLUSTER_NAME}"
+          # Optional: HTTP webhook on each successful S3 upload. The body is
+          # an AWS S3 event envelope, accepted by lakerunner's pubsub-http
+          # service and any other S3-event-shaped consumer. Leave commented
+          # out to disable. Typical lakerunner in-cluster endpoint:
+          # notifications:
+          #   endpoint: http://lakerunner-pubsub-http.<lakerunner-namespace>.svc.cluster.local:8080/
       # Load-balancing across gateway pods for external metrics (by streamID)
       loadbalancing/metrics:
         protocol:
@@ -154,7 +160,23 @@ data:
           exporters: [awss3]
 
       telemetry:
+        resource:
+          service.name: collector-gateway
+        # Self-telemetry: ship internal logs and metrics to the local-node
+        # agent on hostPort 4318. Stderr output is unaffected.
         logs:
           level: INFO
+          processors:
+            - batch:
+                exporter:
+                  otlp:
+                    protocol: http/protobuf
+                    endpoint: http://${env:HOST_IP}:4318
         metrics:
           level: normal
+          readers:
+            - periodic:
+                exporter:
+                  otlp:
+                    protocol: http/protobuf
+                    endpoint: http://${env:HOST_IP}:4318

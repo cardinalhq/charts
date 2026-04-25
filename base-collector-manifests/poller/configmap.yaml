@@ -49,7 +49,23 @@ data:
           exporters: [otlphttp/upstream]
 
       telemetry:
+        resource:
+          service.name: collector-poller
+        # Self-telemetry: ship internal logs and metrics to the local-node
+        # agent on hostPort 4318. Stderr output is unaffected.
         logs:
           level: INFO
+          processors:
+            - batch:
+                exporter:
+                  otlp:
+                    protocol: http/protobuf
+                    endpoint: http://${env:HOST_IP}:4318
         metrics:
           level: normal
+          readers:
+            - periodic:
+                exporter:
+                  otlp:
+                    protocol: http/protobuf
+                    endpoint: http://${env:HOST_IP}:4318
