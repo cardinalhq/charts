@@ -91,21 +91,23 @@ spec:
             path: /api/health
             port: http
           periodSeconds: 10
-          timeoutSeconds: 5
+          timeoutSeconds: 10
           failureThreshold: 3
-        # Liveness is intentionally generous: the maestro process does
-        # bursts of CPU-bound work (ontology poller, large JSON parse,
-        # synchronous artifact writes) that briefly block the event loop.
-        # We only want liveness to fire when the process is genuinely
-        # stuck — ~3 minutes of unresponsiveness, not a transient stall.
+        # Liveness exists only to catch a *genuinely* stuck process. Maestro
+        # does bursts of CPU-bound work — multi-MB JSON.parse on MCP tool
+        # responses, JSON.stringify for artifact size accounting, the
+        # ontology poller's 60–90s sync — that briefly blocks the event loop.
+        # Tight liveness misreads "busy" as "dead" and SIGKILLs a healthy pod
+        # mid-run. ~10 minutes of consecutive unresponsiveness before we
+        # decide the process is actually wedged.
         livenessProbe:
           httpGet:
             path: /api/health
             port: http
-          initialDelaySeconds: 30
+          initialDelaySeconds: 60
           periodSeconds: 30
-          timeoutSeconds: 5
-          failureThreshold: 6
+          timeoutSeconds: 10
+          failureThreshold: 20
         {{- if .Values.global.resources.enabled }}
         resources:
           {{- toYaml .Values.maestro.resources | nindent 10 }}
