@@ -92,3 +92,33 @@ When `dex.enabled: true` (chart 0.5.24+ with maestro v1.7.16+), the chart wires 
 Ingress-based installs are unaffected: the Ingress's `/dex` path rule path-matches first and routes directly to the Dex Service, so the in-pod proxy is never exercised in that flow.
 
 Set `dex.proxyEnabled: false` to opt out (env vars are not emitted; the maestro pod returns 404 for `/<pathPrefix>/*` and an Ingress is required for the OIDC flow to work).
+
+#### HTTPS at the maestro Service (chart 0.5.25+)
+
+When the consumer requires HTTPS but no Ingress controller is doing TLS termination — for example a POC bastion port-forward that the customer's policy mandates be served over TLS — set `maestro.tls.enabled: true`. The chart adds an nginx-unprivileged sidecar in the maestro pod that listens on `maestro.tls.port` (default `4443`) and proxies to the maestro container on localhost. The maestro Service exposes the new HTTPS port alongside the existing HTTP one.
+
+```yaml
+maestro:
+  baseUrl: https://1-2-3-4.nip.io:8443
+  tls:
+    enabled: true
+    # cert.autoGenerate: true (default) — self-signed cert generated at pod
+    # start with SAN = host of maestro.baseUrl + cert.sans extras.
+    cert:
+      sans: []
+    # OR: bring your own (cert-manager, manual Secret, etc.)
+    # secretName: my-tls
+ingress:
+  enabled: false
+dex:
+  enabled: true
+  staticUsers: [...]
+```
+
+```sh
+kubectl port-forward --address 0.0.0.0 svc/<release>-maestro 8443:4443
+```
+
+The chart fails template rendering when `tls.enabled: true` and the resolved base URL isn't `https://`, so OIDC URLs always match the served scheme. Auto-generated certs regenerate on every pod restart (browser re-prompts for trust); use `tls.secretName` for stable certs.
+
+All sidecar/init images are overridable: `maestro.tls.image.{repository,tag,pullPolicy}` for the nginx sidecar, `maestro.tls.cert.image.{repository,tag,pullPolicy}` for the openssl cert-init. `dex.image.{repository,tag,pullPolicy}` overrides the bundled Dex image (defaults in `templates/_helpers.tpl`).
