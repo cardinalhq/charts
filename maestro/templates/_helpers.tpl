@@ -269,6 +269,42 @@ before composition, so common operator typos like
 {{- end -}}
 
 {{/*
+Hostname-only view of maestro.baseUrl, with scheme and port stripped.
+Used by the TLS sidecar's cert-init container to put the right CN/SAN
+on its self-signed certificate.
+*/}}
+{{- define "maestro.baseUrlHost" -}}
+{{- $base := include "maestro.baseUrl" . -}}
+{{- $hostport := $base | trimPrefix "https://" | trimPrefix "http://" | trimSuffix "/" -}}
+{{- regexReplaceAll ":[0-9]+$" $hostport "" -}}
+{{- end -}}
+
+{{/*
+Validate maestro.tls inputs:
+  * tls.enabled=true requires the resolved baseUrl to use https://, so the
+    OIDC issuer URL the SPA hands to the browser matches the scheme the
+    maestro Service actually serves.
+  * Exactly one of cert.autoGenerate=true OR secretName must be set.
+*/}}
+{{- define "maestro.tlsValidate" -}}
+{{- $tls := dig "tls" dict (.Values.maestro | default dict) -}}
+{{- if dig "enabled" false $tls -}}
+  {{- $base := include "maestro.baseUrlOrFail" . -}}
+  {{- if not (hasPrefix "https://" $base) -}}
+    {{- fail (printf "maestro.tls.enabled=true requires maestro.baseUrl to use https:// (got %q). Either set maestro.baseUrl to an https URL or set ingress.tls so the chart derives one." $base) -}}
+  {{- end -}}
+  {{- $autogen := dig "cert" "autoGenerate" true $tls -}}
+  {{- $secret := dig "secretName" "" $tls -}}
+  {{- if and $autogen $secret -}}
+    {{- fail "maestro.tls: set exactly one of cert.autoGenerate=true OR secretName, not both" -}}
+  {{- end -}}
+  {{- if and (not $autogen) (not $secret) -}}
+    {{- fail "maestro.tls.enabled=true requires either cert.autoGenerate=true (default) or a non-empty secretName" -}}
+  {{- end -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
 Same as maestro.baseUrl but fails template rendering when the result is
 empty. Use everywhere a dex-related URL is composed so a missing base
 URL produces an explicit install-time error rather than a silent `/`

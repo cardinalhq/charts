@@ -65,6 +65,57 @@ spec:
             cpu: 50m
             memory: 64Mi
         {{- end }}
+      {{- if and (dig "tls" "enabled" false .Values.maestro) (dig "tls" "cert" "autoGenerate" true .Values.maestro) (not (dig "tls" "secretName" "" .Values.maestro)) }}
+      # Generates a self-signed cert into the shared `tls` emptyDir at pod
+      # start. Cert regenerates each pod restart — fine for POC, swap to
+      # maestro.tls.secretName for stable certs.
+      - name: tls-init
+        image: "{{ .Values.maestro.tls.cert.image.repository }}:{{ .Values.maestro.tls.cert.image.tag }}"
+        imagePullPolicy: {{ .Values.maestro.tls.cert.image.pullPolicy }}
+        {{- include "maestro.containerSecurityContext" (dict "root" . "override" .Values.maestro.containerSecurityContext) | nindent 8 }}
+        command: ["/bin/sh", "-c"]
+        args:
+          - |
+            set -e
+            HOST="${TLS_HOST}"
+            EXTRA_SANS="${TLS_EXTRA_SANS}"
+            SAN="DNS:${HOST}"
+            if [ -n "${EXTRA_SANS}" ]; then SAN="${SAN},${EXTRA_SANS}"; fi
+            cat >/tmp/openssl.cnf <<EOF
+            [req]
+            distinguished_name=req
+            prompt=no
+            req_extensions=v3
+            [req_distinguished_name]
+            CN=${HOST}
+            [v3]
+            subjectAltName=${SAN}
+            basicConstraints=CA:FALSE
+            keyUsage=digitalSignature,keyEncipherment
+            extendedKeyUsage=serverAuth
+            EOF
+            openssl req -x509 -newkey rsa:2048 -nodes \
+              -keyout /tls/tls.key -out /tls/tls.crt \
+              -days 365 -extensions v3 -config /tmp/openssl.cnf
+            chmod 0644 /tls/tls.key /tls/tls.crt
+        env:
+          - name: TLS_HOST
+            value: {{ include "maestro.baseUrlHost" . | quote }}
+          - name: TLS_EXTRA_SANS
+            value: {{ join "," (default list .Values.maestro.tls.cert.sans) | quote }}
+        volumeMounts:
+          - name: tls
+            mountPath: /tls
+        {{- if .Values.global.resources.enabled }}
+        resources:
+          requests:
+            cpu: 50m
+            memory: 32Mi
+          limits:
+            cpu: 200m
+            memory: 64Mi
+        {{- end }}
+      {{- end }}
       containers:
       - name: maestro
         {{- include "maestro.containerSecurityContext" (dict "root" . "override" .Values.maestro.containerSecurityContext) | nindent 8 }}
@@ -128,6 +179,51 @@ spec:
         {{- with .Values.maestro.extraVolumeMounts }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
+      {{- if dig "tls" "enabled" false .Values.maestro }}
+      # TLS-terminating sidecar. Listens on tls.port, proxies plaintext
+      # to the maestro container on localhost. Mounts the cert from the
+      # tls volume (populated by tls-init when autoGenerate=true, or from
+      # maestro.tls.secretName).
+      - name: tls-proxy
+        image: "{{ .Values.maestro.tls.image.repository }}:{{ .Values.maestro.tls.image.tag }}"
+        imagePullPolicy: {{ .Values.maestro.tls.image.pullPolicy }}
+        {{- include "maestro.containerSecurityContext" (dict "root" . "override" .Values.maestro.containerSecurityContext) | nindent 8 }}
+        ports:
+          - containerPort: {{ .Values.maestro.tls.port }}
+            name: https
+        readinessProbe:
+          tcpSocket:
+            port: https
+          periodSeconds: 5
+          timeoutSeconds: 3
+        livenessProbe:
+          tcpSocket:
+            port: https
+          initialDelaySeconds: 15
+          periodSeconds: 30
+          timeoutSeconds: 5
+          failureThreshold: 3
+        volumeMounts:
+          - name: tls
+            mountPath: /etc/nginx/tls
+            readOnly: true
+          - name: tls-config
+            mountPath: /etc/nginx/conf.d
+            readOnly: true
+          # nginx-unprivileged needs writable scratch space under
+          # /tmp + /var/cache/nginx for its worker temp files. Reuse
+          # the maestro pod's existing `tmp` emptyDir.
+          - name: tmp
+            mountPath: /var/cache/nginx
+            subPath: nginx-cache
+          - name: tmp
+            mountPath: /tmp/nginx
+            subPath: nginx-tmp
+        {{- if .Values.global.resources.enabled }}
+        resources:
+          {{- toYaml .Values.maestro.tls.resources | nindent 10 }}
+        {{- end }}
+      {{- end }}
       {{- include "maestro.sched.nodeSelector" (list .Values.global.nodeSelector .Values.maestro.nodeSelector) | nindent 6 }}
       {{- include "maestro.sched.tolerations"  (list .Values.global.tolerations  .Values.maestro.tolerations)  | nindent 6 }}
       {{- include "maestro.sched.affinity"     (list .Values.global.affinity     .Values.maestro.affinity)     | nindent 6 }}
@@ -138,6 +234,18 @@ spec:
       - name: data
         persistentVolumeClaim:
           claimName: {{ include "maestro.fullname" . }}-data
+      {{- end }}
+      {{- if dig "tls" "enabled" false .Values.maestro }}
+      - name: tls
+        {{- if dig "tls" "secretName" "" .Values.maestro }}
+        secret:
+          secretName: {{ .Values.maestro.tls.secretName }}
+        {{- else }}
+        emptyDir: {}
+        {{- end }}
+      - name: tls-config
+        configMap:
+          name: {{ include "maestro.fullname" . }}-maestro-tls
       {{- end }}
       {{- with .Values.maestro.extraVolumes }}
       {{- toYaml . | nindent 6 }}

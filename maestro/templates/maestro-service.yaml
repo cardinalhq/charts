@@ -13,6 +13,11 @@ spec:
     - port: {{ .Values.maestro.port }}
       targetPort: http
       name: http
+    {{- if dig "tls" "enabled" false (.Values.maestro | default dict) }}
+    - port: {{ .Values.maestro.tls.port }}
+      targetPort: https
+      name: https
+    {{- end }}
   selector:
     {{- include "maestro.selectorLabels" . | nindent 4 }}
     app.kubernetes.io/component: maestro

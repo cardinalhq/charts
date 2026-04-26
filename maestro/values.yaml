@@ -63,6 +63,60 @@ maestro:
   extraVolumes: []       # additional volumes
   extraVolumeMounts: []  # additional volume mounts
 
+  # Optional in-pod TLS termination. When enabled, the chart adds an
+  # nginx-unprivileged sidecar that listens on `tls.port` with a
+  # certificate from one of two sources, and the maestro Service exposes
+  # both the HTTP port (still cluster-internal) and the new HTTPS port.
+  # Use this when the consumer requires HTTPS but no Ingress controller
+  # is doing TLS termination — for example a POC bastion port-forward
+  # against the maestro Service. The maestro container itself keeps
+  # speaking plain HTTP on localhost; the sidecar terminates TLS and
+  # proxies to it.
+  #
+  # The chart fails template rendering when tls.enabled=true unless
+  # `maestro.baseUrl` (or the derived ingress.host+ingress.tls combo)
+  # uses https://, so the OIDC URLs the SPA hands to the browser match
+  # the actual scheme served.
+  tls:
+    enabled: false
+    # Container port the sidecar listens on. The maestro Service exposes
+    # this as `https`. Operators typically port-forward this port.
+    port: 4443
+    # Sidecar image. Overridable for air-gapped registries.
+    image:
+      repository: nginxinc/nginx-unprivileged
+      tag: "1.27-alpine"
+      pullPolicy: IfNotPresent
+    # Additional resources for the sidecar.
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        cpu: 200m
+        memory: 128Mi
+    # Certificate source — pick exactly one path. The chart fails
+    # rendering if both `cert.autoGenerate` and `secretName` are set.
+    cert:
+      # When true and `secretName` is empty, an init container generates
+      # a self-signed cert into an emptyDir at pod start. The cert
+      # regenerates on every pod restart, so browsers re-prompt for
+      # trust each time — fine for POC, swap to `secretName` for stable
+      # operation.
+      autoGenerate: true
+      # Extra Subject Alternative Names beyond the host extracted from
+      # `maestro.baseUrl`. Use this to add bastion hostnames or IPs.
+      sans: []
+      # Image used by the cert-init container. openssl CLI is the only
+      # requirement.
+      image:
+        repository: cgr.dev/chainguard/openssl
+        tag: latest
+        pullPolicy: IfNotPresent
+    # Reference an existing kubernetes.io/tls Secret instead of
+    # generating one. Mutually exclusive with cert.autoGenerate=true.
+    # secretName: ""
+
   # Persistent storage for ephemeral working data: orchestra artifact
   # payloads (per-run subdirs) and ontology git checkouts. Off by default
   # — when enabled, mounts a PVC at `mountPath` and sets the env vars
@@ -149,6 +203,14 @@ serviceAccount:
 # templates. `resources` is surfaced here so operators can tune CPU/memory
 # without chasing template internals.
 dex:
+  # Dex container image. Defaults are also defined in templates/_helpers.tpl
+  # (maestro.dexConfig) so `--set dex.enabled=true` keeps working with
+  # zero extra fields. Surfaced here so air-gapped/private-registry
+  # installs can override without chasing template internals.
+  # image:
+  #   repository: ghcr.io/dexidp/dex
+  #   tag: v2.41.1
+  #   pullPolicy: IfNotPresent
   resources:
     requests:
       cpu: 200m

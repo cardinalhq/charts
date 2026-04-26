@@ -1,0 +1,162 @@
+suite: in-pod TLS sidecar
+templates:
+  - maestro-deployment.yaml
+  - maestro-service.yaml
+  - maestro-tls-config.yaml
+tests:
+  - it: emits no TLS resources when disabled
+    set:
+      maestro.baseUrl: https://m.example.com
+    asserts:
+      - template: maestro-tls-config.yaml
+        hasDocuments: { count: 0 }
+      - template: maestro-deployment.yaml
+        notContains:
+          path: spec.template.spec.containers
+          content:
+            name: tls-proxy
+          any: true
+      - template: maestro-deployment.yaml
+        notContains:
+          path: spec.template.spec.initContainers
+          content:
+            name: tls-init
+          any: true
+      - template: maestro-service.yaml
+        notContains:
+          path: spec.ports
+          content:
+            name: https
+          any: true
+
+  - it: with autoGenerate, adds tls-init + tls-proxy + service https port
+    set:
+      maestro.baseUrl: https://m.example.com
+      maestro.tls.enabled: true
+    asserts:
+      - template: maestro-deployment.yaml
+        contains:
+          path: spec.template.spec.initContainers
+          content:
+            name: tls-init
+          any: true
+      - template: maestro-deployment.yaml
+        contains:
+          path: spec.template.spec.containers
+          content:
+            name: tls-proxy
+          any: true
+      - template: maestro-service.yaml
+        contains:
+          path: spec.ports
+          content:
+            port: 4443
+            targetPort: https
+            name: https
+
+  - it: tls-proxy uses overridable image
+    set:
+      maestro.baseUrl: https://m.example.com
+      maestro.tls.enabled: true
+      maestro.tls.image.repository: registry.example.com/nginx
+      maestro.tls.image.tag: 1.27-custom
+    asserts:
+      - template: maestro-deployment.yaml
+        contains:
+          path: spec.template.spec.containers
+          content:
+            name: tls-proxy
+            image: registry.example.com/nginx:1.27-custom
+          any: true
+
+  - it: tls-init uses overridable openssl image and skips when secretName set
+    set:
+      maestro.baseUrl: https://m.example.com
+      maestro.tls.enabled: true
+      maestro.tls.cert.autoGenerate: false
+      maestro.tls.secretName: my-tls
+    asserts:
+      - template: maestro-deployment.yaml
+        notContains:
+          path: spec.template.spec.initContainers
+          content:
+            name: tls-init
+          any: true
+      - template: maestro-deployment.yaml
+        contains:
+          path: spec.template.spec.volumes
+          content:
+            name: tls
+            secret:
+              secretName: my-tls
+
+  - it: rejects http baseUrl when tls.enabled
+    set:
+      maestro.baseUrl: http://m.example.com
+      maestro.tls.enabled: true
+    template: maestro-tls-config.yaml
+    asserts:
+      - failedTemplate:
+          errorMessage: "maestro.tls.enabled=true requires maestro.baseUrl to use https:// (got \"http://m.example.com\"). Either set maestro.baseUrl to an https URL or set ingress.tls so the chart derives one."
+
+  - it: rejects both autoGenerate and secretName
+    set:
+      maestro.baseUrl: https://m.example.com
+      maestro.tls.enabled: true
+      maestro.tls.cert.autoGenerate: true
+      maestro.tls.secretName: my-tls
+    template: maestro-tls-config.yaml
+    asserts:
+      - failedTemplate:
+          errorMessage: "maestro.tls: set exactly one of cert.autoGenerate=true OR secretName, not both"
+
+  - it: rejects neither autoGenerate nor secretName
+    set:
+      maestro.baseUrl: https://m.example.com
+      maestro.tls.enabled: true
+      maestro.tls.cert.autoGenerate: false
+    template: maestro-tls-config.yaml
+    asserts:
+      - failedTemplate:
+          errorMessage: "maestro.tls.enabled=true requires either cert.autoGenerate=true (default) or a non-empty secretName"
+
+  - it: cert-init uses overridable openssl image
+    set:
+      maestro.baseUrl: https://m.example.com
+      maestro.tls.enabled: true
+      maestro.tls.cert.image.repository: registry.example.com/openssl
+      maestro.tls.cert.image.tag: "3.3"
+    asserts:
+      - template: maestro-deployment.yaml
+        contains:
+          path: spec.template.spec.initContainers
+          content:
+            name: tls-init
+            image: registry.example.com/openssl:3.3
+          any: true
+
+  - it: cert-init injects host derived from baseUrl into env
+    set:
+      maestro.baseUrl: https://m.example.com:8443
+      maestro.tls.enabled: true
+      maestro.tls.cert.sans:
+        - bastion.example.com
+        - 1-2-3-4.nip.io
+    asserts:
+      # tls-init is initContainers[1] (wait-for-mcp-gateway is [0]).
+      - template: maestro-deployment.yaml
+        equal:
+          path: spec.template.spec.initContainers[1].name
+          value: tls-init
+      - template: maestro-deployment.yaml
+        contains:
+          path: spec.template.spec.initContainers[1].env
+          content:
+            name: TLS_HOST
+            value: m.example.com
+      - template: maestro-deployment.yaml
+        contains:
+          path: spec.template.spec.initContainers[1].env
+          content:
+            name: TLS_EXTRA_SANS
+            value: bastion.example.com,1-2-3-4.nip.io
