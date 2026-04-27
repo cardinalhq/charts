@@ -116,6 +116,36 @@ spec:
             memory: 64Mi
         {{- end }}
       {{- end }}
+      {{- if dig "tls" "enabled" false .Values.maestro }}
+      # /etc/nginx/conf.d sits on the read-only rootfs. The
+      # nginx-unprivileged entrypoint (10-listen-on-ipv6-by-default.sh)
+      # tries to touch default.conf at startup and fails. Stage the
+      # rendered server block from the configmap into a writable
+      # emptyDir so the entrypoint scripts and nginx itself have a
+      # writable conf.d.
+      - name: nginx-conf-init
+        image: "{{ .Values.maestro.tls.image.repository }}:{{ .Values.maestro.tls.image.tag }}"
+        imagePullPolicy: {{ .Values.maestro.tls.image.pullPolicy }}
+        {{- include "maestro.containerSecurityContext" (dict "root" . "override" .Values.maestro.containerSecurityContext) | nindent 8 }}
+        command: ["/bin/sh", "-c"]
+        args:
+          - cp /src/default.conf /dst/default.conf
+        volumeMounts:
+          - name: tls-config
+            mountPath: /src
+            readOnly: true
+          - name: nginx-conf
+            mountPath: /dst
+        {{- if .Values.global.resources.enabled }}
+        resources:
+          requests:
+            cpu: 50m
+            memory: 32Mi
+          limits:
+            cpu: 50m
+            memory: 64Mi
+        {{- end }}
+      {{- end }}
       containers:
       - name: maestro
         {{- include "maestro.containerSecurityContext" (dict "root" . "override" .Values.maestro.containerSecurityContext) | nindent 8 }}
@@ -207,9 +237,11 @@ spec:
           - name: tls
             mountPath: /etc/nginx/tls
             readOnly: true
-          - name: tls-config
+          # nginx-conf is populated by the nginx-conf-init init container
+          # from the tls-config configmap. emptyDir (vs. configmap mount)
+          # keeps /etc/nginx/conf.d writable for the entrypoint scripts.
+          - name: nginx-conf
             mountPath: /etc/nginx/conf.d
-            readOnly: true
           # nginx-unprivileged needs writable scratch space under
           # /tmp + /var/cache/nginx for its worker temp files. Reuse
           # the maestro pod's existing `tmp` emptyDir.
@@ -247,6 +279,8 @@ spec:
       - name: tls-config
         configMap:
           name: {{ include "maestro.fullname" . }}-maestro-tls
+      - name: nginx-conf
+        emptyDir: {}
       {{- end }}
       {{- with .Values.maestro.extraVolumes }}
       {{- toYaml . | nindent 6 }}
