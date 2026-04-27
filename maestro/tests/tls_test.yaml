@@ -57,6 +57,38 @@ tests:
             targetPort: https
             name: https
 
+  - it: stages nginx conf into a writable emptyDir via init container
+    set:
+      maestro.baseUrl: https://m.example.com
+      maestro.tls.enabled: true
+    asserts:
+      - template: maestro-deployment.yaml
+        contains:
+          path: spec.template.spec.initContainers
+          content:
+            name: nginx-conf-init
+          any: true
+      - template: maestro-deployment.yaml
+        contains:
+          path: spec.template.spec.volumes
+          content:
+            name: nginx-conf
+            emptyDir: {}
+      - template: maestro-deployment.yaml
+        notContains:
+          path: spec.template.spec.containers[?(@.name=="tls-proxy")].volumeMounts
+          content:
+            name: tls-config
+            mountPath: /etc/nginx/conf.d
+            readOnly: true
+      - template: maestro-deployment.yaml
+        contains:
+          path: spec.template.spec.containers[?(@.name=="tls-proxy")].volumeMounts
+          content:
+            name: nginx-conf
+            mountPath: /etc/nginx/conf.d
+          any: true
+
   - it: nginx config redirects all temp paths under /tmp/nginx
     set:
       maestro.baseUrl: https://m.example.com
