@@ -18,6 +18,15 @@ data:
       ssl_protocols       TLSv1.2 TLSv1.3;
       client_max_body_size 50m;
 
+      # nginx ignores TMPDIR; its default temp paths (e.g. /tmp/proxy_temp)
+      # sit on the read-only root FS. Redirect every temp path under the
+      # writable /tmp/nginx subPath of the shared `tmp` emptyDir.
+      client_body_temp_path /tmp/nginx/client_body;
+      proxy_temp_path       /tmp/nginx/proxy;
+      fastcgi_temp_path     /tmp/nginx/fastcgi;
+      uwsgi_temp_path       /tmp/nginx/uwsgi;
+      scgi_temp_path        /tmp/nginx/scgi;
+
       location / {
         proxy_pass http://127.0.0.1:{{ .Values.maestro.port }};
         proxy_http_version 1.1;

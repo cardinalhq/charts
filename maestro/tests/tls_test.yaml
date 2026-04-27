@@ -57,6 +57,32 @@ tests:
             targetPort: https
             name: https
 
+  - it: nginx config redirects all temp paths under /tmp/nginx
+    set:
+      maestro.baseUrl: https://m.example.com
+      maestro.tls.enabled: true
+    asserts:
+      - template: maestro-tls-config.yaml
+        matchRegex:
+          path: data["default.conf"]
+          pattern: "client_body_temp_path /tmp/nginx/client_body;"
+      - template: maestro-tls-config.yaml
+        matchRegex:
+          path: data["default.conf"]
+          pattern: "proxy_temp_path       /tmp/nginx/proxy;"
+      - template: maestro-tls-config.yaml
+        matchRegex:
+          path: data["default.conf"]
+          pattern: "fastcgi_temp_path     /tmp/nginx/fastcgi;"
+      - template: maestro-tls-config.yaml
+        matchRegex:
+          path: data["default.conf"]
+          pattern: "uwsgi_temp_path       /tmp/nginx/uwsgi;"
+      - template: maestro-tls-config.yaml
+        matchRegex:
+          path: data["default.conf"]
+          pattern: "scgi_temp_path        /tmp/nginx/scgi;"
+
   - it: tls-proxy uses overridable image
     set:
       maestro.baseUrl: https://m.example.com
