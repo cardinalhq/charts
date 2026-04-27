@@ -97,16 +97,32 @@ Set `dex.proxyEnabled: false` to opt out (env vars are not emitted; the maestro 
 
 When the consumer requires HTTPS but no Ingress controller is doing TLS termination — for example a POC bastion port-forward that the customer's policy mandates be served over TLS — set `maestro.tls.enabled: true`. The chart adds an nginx-unprivileged sidecar in the maestro pod that listens on `maestro.tls.port` (default `4443`) and proxies to the maestro container on localhost. The maestro Service exposes the new HTTPS port alongside the existing HTTP one.
 
+Pick exactly one of three certificate sources:
+
 ```yaml
 maestro:
   baseUrl: https://1-2-3-4.nip.io:8443
   tls:
     enabled: true
-    # cert.autoGenerate: true (default) — self-signed cert generated at pod
-    # start with SAN = host of maestro.baseUrl + cert.sans extras.
     cert:
+      # 1. autoGenerate (default) — self-signed cert generated at pod start
+      # with SAN = host of maestro.baseUrl + cert.sans extras. Cert
+      # regenerates on every pod restart, so browsers re-prompt for trust.
+      autoGenerate: true
       sans: []
-    # OR: bring your own (cert-manager, manual Secret, etc.)
+
+      # 2. Inline PEM cert + key. The chart creates a kubernetes.io/tls
+      # Secret named "<release>-maestro-tls-cert" and the sidecar mounts
+      # it. Set `autoGenerate: false` when using this path.
+      # crt: |
+      #   -----BEGIN CERTIFICATE-----
+      #   ...
+      # key: |
+      #   -----BEGIN PRIVATE KEY-----
+      #   ...
+
+    # 3. Reference an existing kubernetes.io/tls Secret (cert-manager,
+    # manual creation, etc.). Set cert.autoGenerate: false when using it.
     # secretName: my-tls
 ingress:
   enabled: false
@@ -119,6 +135,27 @@ dex:
 kubectl port-forward --address 0.0.0.0 svc/<release>-maestro 8443:4443
 ```
 
-The chart fails template rendering when `tls.enabled: true` and the resolved base URL isn't `https://`, so OIDC URLs always match the served scheme. Auto-generated certs regenerate on every pod restart (browser re-prompts for trust); use `tls.secretName` for stable certs.
+For an IP-only POC bastion (no DNS), generate a matching self-signed cert
+with the bundled helper and feed the files in via `helm --set-file`:
+
+```sh
+maestro/scripts/gen-tls-cert.sh 1.2.3.4 --out-dir /tmp/maestro-tls
+helm upgrade --install <release> oci://public.ecr.aws/cardinalhq.io/maestro \
+  --values values-local.yaml \
+  --set maestro.tls.enabled=true \
+  --set maestro.tls.cert.autoGenerate=false \
+  --set-file maestro.tls.cert.crt=/tmp/maestro-tls/tls.crt \
+  --set-file maestro.tls.cert.key=/tmp/maestro-tls/tls.key
+```
+
+The script validates the dotted-quad format, emits `tls.crt`/`tls.key`
+with `IP:1.2.3.4` as the SAN, and prints the matching helm command on
+stdout. Use `--extra-san DNS:bastion.local` (repeatable) to add more
+SANs when the same install is reachable through multiple hostnames.
+
+The chart fails template rendering when `tls.enabled: true` and the
+resolved base URL isn't `https://`, so OIDC URLs always match the served
+scheme. It also fails when more than one cert source is configured, or
+when only one of `cert.crt`/`cert.key` is set.
 
 All sidecar/init images are overridable: `maestro.tls.image.{repository,tag,pullPolicy}` for the nginx sidecar, `maestro.tls.cert.image.{repository,tag,pullPolicy}` for the openssl cert-init. `dex.image.{repository,tag,pullPolicy}` overrides the bundled Dex image (defaults in `templates/_helpers.tpl`).

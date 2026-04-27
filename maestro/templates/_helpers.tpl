@@ -284,7 +284,10 @@ Validate maestro.tls inputs:
   * tls.enabled=true requires the resolved baseUrl to use https://, so the
     OIDC issuer URL the SPA hands to the browser matches the scheme the
     maestro Service actually serves.
-  * Exactly one of cert.autoGenerate=true OR secretName must be set.
+  * Exactly one of three cert sources must be configured:
+      - cert.autoGenerate=true (default, in-pod self-signed)
+      - secretName (existing kubernetes.io/tls Secret)
+      - cert.crt + cert.key (inline PEM, chart creates the Secret)
 */}}
 {{- define "maestro.tlsValidate" -}}
 {{- $tls := dig "tls" dict (.Values.maestro | default dict) -}}
@@ -295,12 +298,42 @@ Validate maestro.tls inputs:
   {{- end -}}
   {{- $autogen := dig "cert" "autoGenerate" true $tls -}}
   {{- $secret := dig "secretName" "" $tls -}}
-  {{- if and $autogen $secret -}}
-    {{- fail "maestro.tls: set exactly one of cert.autoGenerate=true OR secretName, not both" -}}
+  {{- $crt := dig "cert" "crt" "" $tls -}}
+  {{- $key := dig "cert" "key" "" $tls -}}
+  {{- if or (and $crt (not $key)) (and $key (not $crt)) -}}
+    {{- fail "maestro.tls.cert: set both cert.crt and cert.key, or neither" -}}
   {{- end -}}
-  {{- if and (not $autogen) (not $secret) -}}
-    {{- fail "maestro.tls.enabled=true requires either cert.autoGenerate=true (default) or a non-empty secretName" -}}
+  {{- $inline := and $crt $key -}}
+  {{- $count := 0 -}}
+  {{- if $autogen -}}{{- $count = add $count 1 -}}{{- end -}}
+  {{- if $secret -}}{{- $count = add $count 1 -}}{{- end -}}
+  {{- if $inline -}}{{- $count = add $count 1 -}}{{- end -}}
+  {{- if gt $count 1 -}}
+    {{- fail "maestro.tls: set exactly one cert source — cert.autoGenerate=true, secretName, or cert.crt+cert.key (set cert.autoGenerate=false when using one of the BYO paths)" -}}
   {{- end -}}
+  {{- if eq $count 0 -}}
+    {{- fail "maestro.tls.enabled=true requires one cert source: cert.autoGenerate=true (default), a non-empty secretName, or cert.crt+cert.key" -}}
+  {{- end -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Resolve the Secret name the TLS sidecar mounts. Returns:
+  * .Values.maestro.tls.secretName when a user-provided Secret is referenced.
+  * "<fullname>-maestro-tls-cert" when inline cert.crt+cert.key are set
+    (the chart creates that Secret via templates/maestro-tls-secret.yaml).
+  * empty string when autoGenerate is in effect (the volume is an emptyDir
+    populated by the tls-init container).
+*/}}
+{{- define "maestro.tlsResolvedSecretName" -}}
+{{- $tls := dig "tls" dict (.Values.maestro | default dict) -}}
+{{- $secret := dig "secretName" "" $tls -}}
+{{- $crt := dig "cert" "crt" "" $tls -}}
+{{- $key := dig "cert" "key" "" $tls -}}
+{{- if $secret -}}
+{{- $secret -}}
+{{- else if and $crt $key -}}
+{{- printf "%s-maestro-tls-cert" (include "maestro.fullname" .) -}}
 {{- end -}}
 {{- end -}}
 

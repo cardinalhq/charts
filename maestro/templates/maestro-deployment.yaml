@@ -237,9 +237,10 @@ spec:
       {{- end }}
       {{- if dig "tls" "enabled" false .Values.maestro }}
       - name: tls
-        {{- if dig "tls" "secretName" "" .Values.maestro }}
+        {{- $tlsSecret := include "maestro.tlsResolvedSecretName" . }}
+        {{- if $tlsSecret }}
         secret:
-          secretName: {{ .Values.maestro.tls.secretName }}
+          secretName: {{ $tlsSecret }}
         {{- else }}
         emptyDir: {}
         {{- end }}

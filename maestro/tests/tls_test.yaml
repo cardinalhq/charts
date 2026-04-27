@@ -3,12 +3,15 @@ templates:
   - maestro-deployment.yaml
   - maestro-service.yaml
   - maestro-tls-config.yaml
+  - maestro-tls-secret.yaml
 tests:
   - it: emits no TLS resources when disabled
     set:
       maestro.baseUrl: https://m.example.com
     asserts:
       - template: maestro-tls-config.yaml
+        hasDocuments: { count: 0 }
+      - template: maestro-tls-secret.yaml
         hasDocuments: { count: 0 }
       - template: maestro-deployment.yaml
         notContains:
@@ -108,9 +111,9 @@ tests:
     template: maestro-tls-config.yaml
     asserts:
       - failedTemplate:
-          errorMessage: "maestro.tls: set exactly one of cert.autoGenerate=true OR secretName, not both"
+          errorMessage: "maestro.tls: set exactly one cert source — cert.autoGenerate=true, secretName, or cert.crt+cert.key (set cert.autoGenerate=false when using one of the BYO paths)"
 
-  - it: rejects neither autoGenerate nor secretName
+  - it: rejects no cert source
     set:
       maestro.baseUrl: https://m.example.com
       maestro.tls.enabled: true
@@ -118,7 +121,100 @@ tests:
     template: maestro-tls-config.yaml
     asserts:
       - failedTemplate:
-          errorMessage: "maestro.tls.enabled=true requires either cert.autoGenerate=true (default) or a non-empty secretName"
+          errorMessage: "maestro.tls.enabled=true requires one cert source: cert.autoGenerate=true (default), a non-empty secretName, or cert.crt+cert.key"
+
+  - it: rejects autoGenerate combined with inline cert
+    set:
+      maestro.baseUrl: https://m.example.com
+      maestro.tls.enabled: true
+      maestro.tls.cert.autoGenerate: true
+      maestro.tls.cert.crt: "PEM CERT"
+      maestro.tls.cert.key: "PEM KEY"
+    template: maestro-tls-config.yaml
+    asserts:
+      - failedTemplate:
+          errorMessage: "maestro.tls: set exactly one cert source — cert.autoGenerate=true, secretName, or cert.crt+cert.key (set cert.autoGenerate=false when using one of the BYO paths)"
+
+  - it: rejects secretName combined with inline cert
+    set:
+      maestro.baseUrl: https://m.example.com
+      maestro.tls.enabled: true
+      maestro.tls.cert.autoGenerate: false
+      maestro.tls.secretName: my-tls
+      maestro.tls.cert.crt: "PEM CERT"
+      maestro.tls.cert.key: "PEM KEY"
+    template: maestro-tls-config.yaml
+    asserts:
+      - failedTemplate:
+          errorMessage: "maestro.tls: set exactly one cert source — cert.autoGenerate=true, secretName, or cert.crt+cert.key (set cert.autoGenerate=false when using one of the BYO paths)"
+
+  - it: rejects inline cert with only crt
+    set:
+      maestro.baseUrl: https://m.example.com
+      maestro.tls.enabled: true
+      maestro.tls.cert.autoGenerate: false
+      maestro.tls.cert.crt: "PEM CERT"
+    template: maestro-tls-config.yaml
+    asserts:
+      - failedTemplate:
+          errorMessage: "maestro.tls.cert: set both cert.crt and cert.key, or neither"
+
+  - it: rejects inline cert with only key
+    set:
+      maestro.baseUrl: https://m.example.com
+      maestro.tls.enabled: true
+      maestro.tls.cert.autoGenerate: false
+      maestro.tls.cert.key: "PEM KEY"
+    template: maestro-tls-config.yaml
+    asserts:
+      - failedTemplate:
+          errorMessage: "maestro.tls.cert: set both cert.crt and cert.key, or neither"
+
+  - it: with inline cert, renders Secret and mounts it without tls-init
+    set:
+      maestro.baseUrl: https://1-2-3-4.nip.io:8443
+      maestro.tls.enabled: true
+      maestro.tls.cert.autoGenerate: false
+      maestro.tls.cert.crt: "PEM CERT"
+      maestro.tls.cert.key: "PEM KEY"
+    release:
+      name: r
+    asserts:
+      - template: maestro-tls-secret.yaml
+        hasDocuments: { count: 1 }
+      - template: maestro-tls-secret.yaml
+        equal:
+          path: kind
+          value: Secret
+      - template: maestro-tls-secret.yaml
+        equal:
+          path: type
+          value: kubernetes.io/tls
+      - template: maestro-tls-secret.yaml
+        equal:
+          path: metadata.name
+          value: r-maestro-maestro-tls-cert
+      - template: maestro-tls-secret.yaml
+        equal:
+          path: data["tls.crt"]
+          value: UEVNIENFUlQ=     # base64("PEM CERT")
+      - template: maestro-tls-secret.yaml
+        equal:
+          path: data["tls.key"]
+          value: UEVNIEtFWQ==     # base64("PEM KEY")
+      - template: maestro-deployment.yaml
+        notContains:
+          path: spec.template.spec.initContainers
+          content:
+            name: tls-init
+          any: true
+      - template: maestro-deployment.yaml
+        contains:
+          path: spec.template.spec.volumes
+          content:
+            name: tls
+            secret:
+              secretName: r-maestro-maestro-tls-cert
 
   - it: cert-init uses overridable openssl image
     set:

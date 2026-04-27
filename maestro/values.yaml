@@ -95,17 +95,20 @@ maestro:
       limits:
         cpu: 200m
         memory: 128Mi
-    # Certificate source — pick exactly one path. The chart fails
-    # rendering if both `cert.autoGenerate` and `secretName` are set.
+    # Certificate source — pick exactly one of three paths. The chart
+    # fails rendering if more than one is configured, or if none is.
+    #   1. cert.autoGenerate=true (default) — in-pod self-signed
+    #   2. secretName — reference an existing kubernetes.io/tls Secret
+    #   3. cert.crt + cert.key — inline PEM, chart creates the Secret
     cert:
-      # When true and `secretName` is empty, an init container generates
-      # a self-signed cert into an emptyDir at pod start. The cert
-      # regenerates on every pod restart, so browsers re-prompt for
-      # trust each time — fine for POC, swap to `secretName` for stable
-      # operation.
+      # When true and both `secretName` and `cert.crt`/`cert.key` are
+      # empty, an init container generates a self-signed cert into an
+      # emptyDir at pod start. The cert regenerates on every pod
+      # restart, so browsers re-prompt for trust each time — fine for
+      # POC, swap to one of the two BYO paths below for stable certs.
       autoGenerate: true
       # Extra Subject Alternative Names beyond the host extracted from
-      # `maestro.baseUrl`. Use this to add bastion hostnames or IPs.
+      # `maestro.baseUrl`. Used only by the autoGenerate path.
       sans: []
       # Image used by the cert-init container. openssl CLI is the only
       # requirement.
@@ -113,8 +116,24 @@ maestro:
         repository: cgr.dev/chainguard/openssl
         tag: latest
         pullPolicy: IfNotPresent
+      # Inline-provided PEM certificate and private key. When both are
+      # non-empty, the chart creates a kubernetes.io/tls Secret named
+      # "<release>-maestro-tls-cert" and the sidecar mounts it. Mutually
+      # exclusive with autoGenerate=true and secretName. Set
+      # `cert.autoGenerate: false` when using this path.
+      #
+      # Generate a matching pair for an IP-only deployment with the
+      # bundled scripts/gen-tls-cert.sh helper, then feed the files
+      # in via `helm --set-file`:
+      #   helm install ... \
+      #     --set maestro.tls.cert.autoGenerate=false \
+      #     --set-file maestro.tls.cert.crt=tls.crt \
+      #     --set-file maestro.tls.cert.key=tls.key
+      crt: ""
+      key: ""
     # Reference an existing kubernetes.io/tls Secret instead of
-    # generating one. Mutually exclusive with cert.autoGenerate=true.
+    # generating one or providing inline PEM. Mutually exclusive with
+    # cert.autoGenerate=true and cert.crt/cert.key.
     # secretName: ""
 
   # Persistent storage for ephemeral working data: orchestra artifact
