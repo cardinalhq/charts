@@ -57,63 +57,44 @@ tests:
             targetPort: https
             name: https
 
-  - it: stages nginx conf into a writable emptyDir via init container
+  - it: drops readOnlyRootFilesystem on every container when tls is enabled
     set:
       maestro.baseUrl: https://m.example.com
       maestro.tls.enabled: true
     asserts:
       - template: maestro-deployment.yaml
-        contains:
-          path: spec.template.spec.initContainers
-          content:
-            name: nginx-conf-init
-          any: true
+        equal:
+          path: spec.template.spec.containers[?(@.name=="maestro")].securityContext.readOnlyRootFilesystem
+          value: false
       - template: maestro-deployment.yaml
-        contains:
-          path: spec.template.spec.volumes
-          content:
-            name: nginx-conf
-            emptyDir: {}
+        equal:
+          path: spec.template.spec.containers[?(@.name=="tls-proxy")].securityContext.readOnlyRootFilesystem
+          value: false
       - template: maestro-deployment.yaml
-        notContains:
-          path: spec.template.spec.containers[?(@.name=="tls-proxy")].volumeMounts
-          content:
-            name: tls-config
-            mountPath: /etc/nginx/conf.d
-            readOnly: true
-      - template: maestro-deployment.yaml
-        contains:
-          path: spec.template.spec.containers[?(@.name=="tls-proxy")].volumeMounts
-          content:
-            name: nginx-conf
-            mountPath: /etc/nginx/conf.d
-          any: true
+        equal:
+          path: spec.template.spec.initContainers[?(@.name=="tls-init")].securityContext.readOnlyRootFilesystem
+          value: false
 
-  - it: nginx config redirects all temp paths under /tmp/nginx
+  - it: keeps readOnlyRootFilesystem on the maestro container when tls is disabled
+    set:
+      maestro.baseUrl: https://m.example.com
+    asserts:
+      - template: maestro-deployment.yaml
+        equal:
+          path: spec.template.spec.containers[?(@.name=="maestro")].securityContext.readOnlyRootFilesystem
+          value: true
+
+  - it: respects an explicit readOnlyRootFilesystem override even when tls is enabled
     set:
       maestro.baseUrl: https://m.example.com
       maestro.tls.enabled: true
+      maestro.containerSecurityContext:
+        readOnlyRootFilesystem: true
     asserts:
-      - template: maestro-tls-config.yaml
-        matchRegex:
-          path: data["default.conf"]
-          pattern: "client_body_temp_path /tmp/nginx/client_body;"
-      - template: maestro-tls-config.yaml
-        matchRegex:
-          path: data["default.conf"]
-          pattern: "proxy_temp_path       /tmp/nginx/proxy;"
-      - template: maestro-tls-config.yaml
-        matchRegex:
-          path: data["default.conf"]
-          pattern: "fastcgi_temp_path     /tmp/nginx/fastcgi;"
-      - template: maestro-tls-config.yaml
-        matchRegex:
-          path: data["default.conf"]
-          pattern: "uwsgi_temp_path       /tmp/nginx/uwsgi;"
-      - template: maestro-tls-config.yaml
-        matchRegex:
-          path: data["default.conf"]
-          pattern: "scgi_temp_path        /tmp/nginx/scgi;"
+      - template: maestro-deployment.yaml
+        equal:
+          path: spec.template.spec.containers[?(@.name=="tls-proxy")].securityContext.readOnlyRootFilesystem
+          value: true
 
   - it: tls-proxy uses overridable image
     set:

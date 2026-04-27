@@ -44,6 +44,22 @@ spec:
       {{- end }}
       {{- include "maestro.podSecurityContext" (dict "root" . "override" $podSec) | nindent 6 }}
       {{- include "maestro.imagePullSecrets" . | nindent 6 }}
+      {{- /*
+        With the in-pod TLS sidecar, several paths nginx-unprivileged needs
+        to touch (/tmp/proxy_temp, /etc/nginx/conf.d/default.conf via the
+        ipv6 listen entrypoint hook, /var/cache/nginx) sit on the read-only
+        rootfs. Rather than chase each one with init containers and subPath
+        mounts, drop readOnlyRootFilesystem for the whole pod when TLS is
+        enabled. Operators who need ROFS=true can still set it explicitly
+        in maestro.containerSecurityContext.
+      */}}
+      {{- $containerSec := .Values.maestro.containerSecurityContext | default dict -}}
+      {{- if and (dig "tls" "enabled" false .Values.maestro) (not (hasKey $containerSec "readOnlyRootFilesystem")) -}}
+        {{- $merged := dict -}}
+        {{- range $k, $v := $containerSec }}{{- $_ := set $merged $k $v -}}{{- end -}}
+        {{- $_ := set $merged "readOnlyRootFilesystem" false -}}
+        {{- $containerSec = $merged -}}
+      {{- end }}
       initContainers:
       # Reuses the unified maestro image so we don't need a separate
       # busybox/netcat dependency. The entrypoint exposes a `wait-for-tcp`
@@ -51,7 +67,7 @@ spec:
       - name: wait-for-mcp-gateway
         image: {{ include "maestro.image" . }}
         imagePullPolicy: {{ .Values.image.pullPolicy }}
-        {{- include "maestro.containerSecurityContext" (dict "root" . "override" .Values.maestro.containerSecurityContext) | nindent 8 }}
+        {{- include "maestro.containerSecurityContext" (dict "root" . "override" $containerSec) | nindent 8 }}
         args:
           - wait-for-tcp
           - {{ include "maestro.fullname" . }}-mcp-gateway
@@ -72,7 +88,7 @@ spec:
       - name: tls-init
         image: "{{ .Values.maestro.tls.cert.image.repository }}:{{ .Values.maestro.tls.cert.image.tag }}"
         imagePullPolicy: {{ .Values.maestro.tls.cert.image.pullPolicy }}
-        {{- include "maestro.containerSecurityContext" (dict "root" . "override" .Values.maestro.containerSecurityContext) | nindent 8 }}
+        {{- include "maestro.containerSecurityContext" (dict "root" . "override" $containerSec) | nindent 8 }}
         command: ["/bin/sh", "-c"]
         args:
           - |
@@ -116,39 +132,9 @@ spec:
             memory: 64Mi
         {{- end }}
       {{- end }}
-      {{- if dig "tls" "enabled" false .Values.maestro }}
-      # /etc/nginx/conf.d sits on the read-only rootfs. The
-      # nginx-unprivileged entrypoint (10-listen-on-ipv6-by-default.sh)
-      # tries to touch default.conf at startup and fails. Stage the
-      # rendered server block from the configmap into a writable
-      # emptyDir so the entrypoint scripts and nginx itself have a
-      # writable conf.d.
-      - name: nginx-conf-init
-        image: "{{ .Values.maestro.tls.image.repository }}:{{ .Values.maestro.tls.image.tag }}"
-        imagePullPolicy: {{ .Values.maestro.tls.image.pullPolicy }}
-        {{- include "maestro.containerSecurityContext" (dict "root" . "override" .Values.maestro.containerSecurityContext) | nindent 8 }}
-        command: ["/bin/sh", "-c"]
-        args:
-          - cp /src/default.conf /dst/default.conf
-        volumeMounts:
-          - name: tls-config
-            mountPath: /src
-            readOnly: true
-          - name: nginx-conf
-            mountPath: /dst
-        {{- if .Values.global.resources.enabled }}
-        resources:
-          requests:
-            cpu: 50m
-            memory: 32Mi
-          limits:
-            cpu: 50m
-            memory: 64Mi
-        {{- end }}
-      {{- end }}
       containers:
       - name: maestro
-        {{- include "maestro.containerSecurityContext" (dict "root" . "override" .Values.maestro.containerSecurityContext) | nindent 8 }}
+        {{- include "maestro.containerSecurityContext" (dict "root" . "override" $containerSec) | nindent 8 }}
         image: {{ include "maestro.image" . }}
         imagePullPolicy: {{ .Values.image.pullPolicy }}
         ports:
@@ -217,7 +203,7 @@ spec:
       - name: tls-proxy
         image: "{{ .Values.maestro.tls.image.repository }}:{{ .Values.maestro.tls.image.tag }}"
         imagePullPolicy: {{ .Values.maestro.tls.image.pullPolicy }}
-        {{- include "maestro.containerSecurityContext" (dict "root" . "override" .Values.maestro.containerSecurityContext) | nindent 8 }}
+        {{- include "maestro.containerSecurityContext" (dict "root" . "override" $containerSec) | nindent 8 }}
         ports:
           - containerPort: {{ .Values.maestro.tls.port }}
             name: https
@@ -237,20 +223,9 @@ spec:
           - name: tls
             mountPath: /etc/nginx/tls
             readOnly: true
-          # nginx-conf is populated by the nginx-conf-init init container
-          # from the tls-config configmap. emptyDir (vs. configmap mount)
-          # keeps /etc/nginx/conf.d writable for the entrypoint scripts.
-          - name: nginx-conf
+          - name: tls-config
             mountPath: /etc/nginx/conf.d
-          # nginx-unprivileged needs writable scratch space under
-          # /tmp + /var/cache/nginx for its worker temp files. Reuse
-          # the maestro pod's existing `tmp` emptyDir.
-          - name: tmp
-            mountPath: /var/cache/nginx
-            subPath: nginx-cache
-          - name: tmp
-            mountPath: /tmp/nginx
-            subPath: nginx-tmp
+            readOnly: true
         {{- if .Values.global.resources.enabled }}
         resources:
           {{- toYaml .Values.maestro.tls.resources | nindent 10 }}
@@ -279,8 +254,6 @@ spec:
       - name: tls-config
         configMap:
           name: {{ include "maestro.fullname" . }}-maestro-tls
-      - name: nginx-conf
-        emptyDir: {}
       {{- end }}
       {{- with .Values.maestro.extraVolumes }}
       {{- toYaml . | nindent 6 }}
