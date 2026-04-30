@@ -257,6 +257,14 @@ global:
     # Set to false to omit resource specifications entirely from rendered templates
     # Default: true
     enabled: true
+  # CardinalHQ telemetry configuration. When apiKey is set, the chart
+  # auto-injects OTEL_EXPORTER_OTLP_ENDPOINT + OTEL_EXPORTER_OTLP_HEADERS
+  # into both the maestro and mcp-gateway containers, pointing at
+  # CardinalHQ's hosted OTLP intake. Leave empty to disable.
+  cardinal:
+    apiKey: ""
+    # Set to "test" to route at the test intake endpoint instead of prod.
+    env: ""
   imagePullSecrets: []
   # Common environment variables to inject into all containers.
   env: []

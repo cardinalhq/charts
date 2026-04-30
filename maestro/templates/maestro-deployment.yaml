@@ -153,6 +153,7 @@ spec:
             value: {{ printf "%s/artifacts" (.Values.maestro.persistence.mountPath | default "/var/lib/maestro") | quote }}
           {{- end }}
           {{- include "maestro.oidcEnv" . | nindent 10 }}
+          {{- include "maestro.cardinalTelemetryEnv" . | nindent 10 }}
           {{- with .Values.global.env }}
           {{- toYaml . | nindent 10 }}
           {{- end }}
