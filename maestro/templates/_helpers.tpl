@@ -149,6 +149,34 @@ Database environment variables shared across components.
 {{- end }}
 
 {{/*
+Return the secret name for the Cardinal API key.
+*/}}
+{{- define "maestro.cardinalApiKeySecretName" -}}
+{{- printf "%s-%s" (include "maestro.fullname" .) "cardinal-api-key" | trunc 63 | trimSuffix "-" }}
+{{- end }}
+
+{{/*
+OTLP env vars pointing at CardinalHQ's hosted intake. Emits nothing when
+global.cardinal.apiKey is empty, so existing installs without telemetry
+configuration are unaffected (and chart-test env-index assertions stay
+stable). Both maestro (tracing.ts) and mcp-gateway (telemetry.go) read
+OTEL_EXPORTER_OTLP_ENDPOINT and OTEL_EXPORTER_OTLP_HEADERS directly; no
+extra gating env var is needed (lakerunner's ENABLE_OTLP_TELEMETRY is
+lakerunner-specific and unused here).
+*/}}
+{{- define "maestro.cardinalTelemetryEnv" -}}
+{{- if .Values.global.cardinal.apiKey }}
+- name: OTEL_EXPORTER_OTLP_ENDPOINT
+  value: {{ if eq .Values.global.cardinal.env "test" }}"https://customer-intake-otelhttp.us-east-2.aws.test.cardinalhq.net"{{ else }}"https://otelhttp.intake.us-east-2.aws.cardinalhq.io"{{ end }}
+- name: OTEL_EXPORTER_OTLP_HEADERS
+  valueFrom:
+    secretKeyRef:
+      name: {{ include "maestro.cardinalApiKeySecretName" . }}
+      key: CARDINAL_API_HEADER
+{{- end }}
+{{- end }}
+
+{{/*
   Merge two maps (global + local), emit nodeSelector: if non-empty.
   args: [ globalMap, localMap ]
 */}}
