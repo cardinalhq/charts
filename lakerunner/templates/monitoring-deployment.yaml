@@ -35,11 +35,7 @@ spec:
         args:
           - "monitoring"
           - "serve"
-          - "--grpc-port={{ .Values.monitoring.grpcPort }}"
         ports:
-          - name: grpc
-            containerPort: {{ .Values.monitoring.grpcPort }}
-            protocol: TCP
           - name: healthcheck
             containerPort: {{ .Values.global.healthProbes.healthcheckPort }}
             protocol: TCP

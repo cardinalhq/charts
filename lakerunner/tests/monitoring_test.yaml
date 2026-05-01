@@ -6,7 +6,6 @@ set:
   license.data: '{"key":"test"}'
 templates:
   - monitoring-deployment.yaml
-  - monitoring-service.yaml
 tests:
   # Conditional Rendering Tests
   - it: should render monitoring deployment when enabled
@@ -21,24 +20,11 @@ tests:
           path: metadata.name
           value: RELEASE-NAME-lakerunner-monitoring
 
-  - it: should render monitoring service when enabled
-    set:
-      monitoring.enabled: true
-    templates:
-      - monitoring-service.yaml
-    asserts:
-      - isKind:
-          of: Service
-      - equal:
-          path: metadata.name
-          value: RELEASE-NAME-lakerunner-monitoring
-
   - it: should not render monitoring resources when disabled
     set:
       monitoring.enabled: false
     templates:
       - monitoring-deployment.yaml
-      - monitoring-service.yaml
     asserts:
       - hasDocuments:
           count: 0
@@ -86,62 +72,18 @@ tests:
           value: "512Mi"
 
   # Port Configuration Tests
-  - it: should configure default ports
+  - it: should expose only the healthcheck container port
     set:
       monitoring.enabled: true
     templates:
       - monitoring-deployment.yaml
     asserts:
-      - isNotNull:
-          path: spec.template.spec.containers[0].ports
       - lengthEqual:
           path: spec.template.spec.containers[0].ports
-          count: 2
-
-  - it: should allow custom port configuration
-    set:
-      monitoring.enabled: true
-      monitoring.grpcPort: 9999
-      monitoring.healthcheckPort: 8888
-    templates:
-      - monitoring-deployment.yaml
-    asserts:
-      - contains:
-          path: spec.template.spec.containers[0].ports
-          content:
-            name: grpc
-            containerPort: 9999
-            protocol: TCP
-
-  - it: should pass custom grpc port as command argument
-    set:
-      monitoring.enabled: true
-      monitoring.grpcPort: 9999
-    templates:
-      - monitoring-deployment.yaml
-    asserts:
-      - contains:
-          path: spec.template.spec.containers[0].args
-          content: "--grpc-port=9999"
-
-  - it: should expose only GRPC port in service
-    set:
-      monitoring.enabled: true
-    templates:
-      - monitoring-service.yaml
-    asserts:
-      - equal:
-          path: spec.ports[0].name
-          value: "grpc"
-      - equal:
-          path: spec.ports[0].port
-          value: 9090
-      - equal:
-          path: spec.ports[0].targetPort
-          value: "grpc"
-      - lengthEqual:
-          path: spec.ports
           count: 1
+      - equal:
+          path: spec.template.spec.containers[0].ports[0].name
+          value: healthcheck
 
   # Database Secret Configuration Tests
   - it: should configure database environment variables
@@ -313,18 +255,6 @@ tests:
           path: spec.replicas
           value: 3
 
-  # Service Configuration Tests
-  - it: should configure service type
-    set:
-      monitoring.enabled: true
-      monitoring.service.type: LoadBalancer
-    templates:
-      - monitoring-service.yaml
-    asserts:
-      - equal:
-          path: spec.type
-          value: LoadBalancer
-
   # Labels and Selectors Tests
   - it: should set correct labels and selectors
     set:
@@ -337,16 +267,6 @@ tests:
           value: "monitoring"
       - equal:
           path: spec.template.metadata.labels["app.kubernetes.io/component"]
-          value: "monitoring"
-
-  - it: should match service selector with deployment labels
-    set:
-      monitoring.enabled: true
-    templates:
-      - monitoring-service.yaml
-    asserts:
-      - equal:
-          path: spec.selector["app.kubernetes.io/component"]
           value: "monitoring"
 
   # Environment Variables Tests

@@ -513,7 +513,6 @@ alertEvaluator:
 monitoring:
   enabled: true
   replicas: 1
-  grpcPort: 9090
   # PI autoscaler configuration
   # The autoscaler runs inside the monitoring pod and manages worker deployment replicas.
   # It is always enabled. To disable scaling for a specific service, set its
@@ -522,12 +521,6 @@ monitoring:
   autoscaler:
     # Set to true to log scaling decisions without actually changing replicas.
     observeOnly: false
-  service:
-    type: ClusterIP
-    annotations: {}
-    nodePort: null
-    loadBalancerIP: ""
-    loadBalancerSourceRanges: []
   image:
     repository: ghcr.io/cardinalhq/lakerunner
     tag: ""
