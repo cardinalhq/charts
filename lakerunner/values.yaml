@@ -540,7 +540,7 @@ monitoring:
 
 # Perch operator — version control and collector management
 perch:
-  enabled: false
+  enabled: true
   # Cluster identifier (auto-derived from kube-system UID if empty)
   clusterId: ""
   maestro:
@@ -919,4 +919,3 @@ collector:
   # These will be merged with the default annotations
   # Optional.
   annotations: {}
-
