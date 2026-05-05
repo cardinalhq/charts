@@ -1,0 +1,95 @@
+suite: test OpenTelemetry trace sampling configuration
+values:
+  - ../values.yaml
+set:
+  cloudProvider.aws.region: us-west-2
+  license.data: '{"key":"test"}'
+templates:
+  - query-api-deployment.yaml
+  - query-worker-deployment.yaml
+  - process-logs-deployment.yaml
+tests:
+  - it: applies global trace sampling defaults to all components
+    asserts:
+      - template: query-api-deployment.yaml
+        contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: OTEL_TRACES_SAMPLER_ARG
+            value: "0.01"
+      - template: query-worker-deployment.yaml
+        contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: OTEL_TRACES_SAMPLER_ARG
+            value: "0.01"
+      - template: process-logs-deployment.yaml
+        contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: OTEL_TRACES_SAMPLER_ARG
+            value: "0.01"
+
+  - it: per-component override wins over global for query-api only
+    set:
+      queryApi.monitoring.traces.arg: "1.0"
+    asserts:
+      - template: query-api-deployment.yaml
+        contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: OTEL_TRACES_SAMPLER_ARG
+            value: "1.0"
+      - template: query-worker-deployment.yaml
+        contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: OTEL_TRACES_SAMPLER_ARG
+            value: "0.01"
+      - template: process-logs-deployment.yaml
+        contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: OTEL_TRACES_SAMPLER_ARG
+            value: "0.01"
+
+  - it: per-component override applies to query-worker independently
+    set:
+      queryWorker.monitoring.traces.arg: "0.5"
+      queryWorker.monitoring.traces.sampler: "traceidratio"
+    asserts:
+      - template: query-worker-deployment.yaml
+        contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: OTEL_TRACES_SAMPLER
+            value: "traceidratio"
+      - template: query-worker-deployment.yaml
+        contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: OTEL_TRACES_SAMPLER_ARG
+            value: "0.5"
+      - template: query-api-deployment.yaml
+        contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: OTEL_TRACES_SAMPLER
+            value: "parentbased_traceidratio"
+
+  - it: component override of only arg keeps global sampler
+    set:
+      queryApi.monitoring.traces.arg: "0.25"
+    asserts:
+      - template: query-api-deployment.yaml
+        contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: OTEL_TRACES_SAMPLER
+            value: "parentbased_traceidratio"
+      - template: query-api-deployment.yaml
+        contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: OTEL_TRACES_SAMPLER_ARG
+            value: "0.25"

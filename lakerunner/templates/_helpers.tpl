@@ -183,19 +183,37 @@ Empty override values fall back to the global config.
 {{- end }}
 
 {{/*
-Generate OpenTelemetry trace sampling env vars from global.monitoring.traces config.
-Usage: {{ include "lakerunner.tracesEnv" . }}
+Generate OpenTelemetry trace sampling env vars.
+Reads global.monitoring.traces, then merges in per-component <comp>.monitoring.traces
+(component values win for any keys they define).
+Takes one or two args:
+  0: the root chart context
+  1: (optional) the component's values block (may set .monitoring.traces.{sampler,arg})
+Usage:
+  {{ include "lakerunner.tracesEnv" (list . .Values.queryApi) }}
+  {{ include "lakerunner.tracesEnv" (list .) }}
 */}}
 {{- define "lakerunner.tracesEnv" -}}
-{{- if .Values.global.monitoring }}
-{{- if .Values.global.monitoring.traces }}
-{{- with .Values.global.monitoring.traces }}
+{{- $root := index . 0 -}}
+{{- $comp := dict -}}
+{{- if gt (len .) 1 -}}
+{{- $compArg := index . 1 -}}
+{{- if $compArg -}}{{- $comp = $compArg -}}{{- end -}}
+{{- end -}}
+{{- $traces := dict -}}
+{{- if and $root.Values.global.monitoring $root.Values.global.monitoring.traces -}}
+{{- $traces = deepCopy $root.Values.global.monitoring.traces -}}
+{{- end -}}
+{{- if and $comp.monitoring $comp.monitoring.traces -}}
+{{- $traces = merge (deepCopy $comp.monitoring.traces) $traces -}}
+{{- end -}}
+{{- if $traces.sampler }}
 - name: OTEL_TRACES_SAMPLER
-  value: {{ .sampler | quote }}
+  value: {{ $traces.sampler | quote }}
+{{- end }}
+{{- if hasKey $traces "arg" }}
 - name: OTEL_TRACES_SAMPLER_ARG
-  value: {{ .arg | quote }}
-{{- end }}
-{{- end }}
+  value: {{ $traces.arg | quote }}
 {{- end }}
 {{- end -}}
 
@@ -212,7 +230,7 @@ Usage:
 {{- $comp := index . 1 -}}
 {{- include "lakerunner.setupEnv" $root | nindent 2 -}}
 {{- include "lakerunner.goRuntimeEnv" (list $root $comp $comp.env) | nindent 2 -}}
-{{- include "lakerunner.tracesEnv" $root | nindent 2 -}}
+{{- include "lakerunner.tracesEnv" (list $root $comp) | nindent 2 -}}
 {{- with $root.Values.global.env -}}
 {{ toYaml . | nindent 2 -}}
 {{- end -}}
@@ -234,7 +252,7 @@ Usage:
 {{- $comp := index . 1 -}}
 {{- include "lakerunner.commonEnv" $root | nindent 2 -}}
 {{- include "lakerunner.goRuntimeEnv" (list $root $comp $comp.env) | nindent 2 -}}
-{{- include "lakerunner.tracesEnv" $root | nindent 2 -}}
+{{- include "lakerunner.tracesEnv" (list $root $comp) | nindent 2 -}}
 {{- with $root.Values.global.env -}}
 {{ toYaml . | nindent 2 -}}
 {{- end -}}
@@ -257,7 +275,7 @@ Usage:
 {{- $comp := index . 1 -}}
 {{- include "lakerunner.commonEnv" $root | nindent 2 -}}
 {{- include "lakerunner.duckdbRuntimeEnv" (list $root $comp $comp.env) | nindent 2 -}}
-{{- include "lakerunner.tracesEnv" $root | nindent 2 -}}
+{{- include "lakerunner.tracesEnv" (list $root $comp) | nindent 2 -}}
 {{- with $root.Values.global.env -}}
 {{ toYaml . | nindent 2 -}}
 {{- end -}}
@@ -1041,7 +1059,7 @@ Usage:
 {{- $comp := index . 1 -}}
 {{- include "lakerunner.commonEnv" $root | nindent 2 -}}
 {{- include "lakerunner.queryWorkerRuntimeEnv" (list $root $comp $comp.env) | nindent 2 -}}
-{{- include "lakerunner.tracesEnv" $root | nindent 2 -}}
+{{- include "lakerunner.tracesEnv" (list $root $comp) | nindent 2 -}}
 {{- with $root.Values.global.env -}}
 {{ toYaml . | nindent 2 -}}
 {{- end -}}
