@@ -759,6 +759,13 @@ queryApi:
   tolerations: []
   affinity: {}
   env: []
+  # Per-component override of global.monitoring.traces. Any keys set here
+  # win over the global values; unset keys fall back to the global config.
+  # Example:
+  #   monitoring:
+  #     traces:
+  #       arg: "1.0"   # 100% sampling for query-api only
+  monitoring: {}
 
 # Query Worker configuration
 queryWorker:
@@ -789,6 +796,13 @@ queryWorker:
   nodeSelector: {}
   tolerations: []
   affinity: {}
+  # Per-component override of global.monitoring.traces. Any keys set here
+  # win over the global values; unset keys fall back to the global config.
+  # Example:
+  #   monitoring:
+  #     traces:
+  #       arg: "0.5"   # 50% sampling for query-worker only
+  monitoring: {}
 
 # Grafana configuration
 grafana:
