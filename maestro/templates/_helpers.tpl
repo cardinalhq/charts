@@ -156,6 +156,52 @@ Return the secret name for the Cardinal API key.
 {{- end }}
 
 {{/*
+Validate license configuration. Called from license-validation.yaml to fail early.
+*/}}
+{{- define "maestro.validateLicense" -}}
+{{- if .Values.license.create }}
+{{- if not .Values.license.data }}
+{{- fail "license.data is required when license.create is true. Provide the raw license.json content or set license.create=false and specify an existing secret via license.secretName." }}
+{{- end }}
+{{- else }}
+{{- if not .Values.license.secretName }}
+{{- fail "license.secretName is required when license.create is false. Provide the name of an existing Kubernetes secret containing the license." }}
+{{- end }}
+{{- end }}
+{{- end }}
+
+{{/*
+Return the secret name for the license. If create is true, prefix with release name.
+*/}}
+{{- define "maestro.licenseSecretName" -}}
+{{- if .Values.license.create }}
+{{- printf "%s-%s" (include "maestro.fullname" .) .Values.license.secretName | trunc 63 | trimSuffix "-" }}
+{{- else }}
+{{- .Values.license.secretName | trunc 63 | trimSuffix "-" }}
+{{- end }}
+{{- end }}
+
+{{/*
+License volume mount. Always emitted — license is required.
+Usage: {{ include "maestro.licenseVolumeMount" . }}
+*/}}
+{{- define "maestro.licenseVolumeMount" -}}
+- name: license
+  mountPath: /app/license
+  readOnly: true
+{{- end }}
+
+{{/*
+License volume. Always emitted — license is required.
+Usage: {{ include "maestro.licenseVolume" . }}
+*/}}
+{{- define "maestro.licenseVolume" -}}
+- name: license
+  secret:
+    secretName: {{ include "maestro.licenseSecretName" . }}
+{{- end }}
+
+{{/*
 OTLP env vars pointing at CardinalHQ's hosted intake. Emits nothing when
 global.cardinal.apiKey is empty, so existing installs without telemetry
 configuration are unaffected (and chart-test env-index assertions stay

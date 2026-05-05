@@ -179,6 +179,21 @@ mcpGateway:
   affinity: {}
   env: []
 
+# License configuration
+# A valid license is required for Maestro to operate.
+# The license secret is mounted to /app/license in the maestro and
+# mcp-gateway containers.
+license:
+  # Whether to create the license secret from the data below.
+  # Set to false to use an existing secret (BYOS).
+  create: true
+  # Name of the Kubernetes secret containing the license.
+  # Used whether create is true or false.
+  secretName: "maestro-license"
+  # Raw license.json content (only used when create: true).
+  # The content will be stored under the key "license.json" in the secret.
+  data: ""
+
 # Database configuration
 # Required.
 database:
