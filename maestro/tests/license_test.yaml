@@ -1,0 +1,133 @@
+suite: test license configuration
+set:
+  database.host: db.example.com
+templates:
+  - license-secret.yaml
+  - license-validation.yaml
+  - maestro-deployment.yaml
+  - mcp-gateway-deployment.yaml
+tests:
+  # Secret creation tests
+  - it: creates the license secret when create is true and data is provided
+    set:
+      license.create: true
+      license.data: "license-content"
+    templates:
+      - license-secret.yaml
+    asserts:
+      - isKind:
+          of: Secret
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-maestro-maestro-license
+      - equal:
+          path: data["license.json"]
+          value: bGljZW5zZS1jb250ZW50
+
+  - it: fails when create is true but data is empty
+    set:
+      license.create: true
+      license.data: ""
+    templates:
+      - license-validation.yaml
+    asserts:
+      - failedTemplate:
+          errorMessage: "license.data is required when license.create is true. Provide the raw license.json content or set license.create=false and specify an existing secret via license.secretName."
+
+  - it: fails with default values (create true, no data)
+    templates:
+      - license-validation.yaml
+    asserts:
+      - failedTemplate:
+          errorMessage: "license.data is required when license.create is true. Provide the raw license.json content or set license.create=false and specify an existing secret via license.secretName."
+
+  - it: does not create license secret when create is false
+    set:
+      license.create: false
+      license.secretName: "my-external-license"
+    templates:
+      - license-secret.yaml
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: fails when create is false and secretName is empty
+    set:
+      license.create: false
+      license.secretName: ""
+    templates:
+      - license-validation.yaml
+    asserts:
+      - failedTemplate:
+          errorMessage: "license.secretName is required when license.create is false. Provide the name of an existing Kubernetes secret containing the license."
+
+  # Volume mount tests — maestro container
+  - it: mounts the license volume into the maestro container
+    set:
+      license.data: "license-content"
+    templates:
+      - maestro-deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: license
+            mountPath: /app/license
+            readOnly: true
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: license
+            secret:
+              secretName: RELEASE-NAME-maestro-maestro-license
+
+  # Volume mount tests — mcp-gateway container
+  - it: mounts the license volume into the mcp-gateway container
+    set:
+      license.data: "license-content"
+    templates:
+      - mcp-gateway-deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: license
+            mountPath: /app/license
+            readOnly: true
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: license
+            secret:
+              secretName: RELEASE-NAME-maestro-maestro-license
+
+  # BYOS — exact secret name when create is false
+  - it: uses the exact secret name when create is false (BYOS)
+    set:
+      license.create: false
+      license.secretName: "my-external-license"
+    templates:
+      - maestro-deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: license
+            secret:
+              secretName: my-external-license
+
+  # Prefixed secret name when create is true
+  - it: prefixes the secret name when create is true
+    set:
+      license.create: true
+      license.secretName: "custom-license"
+      license.data: "license-content"
+    templates:
+      - mcp-gateway-deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: license
+            secret:
+              secretName: RELEASE-NAME-maestro-custom-license

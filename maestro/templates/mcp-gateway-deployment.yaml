@@ -55,6 +55,10 @@ spec:
         resources:
           {{- toYaml .Values.mcpGateway.resources | nindent 10 }}
         {{- end }}
+        volumeMounts:
+        {{- include "maestro.licenseVolumeMount" . | nindent 8 }}
       {{- include "maestro.sched.nodeSelector" (list .Values.global.nodeSelector .Values.mcpGateway.nodeSelector) | nindent 6 }}
       {{- include "maestro.sched.tolerations"  (list .Values.global.tolerations  .Values.mcpGateway.tolerations)  | nindent 6 }}
       {{- include "maestro.sched.affinity"     (list .Values.global.affinity     .Values.mcpGateway.affinity)     | nindent 6 }}
+      volumes:
+      {{- include "maestro.licenseVolume" . | nindent 6 }}
