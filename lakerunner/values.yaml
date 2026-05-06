@@ -544,8 +544,22 @@ perch:
   # Cluster identifier (auto-derived from kube-system UID if empty)
   clusterId: ""
   maestro:
+    # URL of the local maestro (used for collector inventory + config-body
+    # uploads). Version reports always go to the central CardinalHQ-hosted
+    # maestro at https://app.cardinalhq.io and don't need to be configured.
+    # For SaaS-only deployments, set this to https://app.cardinalhq.io.
     url: ""
     reportInterval: "5m"
+    # API key for the local maestro. Required when url is NOT
+    # https://app.cardinalhq.io — the local maestro recognizes a different
+    # set of keys than the license-issuing CardinalHQ maestro. Provision a
+    # key in the local maestro UI (Settings → Integrations → Lakerunner),
+    # store the plaintext in a Kubernetes Secret, and reference it here.
+    # When unset, perch falls back to the license-derived key (correct for
+    # SaaS-only deployments where url == https://app.cardinalhq.io).
+    apiKey:
+      existingSecret: ""
+      existingSecretKey: "api-key"
   registry:
     pollInterval: "10m"
   # Components to track — upstream repos and update policies are configured

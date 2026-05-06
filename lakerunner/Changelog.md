@@ -1,5 +1,17 @@
 # Changelog
 
+## 3.8.0
+
+* **NEW**: Optional `perch.maestro.apiKey.existingSecret` value for self-hosted
+  topologies that need a separate API key for the local maestro
+  - Required when `perch.maestro.url` is NOT `https://app.cardinalhq.io`
+  - Wires `MAESTRO_API_KEY` env var into the perch container via `secretKeyRef`
+  - Works in conjunction with the lakerunner change that sends version reports
+    to CardinalHQ and collector inventory to the local maestro
+  - When unset, perch falls back to the license-derived key (preserves
+    behavior for SaaS-only deployments)
+  - Requires lakerunner image with the matching split-traffic change
+
 ## 0.4.0
 
 * **NEW**: Simplified Grafana Cardinal datasource configuration
