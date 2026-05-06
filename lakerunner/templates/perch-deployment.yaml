@@ -54,6 +54,13 @@ spec:
                 fieldPath: status.podIP
           - name: OTEL_SERVICE_NAME
             value: {{ include "lakerunner.fullname" . }}-perch
+          {{- if .Values.perch.maestro.apiKey.existingSecret }}
+          - name: MAESTRO_API_KEY
+            valueFrom:
+              secretKeyRef:
+                name: {{ .Values.perch.maestro.apiKey.existingSecret }}
+                key: {{ .Values.perch.maestro.apiKey.existingSecretKey }}
+          {{- end }}
           {{- include "lakerunner.injectEnv" (list . .Values.perch) | nindent 8 }}
           {{- include "lakerunner.cardinalTelemetryEnv" . | nindent 10 }}
         {{- include "lakerunner.healthProbes" (list . .Values.perch) | nindent 8 }}
