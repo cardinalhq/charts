@@ -1,5 +1,24 @@
 # Changelog
 
+## 3.9.0
+
+* **CHANGED**: Rebalanced worker pod memory math (process-logs, process-metrics, process-traces)
+  - Replaced `LAKERUNNER_DUCKDB_MEMORY_LIMIT = container - 1Gi` (constant carve-out) with
+    `LAKERUNNER_DUCKDB_MEMORY_LIMIT = 40% of container` (percentage-based, floor 512 MB)
+  - Replaced `GOMEMLIMIT = 750MiB` (constant) with `GOMEMLIMIT = 20% of container`,
+    clamped to `[256, 1024]` MiB
+  - Reserves ~40% of the container for cgo allocator overhead, DuckDB peak overshoot,
+    and transient allocations not tracked by DuckDB's `memory_limit`. Empirically
+    real RSS overshoots `memory_limit` ~2× under heavy hash builds / sorts.
+  - Operators with explicit overrides for `LAKERUNNER_DUCKDB_MEMORY_LIMIT` or `GOMEMLIMIT`
+    are unaffected (existing `hasEnvVar` guard).
+* **NEW**: `MALLOC_ARENA_MAX=2` injected by `duckdbRuntimeEnv` and `queryWorkerRuntimeEnv`
+  - Collapses glibc per-thread arena fragmentation for cgo-heavy DuckDB workloads
+  - Measured impact: process-metrics RSS dropped from 3.3 GiB → 1.25 GiB on a primed
+    pod with no other change; eliminated 64-MiB sub-heap fragmentation pattern in
+    `/proc/<pid>/smaps`
+  - Operators may override per-component or in `global.env`
+
 ## 3.8.0
 
 * **NEW**: Optional `perch.maestro.apiKey.existingSecret` value for self-hosted
