@@ -939,11 +939,22 @@ Usage: {{ include "lakerunner.goRuntimeEnv" (list . .Values.componentName .Value
 {{/*
 Generate DuckDB-specific runtime environment variables for ingest/compact/rollup services.
 These services use DuckDB internally and need specific memory tuning.
+
+Memory budget split (worker pods):
+  duckdb_memory_limit  ≈ 40% of container memory
+  go_runtime_budget    ≈ 20% of container memory  (clamped 256–1024 MiB)
+  reserved             ≈ 40% (cgo allocator overhead, DuckDB peak overshoot,
+                              transient allocations not tracked by DuckDB's
+                              memory_limit). Empirically RSS overshoots
+                              memory_limit ~2× under hash builds/sorts.
+
 Settings:
-  - GOMEMLIMIT = 750MiB (fixed, leaves room for DuckDB)
+  - GOMEMLIMIT = clamp(20% of container, 256MiB..1024MiB)
   - GOGC = 100 (fixed)
-  - LAKERUNNER_DUCKDB_MEMORY_LIMIT = scaled based on container memory
+  - LAKERUNNER_DUCKDB_MEMORY_LIMIT = 40% of container, in MB (min 512)
   - LAKERUNNER_DUCKDB_TEMP_DIRECTORY = /scratch
+  - MALLOC_ARENA_MAX = 2 (collapses glibc per-thread arena fragmentation
+                          for cgo-heavy DuckDB workloads)
 Takes three args:
   0: the root chart context
   1: the component's values block (must have .resources.limits.memory)
@@ -961,32 +972,39 @@ Usage: {{ include "lakerunner.duckdbRuntimeEnv" (list . .Values.componentName .V
 {{- end -}}
 {{- if $memLimit -}}
   {{- $bytes := include "lakerunner.parseMemoryToBytes" $memLimit | int64 -}}
+  {{- $oneMiB := 1048576 -}}
+  {{- $totalMiB := divf $bytes $oneMiB | int64 -}}
   {{- $hasGomemlimit := or (eq (include "lakerunner.hasEnvVar" (list $globalEnv "GOMEMLIMIT")) "true") (eq (include "lakerunner.hasEnvVar" (list $compEnv "GOMEMLIMIT")) "true") -}}
   {{- $hasGogc := or (eq (include "lakerunner.hasEnvVar" (list $globalEnv "GOGC")) "true") (eq (include "lakerunner.hasEnvVar" (list $compEnv "GOGC")) "true") -}}
   {{- $hasDuckdbMemLimit := or (eq (include "lakerunner.hasEnvVar" (list $globalEnv "LAKERUNNER_DUCKDB_MEMORY_LIMIT")) "true") (eq (include "lakerunner.hasEnvVar" (list $compEnv "LAKERUNNER_DUCKDB_MEMORY_LIMIT")) "true") -}}
   {{- $hasDuckdbTempDir := or (eq (include "lakerunner.hasEnvVar" (list $globalEnv "LAKERUNNER_DUCKDB_TEMP_DIRECTORY")) "true") (eq (include "lakerunner.hasEnvVar" (list $compEnv "LAKERUNNER_DUCKDB_TEMP_DIRECTORY")) "true") -}}
+  {{- $hasMallocArenaMax := or (eq (include "lakerunner.hasEnvVar" (list $globalEnv "MALLOC_ARENA_MAX")) "true") (eq (include "lakerunner.hasEnvVar" (list $compEnv "MALLOC_ARENA_MAX")) "true") -}}
 {{- if not $hasGomemlimit }}
+{{- /* GOMEMLIMIT = 20% of container, clamped to [256, 1024] MiB */}}
+{{- $gomemlimitMiB := mulf $totalMiB 0.20 | int64 -}}
+{{- if lt $gomemlimitMiB 256 -}}{{- $gomemlimitMiB = 256 -}}{{- end -}}
+{{- if gt $gomemlimitMiB 1024 -}}{{- $gomemlimitMiB = 1024 -}}{{- end }}
 - name: GOMEMLIMIT
-  value: "750MiB"
+  value: {{ printf "%dMiB" $gomemlimitMiB | quote }}
 {{- end }}
 {{- if not $hasGogc }}
 - name: GOGC
   value: "100"
 {{- end }}
 {{- if not $hasDuckdbMemLimit }}
-{{- /* Calculate DuckDB memory: total - 1GiB for Go/OS, in MB */}}
-{{- $oneGiB := 1073741824 -}}
-{{- $duckdbBytes := sub $bytes $oneGiB -}}
-{{- if lt $duckdbBytes 536870912 -}}
-{{- $duckdbBytes = 536870912 -}}
-{{- end -}}
-{{- $duckdbMB := divf $duckdbBytes 1048576 | int64 }}
+{{- /* DuckDB target = 40% of container, in MB; floor 512 MB */}}
+{{- $duckdbMB := mulf $totalMiB 0.40 | int64 -}}
+{{- if lt $duckdbMB 512 -}}{{- $duckdbMB = 512 -}}{{- end }}
 - name: LAKERUNNER_DUCKDB_MEMORY_LIMIT
   value: {{ $duckdbMB | quote }}
 {{- end }}
 {{- if not $hasDuckdbTempDir }}
 - name: LAKERUNNER_DUCKDB_TEMP_DIRECTORY
   value: "/scratch"
+{{- end }}
+{{- if not $hasMallocArenaMax }}
+- name: MALLOC_ARENA_MAX
+  value: "2"
 {{- end }}
 {{- end -}}
 {{- end -}}
@@ -998,6 +1016,8 @@ Settings:
   - GOMEMLIMIT = 75% of the remaining 50% (37.5% of total)
   - GOGC = calculated based on total memory
   - LAKERUNNER_DUCKDB_TEMP_DIRECTORY = /scratch
+  - MALLOC_ARENA_MAX = 2 (cgo-heavy DuckDB workload — collapses glibc
+                          per-thread arena fragmentation)
 Takes three args:
   0: the root chart context
   1: the component's values block (must have .resources.limits.memory)
@@ -1021,6 +1041,7 @@ Usage: {{ include "lakerunner.queryWorkerRuntimeEnv" (list . .Values.queryWorker
   {{- $hasGogc := or (eq (include "lakerunner.hasEnvVar" (list $globalEnv "GOGC")) "true") (eq (include "lakerunner.hasEnvVar" (list $compEnv "GOGC")) "true") -}}
   {{- $hasDuckdbMemLimit := or (eq (include "lakerunner.hasEnvVar" (list $globalEnv "LAKERUNNER_DUCKDB_MEMORY_LIMIT")) "true") (eq (include "lakerunner.hasEnvVar" (list $compEnv "LAKERUNNER_DUCKDB_MEMORY_LIMIT")) "true") -}}
   {{- $hasDuckdbTempDir := or (eq (include "lakerunner.hasEnvVar" (list $globalEnv "LAKERUNNER_DUCKDB_TEMP_DIRECTORY")) "true") (eq (include "lakerunner.hasEnvVar" (list $compEnv "LAKERUNNER_DUCKDB_TEMP_DIRECTORY")) "true") -}}
+  {{- $hasMallocArenaMax := or (eq (include "lakerunner.hasEnvVar" (list $globalEnv "MALLOC_ARENA_MAX")) "true") (eq (include "lakerunner.hasEnvVar" (list $compEnv "MALLOC_ARENA_MAX")) "true") -}}
 {{- if not $hasGomemlimit }}
 {{- /* GOMEMLIMIT = 75% of half the memory = 37.5% of total */}}
 {{- $halfMiB := divf $totalMiB 2 | int64 -}}
@@ -1041,6 +1062,10 @@ Usage: {{ include "lakerunner.queryWorkerRuntimeEnv" (list . .Values.queryWorker
 {{- if not $hasDuckdbTempDir }}
 - name: LAKERUNNER_DUCKDB_TEMP_DIRECTORY
   value: "/scratch"
+{{- end }}
+{{- if not $hasMallocArenaMax }}
+- name: MALLOC_ARENA_MAX
+  value: "2"
 {{- end }}
 {{- end -}}
 {{- end -}}
