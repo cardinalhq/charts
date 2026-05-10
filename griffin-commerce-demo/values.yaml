@@ -1,0 +1,59 @@
+# Default values for griffin-commerce-demo.
+
+nameOverride: ""
+fullnameOverride: ""
+
+# Single image used for every backend, the frontend, and the controlplane.
+# The container's SERVICE_NAME env selects which component to run.
+image:
+  repository: ghcr.io/cardinalhq/griffin-commerce-demo
+  tag: ""              # defaults to .Chart.appVersion when empty
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+
+# Optional Ingress for the frontend. Disable to manage routing yourself.
+ingress:
+  enabled: true
+  className: ""        # leave empty to use the cluster's default IngressClass
+  host: ""             # leave empty to accept any hostname
+  path: /
+  pathType: Prefix
+  annotations: {}
+  tls: []
+
+# OTLP telemetry. When endpoint is empty no OTEL_* env vars are injected.
+#
+# Two patterns are supported:
+#   1. endpoint: "http://otel-collector.observability.svc.cluster.local:4318"
+#      A single URL that every backend exports to.
+#   2. useHostIp: true (endpoint ignored)
+#      Each pod resolves its endpoint to its Node IP at startup, matching
+#      the per-node DaemonSet + hostPort pattern from the
+#      with-otlp-nodelocal kustomize overlay.
+otel:
+  endpoint: ""
+  insecure: true
+  useHostIp: false
+
+# Chaos overlay. Adds a single-replica controlplane Deployment + Service
+# and wires CONTROLPLANE_URL into every backend so they poll for fault
+# injection. WARNING: this enables GRIFFIN_ADMIN_ENABLED=true on the
+# controlplane — anyone who can reach :8086 can inject faults. Do not
+# enable in production.
+chaos:
+  enabled: false
+  metricExportIntervalMs: 10000
+  recsRefreshInterval: 30s
+
+# Pod- and container-level securityContext applied to every workload.
+# Defaults match the kustomize base patch and keep the chart compatible
+# with namespaces enforcing PSS restricted:latest.
+podSecurityContext:
+  runAsNonRoot: true
+  seccompProfile:
+    type: RuntimeDefault
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop: ["ALL"]
