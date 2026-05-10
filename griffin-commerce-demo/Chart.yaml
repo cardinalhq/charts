@@ -1,0 +1,15 @@
+apiVersion: v2
+name: griffin-commerce-demo
+description: A Helm chart for the Griffin Commerce demo application
+type: application
+version: "0.1.0"
+appVersion: "v0.3.0"
+keywords:
+  - griffin
+  - demo
+  - commerce
+  - cardinalhq
+home: https://github.com/cardinalhq/griffin-commerce-demo
+maintainers:
+  - name: Cardinal HQ
+    email: support@cardinalhq.com
