@@ -13,6 +13,16 @@ data:
         metrics_flush_interval: 10s
         store:
           ttl: 10s
+        virtual_node_peer_attributes:
+          - peer.service
+          - server.address
+          - http.url
+          - url.full
+          - net.peer.name
+          - rpc.service
+          - db.system
+          - db.name
+          - db.instance.id
 
     receivers:
       # Pre-delta'd data from agent/poller
