@@ -176,14 +176,14 @@ tests:
             name: OIDC_ISSUER_URL
             value: http://m.example.com/dex
       # Lock in the ordering: built-in OIDC_ISSUER_URL is emitted
-      # immediately after PORT (env[8]), so it lands at env[9] —
-      # comfortably before any user maestro.env entry, and Kubernetes
-      # picks the first occurrence on duplicates.
+      # immediately after WORKING_DIRECTORY (env[9]), so it lands at
+      # env[10] — comfortably before any user maestro.env entry, and
+      # Kubernetes picks the first occurrence on duplicates.
       - equal:
-          path: spec.template.spec.containers[0].env[9].name
+          path: spec.template.spec.containers[0].env[10].name
           value: OIDC_ISSUER_URL
       - equal:
-          path: spec.template.spec.containers[0].env[9].value
+          path: spec.template.spec.containers[0].env[10].value
           value: http://m.example.com/dex
 
   - it: ingress lists /dex before / when dex enabled
