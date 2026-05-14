@@ -3,6 +3,25 @@ templates:
   - maestro-deployment.yaml
   - mcp-gateway-deployment.yaml
 tests:
+  - it: mounts an agent-cache emptyDir and points WORKING_DIRECTORY at it
+    template: maestro-deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: WORKING_DIRECTORY
+            value: "/var/cache/maestro"
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: agent-cache
+            mountPath: /var/cache/maestro
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: agent-cache
+            emptyDir: {}
+
   - it: should render maestro.env into the maestro container
     set:
       maestro.env:
