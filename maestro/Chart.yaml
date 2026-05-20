@@ -2,8 +2,8 @@ apiVersion: v2
 name: maestro
 description: A Helm chart for Maestro - AI agent server with web UI
 type: application
-version: "0.7.40"
-appVersion: "v1.32.0"
+version: "0.7.41"
+appVersion: "v1.33.0"
 keywords:
   - maestro
   - ai
