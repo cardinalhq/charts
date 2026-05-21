@@ -126,8 +126,12 @@ spec:
   volumeClaimTemplates:
   - metadata:
       name: mirrors
+      # volumeClaimTemplates is IMMUTABLE: use only stable selector labels here.
+      # maestro.labels embeds app.kubernetes.io/version + helm.sh/chart, which
+      # change every release and make the StatefulSet un-updatable (forbidden
+      # immutable-field patch). Stable labels keep future releases syncable.
       labels:
-        {{- include "maestro.labels" . | nindent 8 }}
+        {{- include "maestro.selectorLabels" . | nindent 8 }}
         app.kubernetes.io/component: github-cache
     spec:
       accessModes:
