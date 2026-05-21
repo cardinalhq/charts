@@ -1,0 +1,25 @@
+{{- if .Values.githubCache.enabled -}}
+# Headless Service: clusterIP None gives each serving pod stable per-pod DNS
+# (github-cache-0.<svc>.<ns>.svc.cluster.local) so the placement directory can
+# address replicas directly. There is no load-balanced VIP — maestro routes to
+# a specific replica chosen from the directory, not to the Service.
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "maestro.githubCacheFullname" . }}
+  labels:
+    {{- include "maestro.labels" . | nindent 4 }}
+    app.kubernetes.io/component: github-cache
+  {{ include "maestro.annotations" . | nindent 2 }}
+spec:
+  type: ClusterIP
+  clusterIP: None
+  publishNotReadyAddresses: true
+  ports:
+    - port: {{ .Values.githubCache.serving.port }}
+      targetPort: http
+      name: http
+  selector:
+    {{- include "maestro.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: github-cache
+{{- end }}

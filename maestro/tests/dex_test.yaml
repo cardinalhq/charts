@@ -155,6 +155,9 @@ tests:
 
   - it: built-in OIDC_ISSUER_URL wins over a user maestro.env duplicate
     set:
+      # Disabled so this ordering check stays isolated from split mode's
+      # GITHUB_CACHE_REMOTE built-in (which otherwise lands at env[10]).
+      githubCache.enabled: false
       dex.enabled: true
       ingress.enabled: true
       ingress.host: m.example.com

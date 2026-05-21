@@ -152,6 +152,13 @@ spec:
           # readOnlyRootFilesystem=true.
           - name: WORKING_DIRECTORY
             value: "/var/cache/maestro"
+          {{- if .Values.githubCache.enabled }}
+          # Split mode: maestro holds no repo bytes. The in-process git client +
+          # ontology poller are disabled and git tool calls route to the
+          # github-cache serving replicas via the placement directory.
+          - name: GITHUB_CACHE_REMOTE
+            value: "1"
+          {{- end }}
           {{- if .Values.maestro.persistence.enabled }}
           - name: ONTOLOGY_WORKSPACE_DIR
             value: {{ printf "%s/git-checkouts" (.Values.maestro.persistence.mountPath | default "/var/lib/maestro") | quote }}
