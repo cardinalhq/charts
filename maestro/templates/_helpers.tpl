@@ -149,6 +149,29 @@ Database environment variables shared across components.
 {{- end }}
 
 {{/*
+github-cache: fully qualified names for the serving StatefulSet + headless
+Service and the provisioner Deployment.
+*/}}
+{{- define "maestro.githubCacheFullname" -}}
+{{- printf "%s-github-cache" (include "maestro.fullname" .) | trunc 63 | trimSuffix "-" -}}
+{{- end -}}
+
+{{- define "maestro.githubCacheProvisionerFullname" -}}
+{{- printf "%s-github-cache-provisioner" (include "maestro.fullname" .) | trunc 63 | trimSuffix "-" -}}
+{{- end -}}
+
+{{/*
+github-cache reads its Postgres DSN from DATABASE_URL (not maestro's
+MAESTRO_DATABASE_URL). Emit it as an alias composed from the same
+MAESTRO_DB_* vars that maestro.databaseEnv defines, so it must follow that
+helper in the env list (the $(VAR) refs resolve against the earlier entries).
+*/}}
+{{- define "maestro.databaseUrlAlias" -}}
+- name: DATABASE_URL
+  value: "postgresql://$(MAESTRO_DB_USER):$(MAESTRO_DB_PASSWORD)@$(MAESTRO_DB_HOST):$(MAESTRO_DB_PORT)/$(MAESTRO_DB_NAME)?sslmode=$(MAESTRO_DB_SSLMODE)"
+{{- end -}}
+
+{{/*
 Return the secret name for the Cardinal API key.
 */}}
 {{- define "maestro.cardinalApiKeySecretName" -}}

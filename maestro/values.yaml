@@ -179,6 +179,86 @@ mcpGateway:
   affinity: {}
   env: []
 
+# GitHub Cache Service (split mode).
+#
+# When enabled (the default), the per-tenant VCS repo mirror cache + git
+# code-search/read tools and the ontology poller/provisioner run as their own
+# pods instead of in-process inside maestro. Maestro then runs as a pure client
+# (GITHUB_CACHE_REMOTE=1): it holds no repo bytes and routes every git tool call
+# to a serving replica via the Postgres placement directory, with failover.
+#
+# Two roles, both off the unified image:
+#   - serving (`github-cache`): a StatefulSet; each pod owns a stable RWO PVC
+#     holding its bare mirrors and answers MCP-over-HTTP. A headless Service
+#     gives each pod stable per-pod DNS so the directory can address it directly.
+#   - provisioner (`github-cache-provisioner`): a singleton Deployment that runs
+#     the ontology poller + dead-row sweeper (guarded by a persisted lease).
+#     Required whenever split mode is on — in remote mode maestro disables its
+#     in-process poller, so without this pod ontology refresh stops.
+#
+# Set githubCache.enabled=false to fall back to the legacy in-process path
+# (maestro holds the mirrors itself; no extra pods). That is the rollback path.
+#
+# NOTE: split mode is on by default and the serving StatefulSet provisions one
+# RWO PVC per replica. The cluster therefore needs a default StorageClass (or
+# serving.persistence.storageClass set) — without dynamic provisioning the
+# serving pods stay Pending. Self-hosted installs that don't want the extra
+# pods/storage should set githubCache.enabled=false.
+githubCache:
+  enabled: true
+
+  # Serving replicas — the mirror cache + git tool hosts.
+  serving:
+    replicas: 2
+    port: 4300
+    # Per-pod mirror storage. Each StatefulSet pod is the sole writer to its
+    # own RWO volume (volumeClaimTemplate), so a restart re-attaches a warm
+    # disk → delta-fetch instead of a full re-clone.
+    persistence:
+      size: 10Gi
+      accessMode: ReadWriteOnce
+      # storageClass: ""   # leave empty to use the cluster default
+      mountPath: /var/lib/github-cache
+      # SELinux MCS level pinned across pod restarts so a re-attached PVC's
+      # mirror bytes stay readable (same rationale as maestro.persistence).
+      seLinuxLevel: "s0:c100,c200"
+    resources:
+      requests:
+        cpu: 500m
+        memory: 512Mi
+      limits:
+        cpu: 1
+        memory: 1Gi
+    labels: {}
+    annotations: {}
+    nodeSelector: {}
+    tolerations: []
+    affinity: {}
+
+  # Ontology poller + sweeper singleton. Holds no mirror PVC.
+  provisioner:
+    replicas: 1
+    resources:
+      requests:
+        cpu: 250m
+        memory: 256Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
+    labels: {}
+    annotations: {}
+    nodeSelector: {}
+    tolerations: []
+    affinity: {}
+
+  # Optional override of the per-replica disk-budget LRU ceiling (bytes).
+  # Leave empty to use the service default (10 GiB), which matches the
+  # serving PVC size above.
+  diskBudgetBytes: ""
+
+  # Additional env vars applied to both the serving and provisioner containers.
+  env: []
+
 # License configuration
 # A valid license is required for Maestro to operate.
 # The license secret is mounted to /app/license in the maestro and

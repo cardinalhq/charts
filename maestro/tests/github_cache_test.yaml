@@ -1,0 +1,176 @@
+suite: github-cache split mode
+templates:
+  - github-cache-statefulset.yaml
+  - github-cache-service.yaml
+  - github-cache-provisioner-deployment.yaml
+  - maestro-deployment.yaml
+tests:
+  # ---- serving StatefulSet ----------------------------------------------
+  - it: renders the serving StatefulSet with two replicas by default
+    template: github-cache-statefulset.yaml
+    asserts:
+      - isKind:
+          of: StatefulSet
+      - equal:
+          path: spec.replicas
+          value: 2
+      - equal:
+          path: spec.serviceName
+          value: RELEASE-NAME-maestro-github-cache
+      - equal:
+          path: spec.template.spec.containers[0].args
+          value: ["github-cache"]
+
+  - it: gives each serving pod a 10Gi RWO mirror PVC
+    template: github-cache-statefulset.yaml
+    asserts:
+      - equal:
+          path: spec.volumeClaimTemplates[0].metadata.name
+          value: mirrors
+      - equal:
+          path: spec.volumeClaimTemplates[0].spec.accessModes[0]
+          value: ReadWriteOnce
+      - equal:
+          path: spec.volumeClaimTemplates[0].spec.resources.requests.storage
+          value: 10Gi
+
+  - it: wires DATABASE_URL, MIRROR_ROOT, and stable per-pod identity env
+    template: github-cache-statefulset.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: DATABASE_URL
+            value: "postgresql://$(MAESTRO_DB_USER):$(MAESTRO_DB_PASSWORD)@$(MAESTRO_DB_HOST):$(MAESTRO_DB_PORT)/$(MAESTRO_DB_NAME)?sslmode=$(MAESTRO_DB_SSLMODE)"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: MIRROR_ROOT
+            value: "/var/lib/github-cache/mirrors"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GITHUB_CACHE_REPLICA_ID
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GITHUB_CACHE_ENDPOINT
+            value: "$(POD_NAME).RELEASE-NAME-maestro-github-cache.NAMESPACE.svc"
+
+  - it: mounts the license into the serving pod
+    template: github-cache-statefulset.yaml
+    set:
+      license.create: false
+      license.secretName: my-license
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: license
+            mountPath: /app/license
+            readOnly: true
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: license
+            secret:
+              secretName: my-license
+
+  - it: applies a custom disk budget override when set
+    template: github-cache-statefulset.yaml
+    set:
+      githubCache.diskBudgetBytes: "8589934592"
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GITHUB_CACHE_DISK_BUDGET_BYTES
+            value: "8589934592"
+
+  # ---- headless Service --------------------------------------------------
+  - it: exposes a headless Service for per-pod DNS
+    template: github-cache-service.yaml
+    asserts:
+      - isKind:
+          of: Service
+      - equal:
+          path: spec.clusterIP
+          value: None
+      - equal:
+          path: spec.selector["app.kubernetes.io/component"]
+          value: github-cache
+
+  # ---- provisioner -------------------------------------------------------
+  - it: renders the provisioner as a singleton Deployment with no PVC
+    template: github-cache-provisioner-deployment.yaml
+    asserts:
+      - isKind:
+          of: Deployment
+      - equal:
+          path: spec.replicas
+          value: 1
+      - equal:
+          path: spec.strategy.type
+          value: Recreate
+      - equal:
+          path: spec.template.spec.containers[0].args
+          value: ["github-cache-provisioner"]
+      - notExists:
+          path: spec.volumeClaimTemplates
+      # Ontology provisioning moves here in remote mode and calls mcp-gateway.
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: MCP_GATEWAY_URL
+            value: "http://RELEASE-NAME-maestro-mcp-gateway:8080"
+
+  - it: mounts the license into the provisioner pod
+    template: github-cache-provisioner-deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: license
+            mountPath: /app/license
+            readOnly: true
+
+  # ---- maestro client wiring --------------------------------------------
+  - it: sets GITHUB_CACHE_REMOTE on maestro when split mode is on
+    template: maestro-deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GITHUB_CACHE_REMOTE
+            value: "1"
+
+  # ---- disabled (legacy in-process) path ---------------------------------
+  - it: emits no github-cache resources when disabled
+    set:
+      githubCache.enabled: false
+    template: github-cache-statefulset.yaml
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: provisioner is absent when disabled
+    set:
+      githubCache.enabled: false
+    template: github-cache-provisioner-deployment.yaml
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: leaves GITHUB_CACHE_REMOTE off maestro when disabled
+    set:
+      githubCache.enabled: false
+    template: maestro-deployment.yaml
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GITHUB_CACHE_REMOTE
+            value: "1"

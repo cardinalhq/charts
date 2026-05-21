@@ -1,0 +1,79 @@
+{{- if .Values.githubCache.enabled -}}
+{{- $prov := .Values.githubCache.provisioner -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "maestro.githubCacheProvisionerFullname" . }}
+  labels:
+    {{- include "maestro.labels" . | nindent 4 }}
+    app.kubernetes.io/component: github-cache-provisioner
+  {{ include "maestro.annotations" . | nindent 2 }}
+spec:
+  # Singleton — the ontology poll + dead-row sweeper is guarded by a persisted
+  # lease, but Recreate avoids two overlapping pods during a rollout.
+  replicas: {{ $prov.replicas }}
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "maestro.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: github-cache-provisioner
+  template:
+    metadata:
+      labels:
+        {{- include "maestro.labels" . | nindent 8 }}
+        app.kubernetes.io/component: github-cache-provisioner
+        {{- with $prov.labels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- include "maestro.annotations" . | nindent 6 }}
+    spec:
+      serviceAccountName: {{ include "maestro.serviceAccountName" . }}
+      {{- include "maestro.podSecurityContext" (dict "root" . "override" $prov.podSecurityContext) | nindent 6 }}
+      {{- include "maestro.imagePullSecrets" . | nindent 6 }}
+      containers:
+      - name: github-cache-provisioner
+        {{- include "maestro.containerSecurityContext" (dict "root" . "override" $prov.containerSecurityContext) | nindent 8 }}
+        image: {{ include "maestro.image" . }}
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        command: ["/app/entrypoint.sh"]
+        args: ["github-cache-provisioner"]
+        env:
+          {{ include "maestro.databaseEnv" . | nindent 10 }}
+          {{- include "maestro.databaseUrlAlias" . | nindent 10 }}
+          # The ontology provisioner (which moves here in remote mode) calls
+          # the mcp-gateway for the runtime topology overlay; without this the
+          # overlay is silently skipped.
+          - name: MCP_GATEWAY_URL
+            value: "http://{{ include "maestro.fullname" . }}-mcp-gateway:{{ .Values.mcpGateway.port }}"
+          # git writes ~/.gitconfig etc.; point HOME at the writable tmp
+          # emptyDir so readOnlyRootFilesystem=true doesn't break it.
+          - name: HOME
+            value: /tmp
+          {{- with .Values.githubCache.diskBudgetBytes }}
+          - name: GITHUB_CACHE_DISK_BUDGET_BYTES
+            value: {{ . | quote }}
+          {{- end }}
+          {{- include "maestro.cardinalTelemetryEnv" . | nindent 10 }}
+          {{- with .Values.global.env }}
+          {{- toYaml . | nindent 10 }}
+          {{- end }}
+          {{- with .Values.githubCache.env }}
+          {{- toYaml . | nindent 10 }}
+          {{- end }}
+        {{- if .Values.global.resources.enabled }}
+        resources:
+          {{- toYaml $prov.resources | nindent 10 }}
+        {{- end }}
+        volumeMounts:
+        - name: tmp
+          mountPath: /tmp
+        {{- include "maestro.licenseVolumeMount" . | nindent 8 }}
+      {{- include "maestro.sched.nodeSelector" (list .Values.global.nodeSelector $prov.nodeSelector) | nindent 6 }}
+      {{- include "maestro.sched.tolerations"  (list .Values.global.tolerations  $prov.tolerations)  | nindent 6 }}
+      {{- include "maestro.sched.affinity"     (list .Values.global.affinity     $prov.affinity)     | nindent 6 }}
+      volumes:
+      - name: tmp
+        emptyDir: {}
+      {{- include "maestro.licenseVolume" . | nindent 6 }}
+{{- end }}
