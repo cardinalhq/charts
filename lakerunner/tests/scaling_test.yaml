@@ -82,18 +82,134 @@ tests:
             name: LAKERUNNER_AUTOSCALER_SERVICES_LOGS_MAX_REPLICAS
             value: "10"
 
-  - it: should not inject autoscaler env vars for disabled services
+  - it: should emit zero replicas for disabled traces
     set:
       monitoring.enabled: true
       processTraces.enabled: false
     templates:
       - monitoring-deployment.yaml
     asserts:
-      - notContains:
+      - contains:
           path: spec.template.spec.containers[0].env
           content:
             name: LAKERUNNER_AUTOSCALER_SERVICES_TRACES_DEPLOYMENT
             value: RELEASE-NAME-lakerunner-process-traces
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: LAKERUNNER_AUTOSCALER_SERVICES_TRACES_MIN_REPLICAS
+            value: "0"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: LAKERUNNER_AUTOSCALER_SERVICES_TRACES_MAX_REPLICAS
+            value: "0"
+
+  - it: should emit zero replicas for disabled logs
+    set:
+      monitoring.enabled: true
+      processLogs.enabled: false
+    templates:
+      - monitoring-deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: LAKERUNNER_AUTOSCALER_SERVICES_LOGS_DEPLOYMENT
+            value: RELEASE-NAME-lakerunner-process-logs
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: LAKERUNNER_AUTOSCALER_SERVICES_LOGS_MIN_REPLICAS
+            value: "0"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: LAKERUNNER_AUTOSCALER_SERVICES_LOGS_MAX_REPLICAS
+            value: "0"
+
+  - it: should emit zero replicas for disabled metrics
+    set:
+      monitoring.enabled: true
+      processMetrics.enabled: false
+    templates:
+      - monitoring-deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: LAKERUNNER_AUTOSCALER_SERVICES_METRICS_DEPLOYMENT
+            value: RELEASE-NAME-lakerunner-process-metrics
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: LAKERUNNER_AUTOSCALER_SERVICES_METRICS_MIN_REPLICAS
+            value: "0"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: LAKERUNNER_AUTOSCALER_SERVICES_METRICS_MAX_REPLICAS
+            value: "0"
+
+  - it: should override configured replica values when signal is disabled
+    set:
+      monitoring.enabled: true
+      processTraces.enabled: false
+      processTraces.autoscaling.minReplicas: 3
+      processTraces.autoscaling.maxReplicas: 7
+    templates:
+      - monitoring-deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: LAKERUNNER_AUTOSCALER_SERVICES_TRACES_MIN_REPLICAS
+            value: "0"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: LAKERUNNER_AUTOSCALER_SERVICES_TRACES_MAX_REPLICAS
+            value: "0"
+
+  - it: should emit all services with zero replicas when every signal is disabled
+    set:
+      monitoring.enabled: true
+      processLogs.enabled: false
+      processMetrics.enabled: false
+      processTraces.enabled: false
+    templates:
+      - monitoring-deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: LAKERUNNER_AUTOSCALER_SERVICES_LOGS_DEPLOYMENT
+            value: RELEASE-NAME-lakerunner-process-logs
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: LAKERUNNER_AUTOSCALER_SERVICES_LOGS_MAX_REPLICAS
+            value: "0"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: LAKERUNNER_AUTOSCALER_SERVICES_METRICS_DEPLOYMENT
+            value: RELEASE-NAME-lakerunner-process-metrics
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: LAKERUNNER_AUTOSCALER_SERVICES_METRICS_MAX_REPLICAS
+            value: "0"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: LAKERUNNER_AUTOSCALER_SERVICES_TRACES_DEPLOYMENT
+            value: RELEASE-NAME-lakerunner-process-traces
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: LAKERUNNER_AUTOSCALER_SERVICES_TRACES_MAX_REPLICAS
+            value: "0"
 
   - it: should set observe-only mode when configured
     set:
