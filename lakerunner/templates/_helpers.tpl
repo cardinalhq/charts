@@ -586,7 +586,9 @@ Usage: {{ include "lakerunner.image" (list .Values.componentName.image .) }}
 
 {{/*
 Generate autoscaler environment variables for the monitoring deployment.
-Emits LAKERUNNER_AUTOSCALER_* env vars for all enabled worker services.
+Emits LAKERUNNER_AUTOSCALER_* env vars for all worker services. When a
+signal's processing is disabled, its MIN/MAX replicas are emitted as 0
+so the autoscaler treats it as scaled-to-zero.
 Usage: {{ include "lakerunner.autoscalerEnv" . }}
 */}}
 {{- define "lakerunner.autoscalerEnv" -}}
@@ -594,30 +596,24 @@ Usage: {{ include "lakerunner.autoscalerEnv" . }}
   value: "true"
 - name: LAKERUNNER_AUTOSCALER_OBSERVE_ONLY
   value: {{ .Values.monitoring.autoscaler.observeOnly | quote }}
-{{- if .Values.processLogs.enabled }}
 - name: LAKERUNNER_AUTOSCALER_SERVICES_LOGS_DEPLOYMENT
   value: {{ include "lakerunner.fullname" . }}-process-logs
 - name: LAKERUNNER_AUTOSCALER_SERVICES_LOGS_MIN_REPLICAS
-  value: {{ .Values.processLogs.autoscaling.minReplicas | quote }}
+  value: {{ if .Values.processLogs.enabled }}{{ .Values.processLogs.autoscaling.minReplicas | quote }}{{ else }}"0"{{ end }}
 - name: LAKERUNNER_AUTOSCALER_SERVICES_LOGS_MAX_REPLICAS
-  value: {{ .Values.processLogs.autoscaling.maxReplicas | quote }}
-{{- end }}
-{{- if .Values.processMetrics.enabled }}
+  value: {{ if .Values.processLogs.enabled }}{{ .Values.processLogs.autoscaling.maxReplicas | quote }}{{ else }}"0"{{ end }}
 - name: LAKERUNNER_AUTOSCALER_SERVICES_METRICS_DEPLOYMENT
   value: {{ include "lakerunner.fullname" . }}-process-metrics
 - name: LAKERUNNER_AUTOSCALER_SERVICES_METRICS_MIN_REPLICAS
-  value: {{ .Values.processMetrics.autoscaling.minReplicas | quote }}
+  value: {{ if .Values.processMetrics.enabled }}{{ .Values.processMetrics.autoscaling.minReplicas | quote }}{{ else }}"0"{{ end }}
 - name: LAKERUNNER_AUTOSCALER_SERVICES_METRICS_MAX_REPLICAS
-  value: {{ .Values.processMetrics.autoscaling.maxReplicas | quote }}
-{{- end }}
-{{- if .Values.processTraces.enabled }}
+  value: {{ if .Values.processMetrics.enabled }}{{ .Values.processMetrics.autoscaling.maxReplicas | quote }}{{ else }}"0"{{ end }}
 - name: LAKERUNNER_AUTOSCALER_SERVICES_TRACES_DEPLOYMENT
   value: {{ include "lakerunner.fullname" . }}-process-traces
 - name: LAKERUNNER_AUTOSCALER_SERVICES_TRACES_MIN_REPLICAS
-  value: {{ .Values.processTraces.autoscaling.minReplicas | quote }}
+  value: {{ if .Values.processTraces.enabled }}{{ .Values.processTraces.autoscaling.minReplicas | quote }}{{ else }}"0"{{ end }}
 - name: LAKERUNNER_AUTOSCALER_SERVICES_TRACES_MAX_REPLICAS
-  value: {{ .Values.processTraces.autoscaling.maxReplicas | quote }}
-{{- end }}
+  value: {{ if .Values.processTraces.enabled }}{{ .Values.processTraces.autoscaling.maxReplicas | quote }}{{ else }}"0"{{ end }}
 {{- end -}}
 
 {{/*

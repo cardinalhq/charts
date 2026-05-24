@@ -82,18 +82,28 @@ tests:
             name: LAKERUNNER_AUTOSCALER_SERVICES_LOGS_MAX_REPLICAS
             value: "10"
 
-  - it: should not inject autoscaler env vars for disabled services
+  - it: should emit zero replicas for disabled services
     set:
       monitoring.enabled: true
       processTraces.enabled: false
     templates:
       - monitoring-deployment.yaml
     asserts:
-      - notContains:
+      - contains:
           path: spec.template.spec.containers[0].env
           content:
             name: LAKERUNNER_AUTOSCALER_SERVICES_TRACES_DEPLOYMENT
             value: RELEASE-NAME-lakerunner-process-traces
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: LAKERUNNER_AUTOSCALER_SERVICES_TRACES_MIN_REPLICAS
+            value: "0"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: LAKERUNNER_AUTOSCALER_SERVICES_TRACES_MAX_REPLICAS
+            value: "0"
 
   - it: should set observe-only mode when configured
     set:
