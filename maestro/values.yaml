@@ -17,10 +17,12 @@ fullnameOverride: ""
 #     Maestro `persistence.enabled` must be false (RWO PVC + Recreate
 #     strategy deadlocks rolling updates under replicas>1).
 #
-# Defaults for `maestro.replicas`, `mcpGateway.replicas`, and
-# `githubCache.enabled` auto-derive from this flag when left unset (null).
-# Explicit operator values are honored; conflicting explicit values fail
-# template rendering with a clear message.
+# Defaults for `maestro.replicas` and `githubCache.enabled` auto-derive
+# from this flag when left unset (null). Explicit operator values are
+# honored; conflicting explicit values fail template rendering with a
+# clear message. mcp-gateway is no longer a standalone Deployment — it
+# runs as a native sidecar in every maestro stack pod, so there's no
+# replica count to configure.
 ha:
   enabled: false
 
@@ -231,19 +233,26 @@ maestro:
     seLinuxLevel: "s0:c100,c200"
 
 # MCP Gateway configuration.
-# mcp-gateway is a required companion to maestro and is always deployed;
-# there is no toggle to disable it.
+#
+# mcp-gateway runs as a native sidecar (initContainer with restartPolicy:
+# Always, GA in k8s 1.29+) in every maestro stack pod — maestro itself,
+# the github-cache StatefulSet pods, and the github-cache-provisioner.
+# Each pod's main container talks to the gateway over loopback, so every
+# MCP session lives entirely within one pod. This sidesteps the
+# "session not found" error stateful MCP drivers would otherwise hit
+# under round-robin Service routing (conductor#838).
+#
+# Because the sidecar topology eliminates the standalone Deployment,
+# `mcpGateway.replicas` no longer exists.
 mcpGateway:
-  # Replica count. Leave unset (null) to auto-derive: 1 in both POC and HA
-  # modes. mcp-gateway does NOT scale past 1 by default even under HA
-  # because its drivers other than collector-editor use stateful
-  # StreamableHTTP — round-robin load balancing across 2+ pods produces
-  # "session not found" errors. Explicit overrides are honored if you've
-  # confirmed only the HA-safe driver paths are in use.
-  replicas: ~
   port: 8080
   debugPort: 9090
   apiKey: ""
+  # Resources for the sidecar container. CPU is generously over-provisioned
+  # at the default request (1 CPU) given observed steady-state usage of
+  # 1-2 millicores; operators tight on node capacity can drop the request
+  # to ~100m without touching the limit. Memory keeps the standalone default
+  # since steady-state observed ranges 25-110 MiB across deployments.
   resources:
     requests:
       cpu: 1
@@ -251,11 +260,7 @@ mcpGateway:
     limits:
       cpu: 1
       memory: 512Mi
-  labels: {}
-  annotations: {}
-  nodeSelector: {}
-  tolerations: []
-  affinity: {}
+  # Additional env vars applied to every mcp-gateway sidecar.
   env: []
 
 # GitHub Cache Service (split mode).

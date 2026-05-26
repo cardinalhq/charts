@@ -62,26 +62,12 @@ spec:
         {{- $containerSec = $merged -}}
       {{- end }}
       initContainers:
-      # Reuses the unified maestro image so we don't need a separate
-      # busybox/netcat dependency. The entrypoint exposes a `wait-for-tcp`
-      # subcommand that polls until the target accepts a connection.
-      - name: wait-for-mcp-gateway
-        image: {{ include "maestro.image" . }}
-        imagePullPolicy: {{ .Values.image.pullPolicy }}
-        {{- include "maestro.containerSecurityContext" (dict "root" . "override" $containerSec) | nindent 8 }}
-        args:
-          - wait-for-tcp
-          - {{ include "maestro.fullname" . }}-mcp-gateway
-          - {{ .Values.mcpGateway.port | quote }}
-        {{- if .Values.global.resources.enabled }}
-        resources:
-          requests:
-            cpu: 50m
-            memory: 64Mi
-          limits:
-            cpu: 50m
-            memory: 64Mi
-        {{- end }}
+      # mcp-gateway as a native sidecar (initContainer + restartPolicy: Always,
+      # GA since k8s 1.29). Starts before the maestro container and stays
+      # running. Maestro talks to it over localhost, so every MCP session lives
+      # entirely within this pod — no Service round-robin, no risk of
+      # "session not found" on stateful drivers. See conductor#838.
+      {{- include "maestro.mcpGatewaySidecar" (dict "root" . "containerSec" $containerSec) | nindent 6 }}
       {{- if and (dig "tls" "enabled" false .Values.maestro) (dig "tls" "cert" "autoGenerate" true .Values.maestro) (not (dig "tls" "secretName" "" .Values.maestro)) }}
       # Generates a self-signed cert into the shared `tls` emptyDir at pod
       # start. Cert regenerates each pod restart — fine for POC, swap to
@@ -144,7 +130,7 @@ spec:
         env:
           {{ include "maestro.databaseEnv" . | nindent 10 }}
           - name: MCP_GATEWAY_URL
-            value: "http://{{ include "maestro.fullname" . }}-mcp-gateway:{{ .Values.mcpGateway.port }}"
+            value: "http://localhost:{{ .Values.mcpGateway.port }}"
           - name: PORT
             value: {{ .Values.maestro.port | quote }}
           # Maestro writes agent caches under

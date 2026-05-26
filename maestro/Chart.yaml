@@ -2,13 +2,8 @@ apiVersion: v2
 name: maestro
 description: A Helm chart for Maestro - AI agent server with web UI
 type: application
-<<<<<<< HEAD
-version: "0.7.54"
-appVersion: "v1.43.11"
-=======
 version: "0.8.0"
-appVersion: "v1.43.6"
->>>>>>> e0e06dd (maestro: add ha/poc mode toggle, S3 objectStore, 0.8.0)
+appVersion: "v1.43.11"
 keywords:
   - maestro
   - ai

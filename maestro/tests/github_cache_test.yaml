@@ -131,7 +131,7 @@ tests:
           path: spec.template.spec.containers[0].env
           content:
             name: MCP_GATEWAY_URL
-            value: "http://RELEASE-NAME-maestro-mcp-gateway:8080"
+            value: "http://localhost:8080"
 
   - it: mounts the license into the provisioner pod
     template: github-cache-provisioner-deployment.yaml

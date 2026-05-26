@@ -210,6 +210,60 @@ Usage:
 {{- end -}}
 
 {{/*
+mcp-gateway as a native sidecar (initContainer with restartPolicy: Always,
+GA in k8s 1.29). Used by maestro, github-cache (serving), and
+github-cache-provisioner pod templates so each consumer talks to its
+own pod-local gateway over loopback. No Service or cross-pod routing
+involved — sidesteps the "session not found" issue (cardinalhq/conductor#838)
+that affects stateful MCP drivers under round-robin load balancing.
+
+The sidecar uses the unified image dispatched with `mcp-gateway` args.
+Resource block is conservative (CPU request lowered from the standalone
+default since per-pod density goes up); memory keeps the standalone
+default since observed steady-state hovers near it.
+
+Usage (inside a pod template's initContainers list):
+  {{- include "maestro.mcpGatewaySidecar" (dict "root" . "containerSec" $cSec) | nindent 6 }}
+*/}}
+{{- define "maestro.mcpGatewaySidecar" -}}
+- name: mcp-gateway
+  restartPolicy: Always
+  image: {{ include "maestro.image" .root }}
+  imagePullPolicy: {{ .root.Values.image.pullPolicy }}
+  command: ["/app/entrypoint.sh"]
+  args: ["mcp-gateway"]
+  {{- include "maestro.containerSecurityContext" (dict "root" .root "override" (default dict .containerSec)) | nindent 2 }}
+  ports:
+  - containerPort: {{ .root.Values.mcpGateway.port }}
+    name: mcp
+  - containerPort: {{ .root.Values.mcpGateway.debugPort }}
+    name: mcp-debug
+  env:
+    {{ include "maestro.databaseEnv" .root | nindent 4 }}
+    - name: MCP_PORT
+      value: {{ .root.Values.mcpGateway.port | quote }}
+    - name: MCP_DEBUG_PORT
+      value: {{ .root.Values.mcpGateway.debugPort | quote }}
+    {{- if .root.Values.mcpGateway.apiKey }}
+    - name: MCP_API_KEY
+      value: {{ .root.Values.mcpGateway.apiKey | quote }}
+    {{- end }}
+    {{- include "maestro.cardinalTelemetryEnv" .root | nindent 4 }}
+    {{- with .root.Values.global.env }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+    {{- with .root.Values.mcpGateway.env }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- if .root.Values.global.resources.enabled }}
+  resources:
+    {{- toYaml .root.Values.mcpGateway.resources | nindent 4 }}
+  {{- end }}
+  volumeMounts:
+  {{- include "maestro.licenseVolumeMount" .root | nindent 2 }}
+{{- end -}}
+
+{{/*
 HA-mode invariant validator. Called from each Deployment template so an
 invalid combination fails rendering with a clear message no matter which
 file the operator looks at.

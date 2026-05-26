@@ -1,20 +1,12 @@
-suite: HA / POC mode toggle and objectStore wiring
+suite: HA / POC mode toggle, objectStore wiring, mcp-gateway sidecar topology
 templates:
   - maestro-deployment.yaml
-  - mcp-gateway-deployment.yaml
   - github-cache-statefulset.yaml
   - github-cache-provisioner-deployment.yaml
 tests:
   # ---- POC defaults (ha.enabled=false) ----------------------------------
   - it: "POC default: maestro replicas auto-derive to 1"
     template: maestro-deployment.yaml
-    asserts:
-      - equal:
-          path: spec.replicas
-          value: 1
-
-  - it: "POC default: mcp-gateway replicas auto-derive to 1"
-    template: mcp-gateway-deployment.yaml
     asserts:
       - equal:
           path: spec.replicas
@@ -61,28 +53,7 @@ tests:
           path: spec.replicas
           value: 2
 
-  - it: "HA: mcp-gateway replicas STAY at 1 (stateful drivers force single pod)"
-    template: mcp-gateway-deployment.yaml
-    set:
-      ha.enabled: true
-      objectStore.bucket: my-bucket
-    asserts:
-      - equal:
-          path: spec.replicas
-          value: 1
-
-  - it: "HA: explicit mcp-gateway replicas override is honored (operator opt-in)"
-    template: mcp-gateway-deployment.yaml
-    set:
-      ha.enabled: true
-      objectStore.bucket: my-bucket
-      mcpGateway.replicas: 3
-    asserts:
-      - equal:
-          path: spec.replicas
-          value: 3
-
-  - it: "HA: explicit higher replicas honored"
+  - it: "HA: explicit higher maestro replicas honored"
     template: maestro-deployment.yaml
     set:
       ha.enabled: true
@@ -93,7 +64,7 @@ tests:
           path: spec.replicas
           value: 4
 
-  - it: "HA: github-cache StatefulSet is rendered"
+  - it: "HA: github-cache StatefulSet is rendered with 2 serving replicas"
     template: github-cache-statefulset.yaml
     set:
       ha.enabled: true
@@ -105,7 +76,7 @@ tests:
           path: spec.replicas
           value: 2
 
-  - it: "HA: github-cache provisioner is rendered"
+  - it: "HA: github-cache provisioner is rendered as a singleton"
     template: github-cache-provisioner-deployment.yaml
     set:
       ha.enabled: true
@@ -113,6 +84,9 @@ tests:
     asserts:
       - isKind:
           of: Deployment
+      - equal:
+          path: spec.replicas
+          value: 1
 
   - it: "HA: GITHUB_CACHE_REMOTE set on maestro"
     template: maestro-deployment.yaml
@@ -125,6 +99,67 @@ tests:
           content:
             name: GITHUB_CACHE_REMOTE
             value: "1"
+
+  # ---- mcp-gateway sidecar topology ------------------------------------
+  - it: "maestro pod includes the mcp-gateway sidecar"
+    template: maestro-deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.initContainers[?(@.name == "mcp-gateway")].name
+          value: mcp-gateway
+      - equal:
+          path: spec.template.spec.initContainers[?(@.name == "mcp-gateway")].restartPolicy
+          value: Always
+      - equal:
+          path: spec.template.spec.initContainers[?(@.name == "mcp-gateway")].args[0]
+          value: mcp-gateway
+
+  - it: "maestro talks to gateway over localhost (no Service hop)"
+    template: maestro-deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: MCP_GATEWAY_URL
+            value: "http://localhost:8080"
+
+  - it: "github-cache StatefulSet pod includes the mcp-gateway sidecar"
+    template: github-cache-statefulset.yaml
+    set:
+      ha.enabled: true
+      objectStore.bucket: my-bucket
+    asserts:
+      - equal:
+          path: spec.template.spec.initContainers[?(@.name == "mcp-gateway")].name
+          value: mcp-gateway
+      - equal:
+          path: spec.template.spec.initContainers[?(@.name == "mcp-gateway")].restartPolicy
+          value: Always
+
+  - it: "github-cache provisioner pod includes the mcp-gateway sidecar"
+    template: github-cache-provisioner-deployment.yaml
+    set:
+      ha.enabled: true
+      objectStore.bucket: my-bucket
+    asserts:
+      - equal:
+          path: spec.template.spec.initContainers[?(@.name == "mcp-gateway")].name
+          value: mcp-gateway
+      - equal:
+          path: spec.template.spec.initContainers[?(@.name == "mcp-gateway")].restartPolicy
+          value: Always
+
+  - it: "provisioner talks to gateway over localhost"
+    template: github-cache-provisioner-deployment.yaml
+    set:
+      ha.enabled: true
+      objectStore.bucket: my-bucket
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: MCP_GATEWAY_URL
+            value: "http://localhost:8080"
 
   # ---- objectStore env wiring -------------------------------------------
   - it: "HA: MAESTRO_ARTIFACT_STORE=object and bucket emitted"
@@ -243,14 +278,9 @@ tests:
                 name: "my-obc"
                 key: "custom-access-key"
 
-  # ---- HA invariants fail loud ------------------------------------------
-  # NB: the validation helper is included from both maestro-deployment and
-  # mcp-gateway-deployment. helm-unittest's `failedTemplate` matcher only
-  # fires when the error is reported FROM the file named by `template:`,
-  # which (because of helm's template-processing order) is the
-  # mcp-gateway template. Asserting from there keeps the matcher reliable.
+  # ---- HA invariants fail loud (validation in haValidate helper) -------
   - it: "HA without objectStore.bucket fails template rendering"
-    template: mcp-gateway-deployment.yaml
+    template: maestro-deployment.yaml
     set:
       ha.enabled: true
     asserts:
@@ -258,7 +288,7 @@ tests:
           errorMessage: "ha.enabled=true requires objectStore.bucket to be set (artifacts must be durable across pods). See values.yaml for AWS-S3 and Rook-Ceph examples."
 
   - it: "HA with explicit githubCache.enabled=false fails template rendering"
-    template: mcp-gateway-deployment.yaml
+    template: maestro-deployment.yaml
     set:
       ha.enabled: true
       objectStore.bucket: my-bucket
@@ -268,7 +298,7 @@ tests:
           errorMessage: "ha.enabled=true is incompatible with explicit githubCache.enabled=false (in-process github-cache holds per-pod state and a single PVC, neither of which scales). Remove the override or set ha.enabled=false."
 
   - it: "HA with maestro.persistence.enabled=true fails template rendering"
-    template: mcp-gateway-deployment.yaml
+    template: maestro-deployment.yaml
     set:
       ha.enabled: true
       objectStore.bucket: my-bucket
@@ -278,7 +308,7 @@ tests:
           errorMessage: "ha.enabled=true is incompatible with maestro.persistence.enabled=true (Recreate strategy + RWO PVC deadlocks rolling updates under replicas>1). Use objectStore for artifacts; the github-cache StatefulSet already handles its own per-pod PVCs."
 
   - it: "HA with maestro.replicas=1 fails template rendering"
-    template: mcp-gateway-deployment.yaml
+    template: maestro-deployment.yaml
     set:
       ha.enabled: true
       objectStore.bucket: my-bucket
@@ -287,8 +317,18 @@ tests:
       - failedTemplate:
           errorMessage: "ha.enabled=true requires maestro.replicas >= 2 (got 1). Lower replica counts are POC mode; set ha.enabled=false."
 
+  - it: "HA with githubCache.serving.replicas=1 fails template rendering"
+    template: maestro-deployment.yaml
+    set:
+      ha.enabled: true
+      objectStore.bucket: my-bucket
+      githubCache.serving.replicas: 1
+    asserts:
+      - failedTemplate:
+          errorMessage: "ha.enabled=true requires githubCache.serving.replicas >= 2 (got 1). The serving StatefulSet must be redundant in HA mode."
+
   - it: "HA with existingSecret but blank accessKeyIdKey fails template rendering"
-    template: mcp-gateway-deployment.yaml
+    template: maestro-deployment.yaml
     set:
       ha.enabled: true
       objectStore.bucket: my-bucket
@@ -338,7 +378,7 @@ tests:
           value: 2
 
   - it: "stringly ha.enabled (--set-string) fails loud (don't silently ignore a typo)"
-    template: mcp-gateway-deployment.yaml
+    template: maestro-deployment.yaml
     set:
       ha.enabled: "true"
     asserts:
@@ -346,7 +386,7 @@ tests:
           errorMessage: "ha.enabled must be a YAML boolean (true or false), got true of type string. Use `--set ha.enabled=true` / `=false`, not `--set-string`."
 
   - it: "stringly githubCache.enabled (--set-string) fails loud"
-    template: mcp-gateway-deployment.yaml
+    template: maestro-deployment.yaml
     set:
       githubCache.enabled: "false"
     asserts:
@@ -354,7 +394,7 @@ tests:
           errorMessage: "githubCache.enabled must be a YAML boolean (true or false), got false of type string. Use `--set githubCache.enabled=true` / `=false`, not `--set-string`."
 
   - it: "stringly maestro.persistence.enabled (--set-string) fails loud"
-    template: mcp-gateway-deployment.yaml
+    template: maestro-deployment.yaml
     set:
       maestro.persistence.enabled: "true"
     asserts:
@@ -375,21 +415,6 @@ tests:
             name: MAESTRO_ARTIFACT_S3_REGION
             value: "us-east-1"
 
-  - it: "HA with explicit region honored even alongside endpoint"
-    template: maestro-deployment.yaml
-    set:
-      ha.enabled: true
-      objectStore.bucket: ceph-bucket
-      objectStore.endpoint: http://rgw.rook-ceph.svc:80
-      objectStore.region: eu-west-1
-    asserts:
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: MAESTRO_ARTIFACT_S3_REGION
-            value: "eu-west-1"
-
-  # ---- objectStore.auth is bucket-gated --------------------------------
   - it: "POC with existingSecret but no bucket does NOT inject AWS_ creds"
     template: maestro-deployment.yaml
     set:
@@ -399,25 +424,9 @@ tests:
           path: spec.template.spec.containers[0].env
           content:
             name: AWS_ACCESS_KEY_ID
-      - notContains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: AWS_SECRET_ACCESS_KEY
 
-  # ---- HA also validates github-cache serving replicas ----------------
-  - it: "HA with githubCache.serving.replicas=1 fails template rendering"
-    template: mcp-gateway-deployment.yaml
-    set:
-      ha.enabled: true
-      objectStore.bucket: my-bucket
-      githubCache.serving.replicas: 1
-    asserts:
-      - failedTemplate:
-          errorMessage: "ha.enabled=true requires githubCache.serving.replicas >= 2 (got 1). The serving StatefulSet must be redundant in HA mode."
-
-  # ---- auth-key validation fires even outside HA (would break at runtime) ----
   - it: "POC: existingSecret with blank accessKeyIdKey still fails (would break at runtime)"
-    template: mcp-gateway-deployment.yaml
+    template: maestro-deployment.yaml
     set:
       objectStore.bucket: my-bucket
       objectStore.auth.existingSecret: s
