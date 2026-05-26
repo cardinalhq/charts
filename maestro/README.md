@@ -159,3 +159,59 @@ scheme. It also fails when more than one cert source is configured, or
 when only one of `cert.crt`/`cert.key` is set.
 
 All sidecar/init images are overridable: `maestro.tls.image.{repository,tag,pullPolicy}` for the nginx sidecar, `maestro.tls.cert.image.{repository,tag,pullPolicy}` for the openssl cert-init. `dex.image.{repository,tag,pullPolicy}` overrides the bundled Dex image (defaults in `templates/_helpers.tpl`).
+
+## Deployment modes: POC vs HA
+
+The chart ships two deployment shapes, gated by a single flag.
+
+### POC mode (default, `ha.enabled: false`)
+
+One `maestro` pod + one `mcp-gateway` pod. The `github-cache` workloads are skipped — maestro holds repo mirrors in-process under its `/tmp` `emptyDir` (re-cloned on pod restart, which is fine for demos). Artifact bytes stay in memory. No object store required. This is the minimum-friction install for evaluations.
+
+### HA mode (`ha.enabled: true`)
+
+Two `maestro` pods + the `github-cache` `StatefulSet` (per-pod RWO PVCs for the mirror disks) and its singleton provisioner. **`mcp-gateway` runs as a native sidecar inside each maestro and github-cache pod** — there is no standalone `mcp-gateway` Deployment or Service. Artifact bytes are required to land in an S3-compatible object store. Maestro `persistence.enabled` is forbidden under HA (the RWO PVC + `Recreate` strategy combination deadlocks rolling updates at `replicas > 1`).
+
+**Why mcp-gateway is a sidecar, not a Deployment**: most MCP drivers in the gateway (kube, lakerunner, jira, github, built-in tool servers) use stateful Streamable HTTP — a session opened on one pod can't be served by another. A standalone gateway Deployment with `replicas > 1` would round-robin and produce "session not found" errors. Co-locating one gateway per consumer pod and talking to it over loopback eliminates the cross-pod routing entirely. Sessions stay pod-local, no Service in the path. See `cardinalhq/conductor#838` for the upstream tracking issue.
+
+The chart fails template rendering — at install time, not silently at runtime — when any HA invariant is violated:
+
+* `ha.enabled=true` and `objectStore.bucket` is empty
+* `ha.enabled=true` and `maestro.persistence.enabled: true`
+* `ha.enabled=true` and explicit `githubCache.enabled: false`
+* `ha.enabled=true` and explicit `maestro.replicas` or `mcpGateway.replicas` `< 2`
+* `objectStore.auth.existingSecret` set but a key-name field is blank
+
+`maestro.replicas`, `mcpGateway.replicas`, and `githubCache.enabled` auto-derive from `ha.enabled` when left unset (null). Explicit operator values always win — they just have to be self-consistent.
+
+### Object store: S3 and S3-compatible
+
+The artifact backend uses the AWS SDK v3 with its **default credential chain**. Either let the chain pick up ambient credentials (IRSA via service-account annotations, EC2 instance profile, EKS Pod Identity, workload-identity webhook) or hand the chart an existing Kubernetes Secret containing `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`.
+
+AWS S3 via IRSA:
+
+```yaml
+ha:
+  enabled: true
+objectStore:
+  bucket: maestro-artifacts
+  region: us-east-2
+serviceAccount:
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::123456789012:role/maestro-s3
+```
+
+Rook-Ceph ObjectBucketClaim (Ceph RGW): the OBC controller creates a Secret with `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` and a ConfigMap with `BUCKET_NAME`/`BUCKET_HOST`/`BUCKET_PORT`. Wire them in:
+
+```yaml
+ha:
+  enabled: true
+objectStore:
+  bucket: maestro-artifacts-abc1234       # BUCKET_NAME from the OBC ConfigMap
+  endpoint: http://rook-ceph-rgw-store.rook-ceph.svc:80
+  forcePathStyle: true                    # required for Ceph/MinIO
+  auth:
+    existingSecret: maestro-artifacts-obc # the OBC-generated secret
+```
+
+For MinIO or another S3-compatible store with non-standard secret keys, override `auth.accessKeyIdKey` / `auth.secretAccessKeyKey` (and `sessionTokenKey` for STS-issued credentials). The chart never creates the secret — it must already exist.

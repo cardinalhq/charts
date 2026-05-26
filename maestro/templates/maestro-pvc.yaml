@@ -1,5 +1,6 @@
-{{- if and .Values.maestro.enabled .Values.maestro.persistence.enabled -}}
-{{- if and (gt (int .Values.maestro.replicas) 1) (ne .Values.maestro.persistence.accessMode "ReadWriteMany") -}}
+{{- if and .Values.maestro.enabled (include "maestro.persistenceEnabled" .) -}}
+{{- $effectiveReplicas := int (include "maestro.replicas" (dict "root" . "explicit" .Values.maestro.replicas)) -}}
+{{- if and (gt $effectiveReplicas 1) (ne .Values.maestro.persistence.accessMode "ReadWriteMany") -}}
 {{- fail "maestro.persistence is enabled with replicas > 1, but accessMode is not ReadWriteMany. Set maestro.persistence.accessMode=ReadWriteMany (e.g. EFS) or scale to 1 replica." -}}
 {{- end -}}
 apiVersion: v1

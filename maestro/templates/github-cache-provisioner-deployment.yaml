@@ -1,4 +1,4 @@
-{{- if .Values.githubCache.enabled -}}
+{{- if include "maestro.githubCacheEnabled" . -}}
 {{- $prov := .Values.githubCache.provisioner -}}
 apiVersion: apps/v1
 kind: Deployment
@@ -31,6 +31,10 @@ spec:
       serviceAccountName: {{ include "maestro.serviceAccountName" . }}
       {{- include "maestro.podSecurityContext" (dict "root" . "override" $prov.podSecurityContext) | nindent 6 }}
       {{- include "maestro.imagePullSecrets" . | nindent 6 }}
+      initContainers:
+      # mcp-gateway native sidecar — the provisioner calls it for the
+      # runtime topology overlay. Loopback only; no Service. See conductor#838.
+      {{- include "maestro.mcpGatewaySidecar" (dict "root" . "containerSec" $prov.containerSecurityContext) | nindent 6 }}
       containers:
       - name: github-cache-provisioner
         {{- include "maestro.containerSecurityContext" (dict "root" . "override" $prov.containerSecurityContext) | nindent 8 }}
@@ -45,7 +49,7 @@ spec:
           # the mcp-gateway for the runtime topology overlay; without this the
           # overlay is silently skipped.
           - name: MCP_GATEWAY_URL
-            value: "http://{{ include "maestro.fullname" . }}-mcp-gateway:{{ .Values.mcpGateway.port }}"
+            value: "http://localhost:{{ .Values.mcpGateway.port }}"
           # git writes ~/.gitconfig etc.; point HOME at the writable tmp
           # emptyDir so readOnlyRootFilesystem=true doesn't break it.
           - name: HOME

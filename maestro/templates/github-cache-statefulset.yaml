@@ -1,4 +1,4 @@
-{{- if .Values.githubCache.enabled -}}
+{{- if include "maestro.githubCacheEnabled" . -}}
 {{- $svc := include "maestro.githubCacheFullname" . -}}
 {{- $serving := .Values.githubCache.serving -}}
 {{- $mountPath := $serving.persistence.mountPath | default "/var/lib/github-cache" -}}
@@ -45,6 +45,12 @@ spec:
       {{- end }}
       {{- include "maestro.podSecurityContext" (dict "root" . "override" $podSec) | nindent 6 }}
       {{- include "maestro.imagePullSecrets" . | nindent 6 }}
+      initContainers:
+      # mcp-gateway native sidecar. The serving container does not call the
+      # gateway today, but co-locating it keeps the topology uniform across
+      # the maestro stack and gives any future cache-side feature a
+      # pod-local gateway over loopback. See conductor#838.
+      {{- include "maestro.mcpGatewaySidecar" (dict "root" . "containerSec" $serving.containerSecurityContext) | nindent 6 }}
       containers:
       - name: github-cache
         {{- include "maestro.containerSecurityContext" (dict "root" . "override" $serving.containerSecurityContext) | nindent 8 }}

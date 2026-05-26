@@ -1,7 +1,6 @@
 suite: test environment variable handling
 templates:
   - maestro-deployment.yaml
-  - mcp-gateway-deployment.yaml
 tests:
   - it: mounts an agent-cache emptyDir and points WORKING_DIRECTORY at it
     template: maestro-deployment.yaml
@@ -48,20 +47,20 @@ tests:
                 name: my-secret
                 key: token
 
-  - it: should not render maestro.env into the mcp-gateway container
+  - it: should not render maestro.env into the mcp-gateway sidecar
     set:
       maestro.env:
         - name: MAESTRO_FOO
           value: "bar"
-    template: mcp-gateway-deployment.yaml
+    template: maestro-deployment.yaml
     asserts:
       - notContains:
-          path: spec.template.spec.containers[0].env
+          path: spec.template.spec.initContainers[?(@.name == "mcp-gateway")].env
           content:
             name: MAESTRO_FOO
             value: "bar"
 
-  - it: should render mcpGateway.env into the mcp-gateway container
+  - it: should render mcpGateway.env into the mcp-gateway sidecar
     set:
       mcpGateway.env:
         - name: MCP_FOO
@@ -71,15 +70,15 @@ tests:
             configMapKeyRef:
               name: my-cm
               key: cfg
-    template: mcp-gateway-deployment.yaml
+    template: maestro-deployment.yaml
     asserts:
       - contains:
-          path: spec.template.spec.containers[0].env
+          path: spec.template.spec.initContainers[?(@.name == "mcp-gateway")].env
           content:
             name: MCP_FOO
             value: "mbar"
       - contains:
-          path: spec.template.spec.containers[0].env
+          path: spec.template.spec.initContainers[?(@.name == "mcp-gateway")].env
           content:
             name: MCP_FROM_CM
             valueFrom:
@@ -100,21 +99,20 @@ tests:
             name: MCP_FOO
             value: "mbar"
 
-  - it: should render global.env into both containers
+  - it: should render global.env into both maestro container and mcp-gateway sidecar
     set:
       global.env:
         - name: GLOBAL_X
           value: "gx"
+    template: maestro-deployment.yaml
     asserts:
-      - template: maestro-deployment.yaml
-        contains:
+      - contains:
           path: spec.template.spec.containers[0].env
           content:
             name: GLOBAL_X
             value: "gx"
-      - template: mcp-gateway-deployment.yaml
-        contains:
-          path: spec.template.spec.containers[0].env
+      - contains:
+          path: spec.template.spec.initContainers[?(@.name == "mcp-gateway")].env
           content:
             name: GLOBAL_X
             value: "gx"
@@ -143,23 +141,22 @@ tests:
           value: MCP_GATEWAY_URL
       - equal:
           path: spec.template.spec.containers[0].env[7].value
-          value: "http://RELEASE-NAME-maestro-mcp-gateway:8080"
+          value: "http://localhost:8080"
 
   - it: should handle empty and null env lists
     set:
       global.env: []
       maestro.env: null
       mcpGateway.env: []
+    template: maestro-deployment.yaml
     asserts:
-      - template: maestro-deployment.yaml
-        contains:
+      - contains:
           path: spec.template.spec.containers[0].env
           content:
             name: PORT
             value: "4200"
-      - template: mcp-gateway-deployment.yaml
-        contains:
-          path: spec.template.spec.containers[0].env
+      - contains:
+          path: spec.template.spec.initContainers[?(@.name == "mcp-gateway")].env
           content:
             name: MCP_PORT
             value: "8080"

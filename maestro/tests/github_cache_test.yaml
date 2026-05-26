@@ -4,6 +4,12 @@ templates:
   - github-cache-service.yaml
   - github-cache-provisioner-deployment.yaml
   - maestro-deployment.yaml
+# Split mode is no longer the chart default — POC mode (in-process)
+# is. These tests cover the split-mode shape, so enable it explicitly at
+# the suite level. The "disabled" tests at the bottom override back to
+# off to exercise the rollback path.
+set:
+  githubCache.enabled: true
 tests:
   # ---- serving StatefulSet ----------------------------------------------
   - it: renders the serving StatefulSet with two replicas by default
@@ -125,7 +131,7 @@ tests:
           path: spec.template.spec.containers[0].env
           content:
             name: MCP_GATEWAY_URL
-            value: "http://RELEASE-NAME-maestro-mcp-gateway:8080"
+            value: "http://localhost:8080"
 
   - it: mounts the license into the provisioner pod
     template: github-cache-provisioner-deployment.yaml

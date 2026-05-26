@@ -5,7 +5,6 @@ templates:
   - license-secret.yaml
   - license-validation.yaml
   - maestro-deployment.yaml
-  - mcp-gateway-deployment.yaml
 tests:
   # Secret creation tests
   - it: creates the license secret when create is true and data is provided
@@ -81,25 +80,20 @@ tests:
             secret:
               secretName: RELEASE-NAME-maestro-maestro-license
 
-  # Volume mount tests — mcp-gateway container
-  - it: mounts the license volume into the mcp-gateway container
+  # Volume mount tests — mcp-gateway sidecar (now a native sidecar
+  # initContainer inside the maestro pod, not a separate deployment)
+  - it: mounts the license volume into the mcp-gateway sidecar
     set:
       license.data: "license-content"
     templates:
-      - mcp-gateway-deployment.yaml
+      - maestro-deployment.yaml
     asserts:
       - contains:
-          path: spec.template.spec.containers[0].volumeMounts
+          path: spec.template.spec.initContainers[?(@.name == "mcp-gateway")].volumeMounts
           content:
             name: license
             mountPath: /app/license
             readOnly: true
-      - contains:
-          path: spec.template.spec.volumes
-          content:
-            name: license
-            secret:
-              secretName: RELEASE-NAME-maestro-maestro-license
 
   # BYOS — exact secret name when create is false
   - it: uses the exact secret name when create is false (BYOS)
@@ -123,7 +117,7 @@ tests:
       license.secretName: "custom-license"
       license.data: "license-content"
     templates:
-      - mcp-gateway-deployment.yaml
+      - maestro-deployment.yaml
     asserts:
       - contains:
           path: spec.template.spec.volumes

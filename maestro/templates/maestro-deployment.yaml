@@ -1,4 +1,5 @@
 {{- if .Values.maestro.enabled -}}
+{{- include "maestro.haValidate" . -}}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -8,8 +9,8 @@ metadata:
     app.kubernetes.io/component: maestro
   {{ include "maestro.annotations" . | nindent 2 }}
 spec:
-  replicas: {{ .Values.maestro.replicas }}
-  {{- if and .Values.maestro.persistence.enabled (ne .Values.maestro.persistence.accessMode "ReadWriteMany") }}
+  replicas: {{ include "maestro.replicas" (dict "root" . "explicit" .Values.maestro.replicas) }}
+  {{- if and (include "maestro.persistenceEnabled" .) (ne .Values.maestro.persistence.accessMode "ReadWriteMany") }}
   # RWO volumes can only attach to one node at a time. Rolling update would
   # deadlock the rollout (new pod scheduled to a different node, can't mount
   # the in-use volume). Recreate forces tear-down → reattach → new pod.
@@ -36,7 +37,7 @@ spec:
         maestro.podSecurityContext to change the level or add type/role.
       */}}
       {{- $podSec := .Values.maestro.podSecurityContext | default dict -}}
-      {{- if and .Values.maestro.persistence.enabled (not (hasKey $podSec "seLinuxOptions")) -}}
+      {{- if and (include "maestro.persistenceEnabled" .) (not (hasKey $podSec "seLinuxOptions")) -}}
         {{- $merged := dict -}}
         {{- range $k, $v := $podSec }}{{- $_ := set $merged $k $v -}}{{- end -}}
         {{- $_ := set $merged "seLinuxOptions" (dict "level" .Values.maestro.persistence.seLinuxLevel) -}}
@@ -61,26 +62,12 @@ spec:
         {{- $containerSec = $merged -}}
       {{- end }}
       initContainers:
-      # Reuses the unified maestro image so we don't need a separate
-      # busybox/netcat dependency. The entrypoint exposes a `wait-for-tcp`
-      # subcommand that polls until the target accepts a connection.
-      - name: wait-for-mcp-gateway
-        image: {{ include "maestro.image" . }}
-        imagePullPolicy: {{ .Values.image.pullPolicy }}
-        {{- include "maestro.containerSecurityContext" (dict "root" . "override" $containerSec) | nindent 8 }}
-        args:
-          - wait-for-tcp
-          - {{ include "maestro.fullname" . }}-mcp-gateway
-          - {{ .Values.mcpGateway.port | quote }}
-        {{- if .Values.global.resources.enabled }}
-        resources:
-          requests:
-            cpu: 50m
-            memory: 64Mi
-          limits:
-            cpu: 50m
-            memory: 64Mi
-        {{- end }}
+      # mcp-gateway as a native sidecar (initContainer + restartPolicy: Always,
+      # GA since k8s 1.29). Starts before the maestro container and stays
+      # running. Maestro talks to it over localhost, so every MCP session lives
+      # entirely within this pod — no Service round-robin, no risk of
+      # "session not found" on stateful drivers. See conductor#838.
+      {{- include "maestro.mcpGatewaySidecar" (dict "root" . "containerSec" $containerSec) | nindent 6 }}
       {{- if and (dig "tls" "enabled" false .Values.maestro) (dig "tls" "cert" "autoGenerate" true .Values.maestro) (not (dig "tls" "secretName" "" .Values.maestro)) }}
       # Generates a self-signed cert into the shared `tls` emptyDir at pod
       # start. Cert regenerates each pod restart — fine for POC, swap to
@@ -143,7 +130,7 @@ spec:
         env:
           {{ include "maestro.databaseEnv" . | nindent 10 }}
           - name: MCP_GATEWAY_URL
-            value: "http://{{ include "maestro.fullname" . }}-mcp-gateway:{{ .Values.mcpGateway.port }}"
+            value: "http://localhost:{{ .Values.mcpGateway.port }}"
           - name: PORT
             value: {{ .Values.maestro.port | quote }}
           # Maestro writes agent caches under
@@ -152,19 +139,21 @@ spec:
           # readOnlyRootFilesystem=true.
           - name: WORKING_DIRECTORY
             value: "/var/cache/maestro"
-          {{- if .Values.githubCache.enabled }}
+          {{- if include "maestro.githubCacheEnabled" . }}
           # Split mode: maestro holds no repo bytes. The in-process git client +
           # ontology poller are disabled and git tool calls route to the
           # github-cache serving replicas via the placement directory.
           - name: GITHUB_CACHE_REMOTE
             value: "1"
           {{- end }}
-          {{- if .Values.maestro.persistence.enabled }}
+          {{- if (include "maestro.persistenceEnabled" .) }}
           - name: ONTOLOGY_WORKSPACE_DIR
             value: {{ printf "%s/git-checkouts" (.Values.maestro.persistence.mountPath | default "/var/lib/maestro") | quote }}
           - name: ORCHESTRA_ARTIFACT_DIR
             value: {{ printf "%s/artifacts" (.Values.maestro.persistence.mountPath | default "/var/lib/maestro") | quote }}
           {{- end }}
+          {{- include "maestro.objectStoreEnv" . | nindent 10 }}
+          {{- include "maestro.objectStoreAuthEnv" . | nindent 10 }}
           {{- include "maestro.oidcEnv" . | nindent 10 }}
           {{- include "maestro.cardinalTelemetryEnv" . | nindent 10 }}
           {{- with .Values.global.env }}
@@ -204,7 +193,7 @@ spec:
           mountPath: /tmp
         - name: agent-cache
           mountPath: /var/cache/maestro
-        {{- if .Values.maestro.persistence.enabled }}
+        {{- if (include "maestro.persistenceEnabled" .) }}
         - name: data
           mountPath: {{ .Values.maestro.persistence.mountPath | default "/var/lib/maestro" | quote }}
         {{- end }}
@@ -256,7 +245,7 @@ spec:
         emptyDir: {}
       - name: agent-cache
         emptyDir: {}
-      {{- if .Values.maestro.persistence.enabled }}
+      {{- if (include "maestro.persistenceEnabled" .) }}
       - name: data
         persistentVolumeClaim:
           claimName: {{ include "maestro.fullname" . }}-data
