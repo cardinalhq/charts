@@ -170,7 +170,9 @@ One `maestro` pod + one `mcp-gateway` pod. The `github-cache` workloads are skip
 
 ### HA mode (`ha.enabled: true`)
 
-Two `maestro` pods + two `mcp-gateway` pods (operator can override higher). The `github-cache` `StatefulSet` (per-pod RWO PVCs for the mirror disks) and its singleton provisioner come back. Artifact bytes are required to land in an S3-compatible object store. Maestro `persistence.enabled` is forbidden under HA (the RWO PVC + `Recreate` strategy combination deadlocks rolling updates at `replicas > 1`).
+Two `maestro` pods + **one** `mcp-gateway` pod + the `github-cache` `StatefulSet` (per-pod RWO PVCs for the mirror disks) and its singleton provisioner. Artifact bytes are required to land in an S3-compatible object store. Maestro `persistence.enabled` is forbidden under HA (the RWO PVC + `Recreate` strategy combination deadlocks rolling updates at `replicas > 1`).
+
+**Why mcp-gateway stays at 1 under HA**: only the `collector-editor` MCP driver was made stateless in the issue #772 work. Every other driver (kube, lakerunner, jira, github, built-in tool servers) uses stateful Streamable HTTP — round-robin load balancing across 2+ gateway pods causes "session not found" errors when a follow-up request lands on a different pod than the one that issued the session. Until that gap is closed, `mcp-gateway.replicas` auto-derives to 1 even under HA. Operators can still set the value explicitly if they're certain only the collector-editor driver is in use.
 
 The chart fails template rendering — at install time, not silently at runtime — when any HA invariant is violated:
 

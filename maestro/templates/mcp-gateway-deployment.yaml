@@ -8,7 +8,7 @@ metadata:
     app.kubernetes.io/component: mcp-gateway
   {{ include "maestro.annotations" . | nindent 2 }}
 spec:
-  replicas: {{ include "maestro.replicas" (dict "root" . "explicit" .Values.mcpGateway.replicas) }}
+  replicas: {{ include "maestro.replicas" (dict "root" . "explicit" .Values.mcpGateway.replicas "haDefault" 1) }}
   selector:
     matchLabels:
       {{- include "maestro.selectorLabels" . | nindent 6 }}

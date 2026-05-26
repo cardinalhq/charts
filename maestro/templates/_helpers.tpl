@@ -186,13 +186,24 @@ Strictly bool-only (see maestro.haEnabled rationale).
 {{/*
 Effective replica count for a workload after auto-derivation from ha.enabled.
   - Explicit operator value (integer) wins.
-  - Unset (null or "") → 2 when HA, 1 in POC.
-Usage: {{ include "maestro.replicas" (dict "root" . "explicit" .Values.maestro.replicas) }}
+  - Unset (null or "") → `haDefault` when HA, `pocDefault` in POC.
+  - Defaults: haDefault=2, pocDefault=1. mcp-gateway overrides haDefault to 1
+    because its stateful StreamableHTTP drivers (everything except
+    collector-editor) require sticky routing — see conductor issue tracking
+    the gateway-driver-stateless work. Operators can still set the value
+    explicitly to scale past the auto-derived default, knowing the
+    "session not found" risk.
+
+Usage:
+  {{ include "maestro.replicas" (dict "root" . "explicit" .Values.maestro.replicas) }}
+  {{ include "maestro.replicas" (dict "root" . "explicit" .Values.mcpGateway.replicas "haDefault" 1) }}
 */}}
 {{- define "maestro.replicas" -}}
 {{- $explicit := .explicit -}}
+{{- $haDefault := default 2 .haDefault -}}
+{{- $pocDefault := default 1 .pocDefault -}}
 {{- if include "maestro.isUnset" $explicit -}}
-  {{- if include "maestro.haEnabled" .root -}}2{{- else -}}1{{- end -}}
+  {{- if include "maestro.haEnabled" .root -}}{{ $haDefault }}{{- else -}}{{ $pocDefault }}{{- end -}}
 {{- else -}}
   {{- $explicit -}}
 {{- end -}}
@@ -238,10 +249,12 @@ template's render path.
   {{- if and (not (include "maestro.isUnset" $mReplicas)) (lt (int $mReplicas) 2) -}}
     {{- fail (printf "ha.enabled=true requires maestro.replicas >= 2 (got %v). Lower replica counts are POC mode; set ha.enabled=false." $mReplicas) -}}
   {{- end -}}
-  {{- $gReplicas := dig "replicas" nil (.Values.mcpGateway | default dict) -}}
-  {{- if and (not (include "maestro.isUnset" $gReplicas)) (lt (int $gReplicas) 2) -}}
-    {{- fail (printf "ha.enabled=true requires mcpGateway.replicas >= 2 (got %v). Lower replica counts are POC mode; set ha.enabled=false." $gReplicas) -}}
-  {{- end -}}
+  {{- /* No replica check for mcp-gateway: it stays at 1 even under HA because
+       its non-collector-editor drivers use stateful StreamableHTTP. Scaling
+       past 1 silently is an HA footgun, so we don't auto-derive past 1 — but
+       we DO honor an explicit override so the operator can opt in if they
+       know they only exercise the collector-editor driver (the one HA-safe
+       path). */ -}}
   {{- $ghServingReplicas := dig "serving" "replicas" nil (.Values.githubCache | default dict) -}}
   {{- if and (not (include "maestro.isUnset" $ghServingReplicas)) (lt (int $ghServingReplicas) 2) -}}
     {{- fail (printf "ha.enabled=true requires githubCache.serving.replicas >= 2 (got %v). The serving StatefulSet must be redundant in HA mode." $ghServingReplicas) -}}

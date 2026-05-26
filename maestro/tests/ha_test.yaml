@@ -61,7 +61,7 @@ tests:
           path: spec.replicas
           value: 2
 
-  - it: "HA: mcp-gateway replicas auto-derive to 2"
+  - it: "HA: mcp-gateway replicas STAY at 1 (stateful drivers force single pod)"
     template: mcp-gateway-deployment.yaml
     set:
       ha.enabled: true
@@ -69,7 +69,18 @@ tests:
     asserts:
       - equal:
           path: spec.replicas
-          value: 2
+          value: 1
+
+  - it: "HA: explicit mcp-gateway replicas override is honored (operator opt-in)"
+    template: mcp-gateway-deployment.yaml
+    set:
+      ha.enabled: true
+      objectStore.bucket: my-bucket
+      mcpGateway.replicas: 3
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 3
 
   - it: "HA: explicit higher replicas honored"
     template: maestro-deployment.yaml
@@ -275,16 +286,6 @@ tests:
     asserts:
       - failedTemplate:
           errorMessage: "ha.enabled=true requires maestro.replicas >= 2 (got 1). Lower replica counts are POC mode; set ha.enabled=false."
-
-  - it: "HA with mcpGateway.replicas=1 fails template rendering"
-    template: mcp-gateway-deployment.yaml
-    set:
-      ha.enabled: true
-      objectStore.bucket: my-bucket
-      mcpGateway.replicas: 1
-    asserts:
-      - failedTemplate:
-          errorMessage: "ha.enabled=true requires mcpGateway.replicas >= 2 (got 1). Lower replica counts are POC mode; set ha.enabled=false."
 
   - it: "HA with existingSecret but blank accessKeyIdKey fails template rendering"
     template: mcp-gateway-deployment.yaml
