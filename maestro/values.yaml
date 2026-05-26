@@ -4,6 +4,76 @@
 nameOverride: ""
 fullnameOverride: ""
 
+# Deployment topology.
+#
+# Two modes:
+#   ha.enabled=false (default) — POC: one maestro pod + one mcp-gateway pod,
+#     github-cache rolled into maestro (in-process), no object store required.
+#     Artifacts kept in-memory; ontology git checkouts on the pod's /tmp
+#     emptyDir (re-cloned on restart).
+#   ha.enabled=true — HA: two maestro pods + two mcp-gateway pods (operator
+#     can override higher), github-cache split into its StatefulSet +
+#     singleton provisioner, S3-compat object store REQUIRED for artifacts.
+#     Maestro `persistence.enabled` must be false (RWO PVC + Recreate
+#     strategy deadlocks rolling updates under replicas>1).
+#
+# Defaults for `maestro.replicas`, `mcpGateway.replicas`, and
+# `githubCache.enabled` auto-derive from this flag when left unset (null).
+# Explicit operator values are honored; conflicting explicit values fail
+# template rendering with a clear message.
+ha:
+  enabled: false
+
+# Object storage for HA-mode artifact bytes. Required when ha.enabled=true.
+# S3 and S3-compatible only (AWS S3, Ceph RGW, MinIO, Rook OBC, ...).
+#
+# Credentials: maestro uses the AWS SDK default credential chain. Set
+# `auth.existingSecret` to inject AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY
+# from an existing Kubernetes secret (e.g. one created by a Rook
+# ObjectBucketClaim, or one you manage yourself). Leave it empty to rely
+# on ambient credentials — IRSA via `serviceAccount.annotations`, EC2/EKS
+# instance profile, or a workload-identity webhook. The chart does not
+# create the secret; it must already exist when set.
+#
+# Examples:
+#   AWS S3 via IRSA:
+#     ha: { enabled: true }
+#     objectStore:
+#       bucket: maestro-artifacts
+#       region: us-east-2
+#     serviceAccount:
+#       annotations:
+#         eks.amazonaws.com/role-arn: arn:aws:iam::123456789012:role/maestro-s3
+#
+#   Rook-Ceph ObjectBucketClaim (Ceph RGW):
+#     ha: { enabled: true }
+#     objectStore:
+#       bucket: maestro-artifacts-abc1234       # BUCKET_NAME from the OBC ConfigMap
+#       endpoint: http://rook-ceph-rgw-store.rook-ceph.svc:80
+#       forcePathStyle: true                    # required by Ceph/MinIO
+#       auth:
+#         existingSecret: maestro-artifacts-obc # the OBC-generated secret
+objectStore:
+  bucket: ""
+  # Optional. Set for AWS S3; usually omitted for Ceph/MinIO.
+  region: ""
+  # Optional. Set for S3-compatible stores (Ceph RGW, MinIO).
+  endpoint: ""
+  # Path-style addressing. Required by most S3-compatible stores.
+  forcePathStyle: false
+  auth:
+    # Empty → rely on AWS SDK default credential chain (IRSA, instance
+    # profile, workload identity webhook). Non-empty → inject the named
+    # env vars from this existing Kubernetes Secret. Chart does NOT
+    # create the secret.
+    existingSecret: ""
+    # Secret keys to read AWS credential env vars from. Override only
+    # when the secret uses non-standard key names.
+    accessKeyIdKey: AWS_ACCESS_KEY_ID
+    secretAccessKeyKey: AWS_SECRET_ACCESS_KEY
+    # Optional. STS-issued temporary credentials. Empty → not injected.
+    sessionTokenKey: ""
+
 # Unified image for all components (Maestro + MCP Gateway + UI SPA).
 # Entrypoint selects which component to run.
 image:
@@ -14,7 +84,10 @@ image:
 # Maestro API server + UI configuration
 maestro:
   enabled: true
-  replicas: 1
+  # Replica count. Leave unset (null) to auto-derive from ha.enabled
+  # (1 in POC, 2 in HA). Explicit values are honored; under HA an
+  # explicit value <2 fails template rendering.
+  replicas: ~
   port: 4200
   resources:
     requests:
@@ -161,7 +234,8 @@ maestro:
 # mcp-gateway is a required companion to maestro and is always deployed;
 # there is no toggle to disable it.
 mcpGateway:
-  replicas: 1
+  # Replica count. Same auto-derive rules as maestro.replicas.
+  replicas: ~
   port: 8080
   debugPort: 9090
   apiKey: ""
@@ -181,11 +255,13 @@ mcpGateway:
 
 # GitHub Cache Service (split mode).
 #
-# When enabled (the default), the per-tenant VCS repo mirror cache + git
-# code-search/read tools and the ontology poller/provisioner run as their own
-# pods instead of in-process inside maestro. Maestro then runs as a pure client
+# When enabled, the per-tenant VCS repo mirror cache + git code-search/read
+# tools and the ontology poller/provisioner run as their own pods instead of
+# in-process inside maestro. Maestro then runs as a pure client
 # (GITHUB_CACHE_REMOTE=1): it holds no repo bytes and routes every git tool call
 # to a serving replica via the Postgres placement directory, with failover.
+#
+# Default enablement is auto-derived from ha.enabled (see `enabled:` below).
 #
 # Two roles, both off the unified image:
 #   - serving (`github-cache`): a StatefulSet; each pod owns a stable RWO PVC
@@ -196,16 +272,17 @@ mcpGateway:
 #     Required whenever split mode is on — in remote mode maestro disables its
 #     in-process poller, so without this pod ontology refresh stops.
 #
-# Set githubCache.enabled=false to fall back to the legacy in-process path
-# (maestro holds the mirrors itself; no extra pods). That is the rollback path.
+# Leave `enabled` unset (null) to auto-derive from ha.enabled — split mode
+# is the right shape for HA (it's the only multi-pod-safe topology), and
+# in-process is the right shape for POC. Explicitly setting `true` or
+# `false` is honored; pairing `ha.enabled=true` with explicit
+# `githubCache.enabled=false` fails template rendering.
 #
-# NOTE: split mode is on by default and the serving StatefulSet provisions one
-# RWO PVC per replica. The cluster therefore needs a default StorageClass (or
-# serving.persistence.storageClass set) — without dynamic provisioning the
-# serving pods stay Pending. Self-hosted installs that don't want the extra
-# pods/storage should set githubCache.enabled=false.
+# NOTE: split mode provisions one RWO PVC per serving replica. The cluster
+# therefore needs a default StorageClass (or serving.persistence.storageClass
+# set) — without dynamic provisioning the serving pods stay Pending.
 githubCache:
-  enabled: true
+  enabled: ~
 
   # Serving replicas — the mirror cache + git tool hosts.
   serving:

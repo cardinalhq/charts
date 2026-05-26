@@ -1,4 +1,4 @@
-{{- if .Values.githubCache.enabled -}}
+{{- if include "maestro.githubCacheEnabled" . -}}
 {{- $svc := include "maestro.githubCacheFullname" . -}}
 {{- $serving := .Values.githubCache.serving -}}
 {{- $mountPath := $serving.persistence.mountPath | default "/var/lib/github-cache" -}}

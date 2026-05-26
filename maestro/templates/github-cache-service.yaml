@@ -1,4 +1,4 @@
-{{- if .Values.githubCache.enabled -}}
+{{- if include "maestro.githubCacheEnabled" . -}}
 # Headless Service: clusterIP None gives each serving pod stable per-pod DNS
 # (github-cache-0.<svc>.<ns>.svc.cluster.local) so the placement directory can
 # address replicas directly. There is no load-balanced VIP — maestro routes to

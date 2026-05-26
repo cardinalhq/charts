@@ -1,0 +1,23 @@
+{{- $ha := include "maestro.haEnabled" . -}}
+{{- $ghEnabled := include "maestro.githubCacheEnabled" . -}}
+{{- $mReplicas := include "maestro.replicas" (dict "root" . "explicit" .Values.maestro.replicas) -}}
+{{- $gReplicas := include "maestro.replicas" (dict "root" . "explicit" .Values.mcpGateway.replicas) -}}
+{{- $bucket := dig "bucket" "" (.Values.objectStore | default dict) -}}
+Mode:               {{ if $ha }}HA{{ else }}POC{{ end }}
+Maestro replicas:   {{ $mReplicas }}
+MCP-gateway replicas: {{ $gReplicas }}
+GitHub-cache:       {{ if $ghEnabled }}split (StatefulSet + provisioner){{ else }}in-process (rolled into maestro){{ end }}
+Artifact bytes:     {{ if $bucket }}S3 → {{ $bucket }}{{ if dig "endpoint" "" .Values.objectStore }} ({{ .Values.objectStore.endpoint }}){{ end }}{{ else }}in-memory (single-pod only){{ end }}
+{{- if and $ha (not $bucket) }}
+WARNING: ha.enabled=true but objectStore.bucket is empty — this combination is rejected at render time. If you see this message, something is wrong.
+{{- end }}
+{{- if and (not $ha) $bucket }}
+
+Note: objectStore.bucket is set but ha.enabled=false. The S3 backend is wired
+but artifact persistence isn't strictly required in POC mode — set ha.enabled=true
+to commit to multi-pod operation.
+{{- end }}
+
+To verify:
+  kubectl -n {{ .Release.Namespace }} get pods -l app.kubernetes.io/instance={{ .Release.Name }}
+  kubectl -n {{ .Release.Namespace }} logs -l app.kubernetes.io/component=maestro --tail=50

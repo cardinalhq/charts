@@ -1,4 +1,4 @@
-{{- if .Values.githubCache.enabled -}}
+{{- if include "maestro.githubCacheEnabled" . -}}
 {{- $prov := .Values.githubCache.provisioner -}}
 apiVersion: apps/v1
 kind: Deployment

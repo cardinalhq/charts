@@ -19,7 +19,10 @@ lint:  ## Run helm lint on the chart
 
 template:  ## Test template rendering
 	@echo "Testing template rendering..."
-	@helm template $(TEST_RELEASE_NAME) . --dry-run > /dev/null 2>&1
+	@helm template $(TEST_RELEASE_NAME) . \
+	  --set license.create=false --set license.secretName=test-license \
+	  --set database.create=false --set database.host=db.example.com \
+	  > /dev/null
 	@echo "Template rendering passed"
 
 unittest:  ## Run helm unittest tests
