@@ -248,6 +248,19 @@ mcpGateway:
   port: 8080
   debugPort: 9090
   apiKey: ""
+  # External ClusterIP Service in front of the sidecar. Off by default
+  # so the gateway stays pod-local in self-hosted installs. SaaS
+  # operators who terminate TLS at an Ingress/IngressRoute and gate the
+  # endpoint with an API key flip this on. Maestro itself always reaches
+  # the sidecar via localhost; this Service is only for external traffic.
+  service:
+    enabled: false
+  # Alternative to plaintext `apiKey`: source MCP_API_KEY from an
+  # existing Secret. When `apiKey` is set it wins; otherwise the sidecar
+  # emits a secretKeyRef. Leave both empty for unauthenticated local dev.
+  apiKeySecret:
+    name: ""
+    key: "MCP_API_KEY"
   # Resources for the sidecar container. CPU is generously over-provisioned
   # at the default request (1 CPU) given observed steady-state usage of
   # 1-2 millicores; operators tight on node capacity can drop the request

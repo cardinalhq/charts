@@ -247,6 +247,12 @@ Usage (inside a pod template's initContainers list):
     {{- if .root.Values.mcpGateway.apiKey }}
     - name: MCP_API_KEY
       value: {{ .root.Values.mcpGateway.apiKey | quote }}
+    {{- else if and .root.Values.mcpGateway.apiKeySecret .root.Values.mcpGateway.apiKeySecret.name }}
+    - name: MCP_API_KEY
+      valueFrom:
+        secretKeyRef:
+          name: {{ .root.Values.mcpGateway.apiKeySecret.name | quote }}
+          key: {{ .root.Values.mcpGateway.apiKeySecret.key | default "MCP_API_KEY" | quote }}
     {{- end }}
     {{- include "maestro.cardinalTelemetryEnv" .root | nindent 4 }}
     {{- with .root.Values.global.env }}

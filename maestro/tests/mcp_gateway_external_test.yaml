@@ -1,0 +1,85 @@
+suite: mcp-gateway external Service + apiKey secret wiring
+templates:
+  - maestro-deployment.yaml
+  - mcp-gateway-service.yaml
+tests:
+  - it: does not render the external Service by default
+    template: mcp-gateway-service.yaml
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: renders an external ClusterIP Service when mcpGateway.service.enabled=true
+    set:
+      mcpGateway.service.enabled: true
+    template: mcp-gateway-service.yaml
+    asserts:
+      - hasDocuments:
+          count: 1
+      - equal:
+          path: kind
+          value: Service
+      - equal:
+          path: spec.type
+          value: ClusterIP
+      - equal:
+          path: spec.ports[0].port
+          value: 8080
+      - equal:
+          path: spec.ports[0].targetPort
+          value: mcp
+      # Selector must match the maestro pod (which hosts the sidecar),
+      # not a defunct mcp-gateway component label.
+      - equal:
+          path: spec.selector["app.kubernetes.io/component"]
+          value: maestro
+
+  - it: sidecar emits MCP_API_KEY as a secretKeyRef when apiKeySecret.name is set
+    set:
+      mcpGateway.apiKeySecret.name: mcp-gateway-creds
+    template: maestro-deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.initContainers[?(@.name == "mcp-gateway")].env
+          content:
+            name: MCP_API_KEY
+            valueFrom:
+              secretKeyRef:
+                name: "mcp-gateway-creds"
+                key: "MCP_API_KEY"
+
+  - it: apiKeySecret.key overrides the default key name
+    set:
+      mcpGateway.apiKeySecret.name: mcp-gateway-creds
+      mcpGateway.apiKeySecret.key: api-token
+    template: maestro-deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.initContainers[?(@.name == "mcp-gateway")].env
+          content:
+            name: MCP_API_KEY
+            valueFrom:
+              secretKeyRef:
+                name: "mcp-gateway-creds"
+                key: "api-token"
+
+  - it: plaintext apiKey wins over apiKeySecret when both are set
+    set:
+      mcpGateway.apiKey: "plaintext-wins"
+      mcpGateway.apiKeySecret.name: mcp-gateway-creds
+    template: maestro-deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.initContainers[?(@.name == "mcp-gateway")].env
+          content:
+            name: MCP_API_KEY
+            value: "plaintext-wins"
+
+  - it: emits no MCP_API_KEY env when neither apiKey nor apiKeySecret.name is set
+    template: maestro-deployment.yaml
+    asserts:
+      - notContains:
+          path: spec.template.spec.initContainers[?(@.name == "mcp-gateway")].env
+          content:
+            name: MCP_API_KEY
+          any: true
