@@ -11,6 +11,7 @@ resources:
   - agent/serviceaccount.yaml
   - agent/clusterrole.yaml
   - agent/clusterrolebinding.yaml
+  - agent/role.yaml
   - agent/service.yaml
   - agent/configmap.yaml
   - agent/daemonset.yaml
@@ -19,6 +20,7 @@ resources:
   - poller/serviceaccount.yaml
   - poller/clusterrole.yaml
   - poller/clusterrolebinding.yaml
+  - poller/role.yaml
   - poller/configmap.yaml
   - poller/deployment.yaml
 

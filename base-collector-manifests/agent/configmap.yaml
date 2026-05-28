@@ -37,10 +37,37 @@ data:
           k8s.pod.uptime: {enabled: true}
 
     exporters:
+      # Logs go to the gateway's interproc HTTP listener (any pod is fine).
       otlphttp/upstream:
         endpoint: "http://collector-gateway-interproc:24318"
         tls:
           insecure: true
+      # Metrics: streamID-balanced directly into gateway L2 so cumulativetodelta
+      # / aggregation/s3 land on a consistent pod (skipping the gateway's L1 hop).
+      loadbalancing/metrics:
+        protocol:
+          otlp:
+            timeout: 10s
+            tls:
+              insecure: true
+        resolver:
+          k8s:
+            ports: [14317]
+            service: "${env:GATEWAY_HEADLESS_SERVICE_NAME}.${env:GATEWAY_NAMESPACE}"
+        routing_key: streamID
+      # Traces: traceID-balanced directly into gateway L2 so servicegraph sees
+      # complete traces (skipping the gateway's L1 hop).
+      loadbalancing/traces:
+        protocol:
+          otlp:
+            timeout: 10s
+            tls:
+              insecure: true
+        resolver:
+          k8s:
+            ports: [14317]
+            service: "${env:GATEWAY_HEADLESS_SERVICE_NAME}.${env:GATEWAY_NAMESPACE}"
+        routing_key: traceID
 
     processors:
       memory_limiter:
@@ -130,6 +157,8 @@ data:
           exporters: [forward/enriched]
 
         # --- Export to gateway ---
+        # Logs to L1 (interproc HTTP); metrics/traces skip L1 and balance
+        # directly into L2 by streamID/traceID.
         logs/export:
           receivers: [forward/enriched]
           processors: [batch]
@@ -137,11 +166,11 @@ data:
         metrics/export:
           receivers: [forward/enriched]
           processors: [cumulativetodelta, batch]
-          exporters: [otlphttp/upstream]
+          exporters: [loadbalancing/metrics]
         traces/export:
           receivers: [forward/enriched]
           processors: [batch]
-          exporters: [otlphttp/upstream]
+          exporters: [loadbalancing/traces]
 
       telemetry:
         resource:

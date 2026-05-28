@@ -63,6 +63,12 @@ spec:
                   fieldPath: metadata.namespace
             - name: K8S_CLUSTER_NAME
               value: "REPLACE_ME"
+            - name: GATEWAY_HEADLESS_SERVICE_NAME
+              value: "collector-gateway-headless"
+            - name: GATEWAY_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
           ports:
             - {containerPort: 13133, name: healthz, protocol: TCP}
           readinessProbe:

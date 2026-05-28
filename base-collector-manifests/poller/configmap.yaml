@@ -11,10 +11,19 @@ data:
         allocatable_types_to_report: [cpu, memory, ephemeral-storage, storage]
 
     exporters:
-      otlphttp/upstream:
-        endpoint: "http://collector-gateway-interproc:24318"
-        tls:
-          insecure: true
+      # Metrics: streamID-balanced directly into gateway L2 so cumulativetodelta
+      # / aggregation/s3 land on a consistent pod (skipping the gateway's L1 hop).
+      loadbalancing/metrics:
+        protocol:
+          otlp:
+            timeout: 10s
+            tls:
+              insecure: true
+        resolver:
+          k8s:
+            ports: [14317]
+            service: "${env:GATEWAY_HEADLESS_SERVICE_NAME}.${env:GATEWAY_NAMESPACE}"
+        routing_key: streamID
 
     processors:
       resource/core:
@@ -46,7 +55,7 @@ data:
         metrics:
           receivers: [k8s_cluster]
           processors: [resource/core, cumulativetodelta, batch]
-          exporters: [otlphttp/upstream]
+          exporters: [loadbalancing/metrics]
 
       telemetry:
         resource:
