@@ -143,32 +143,53 @@ patches:
   ┌──────────────┐     ┌──────────────┐
   │  agent (DS)  │     │ poller (1x)  │
   │  per-node    │     │ k8s_cluster  │
-  └──────┬───────┘     └──────┬───────┘
-         │                    │
-         │   OTLP/HTTP :24318 │
-         └────────┬───────────┘
-                  ▼
-         ┌────────────────┐     External OTLP
-         │  gateway (2x)  │◄─── (4317/4318)
-         │  servicegraph  │
-         │  S3 export     │──► S3 bucket
-         └────────────────┘
+  └──┬────────┬──┘     └───────┬──────┘
+     │ logs   │ metrics+traces │ metrics
+     │        │ (LB by stream/ │ (LB by streamID)
+     │        │  traceID)      │
+     │  :24318│      :14317    │ :14317
+     ▼        ▼                ▼
+  ┌──────────────────────────────────┐    External OTLP
+  │           gateway (2x)           │◄── (4317/4318)
+  │   L1 (external) → L2 (balanced)  │
+  │   servicegraph + S3 export       │──► S3 bucket
+  └──────────────────────────────────┘
 ```
 
 ## Data Flow
 
-**Agent/Poller → Gateway (interproc, port 24318)**:
+The gateway runs a two-stage (L1/L2) pipeline for metrics and traces. L1 is
+stateless and load-balances by stream/trace ID across gateway pods over the
+`collector-gateway-headless` Service on port 14317; L2 receives the balanced
+data and runs stateful processors (`cumulativetodelta`, `aggregation/s3`,
+`servicegraph`).
 
-- Agent and poller pre-convert cumulative metrics to delta before sending.
-- Gateway receives pre-delta'd data and writes straight to S3 (no load-balancing needed).
+**Agent/Poller → Gateway**:
+
+- Logs: agent → gateway interproc HTTP (`collector-gateway-interproc:24318`).
+- Metrics: agent and poller pre-convert cumulative to delta locally, then
+  use a `loadbalancing` exporter (`routing_key: streamID`) to send straight
+  into gateway L2 on port 14317, skipping the gateway's L1 hop.
+- Traces: agent uses a `loadbalancing` exporter (`routing_key: traceID`)
+  to send straight into gateway L2 on port 14317, so `servicegraph` sees
+  complete traces.
+- The agent/poller need a namespace `Role` granting `endpoints` watch (the
+  `loadbalancing` exporter's k8s resolver discovers gateway pods via the
+  headless Service's endpoints). The default `agent/role.yaml` and
+  `poller/role.yaml` provide this.
 
 **External OTLP → Gateway (ports 4317/4318)**:
 
 - External sources may send cumulative metrics.
-- Gateway load-balances external metrics by stream ID across pods, then applies cumulative-to-delta conversion before writing to S3.
-- External logs and traces go straight to S3.
+- Gateway load-balances external metrics by stream ID across pods (L1 →
+  L2), then applies cumulative-to-delta conversion before writing to S3.
+- External traces fan out to both the load balancer (for `servicegraph`)
+  and directly to S3 from L1, so raw spans land in S3 without an extra
+  hop.
+- External logs go straight to S3.
 
-**Servicegraph**: All traces (interproc and external) feed into the `servicegraph` connector, which generates span-derived metrics (call counts, latency) written to S3.
+**Servicegraph**: runs in the L2 traces pipeline only, so a given trace's
+spans always land on a single pod regardless of source.
 
 ## Troubleshooting
 

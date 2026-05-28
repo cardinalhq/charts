@@ -117,19 +117,12 @@ data:
     service:
       extensions: [cgroupruntime, health_check]
       pipelines:
-        # --- Interproc: pre-delta'd from agent/poller, straight to S3 ---
+        # --- Interproc: only logs land here; agent/poller balance their
+        # metrics/traces directly into L2 (otlp/l2) and skip this hop. ---
         logs:
           receivers: [otlp/interproc]
           processors: [batch]
           exporters: [awss3]
-        metrics/interproc:
-          receivers: [otlp/interproc]
-          processors: [batch]
-          exporters: [awss3]
-        traces/interproc:
-          receivers: [otlp/interproc]
-          processors: [batch]
-          exporters: [loadbalancing/traces, awss3]
 
         # --- External OTLP: logs and traces straight through ---
         logs/external:
