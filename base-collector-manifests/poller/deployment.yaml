@@ -84,13 +84,16 @@ spec:
             runAsNonRoot: true
             seccompProfile:
               type: RuntimeDefault
+          # NOTE: resource needs are highly load-dependent (cluster size, object
+          # count). These are sane low-load defaults; re-measure (kubectl top)
+          # and adjust per cluster.
           resources:
             requests:
-              cpu: "1"
-              memory: 500Mi
+              cpu: 100m
+              memory: 256Mi
             limits:
-              cpu: "1"
-              memory: 500Mi
+              cpu: 500m
+              memory: 512Mi
           volumeMounts:
             - name: config
               mountPath: /app/config

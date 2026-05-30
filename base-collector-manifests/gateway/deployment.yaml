@@ -115,13 +115,17 @@ spec:
             runAsNonRoot: true
             seccompProfile:
               type: RuntimeDefault
+          # NOTE: the gateway is the ingest data plane — resource needs scale
+          # directly with telemetry throughput and can spike well above idle.
+          # These are sane low-load defaults; size on PEAK (not instantaneous)
+          # usage per cluster and re-measure as load grows.
           resources:
             requests:
-              cpu: "2"
-              memory: 2Gi
+              cpu: "1"
+              memory: 1Gi
             limits:
-              cpu: "2"
-              memory: 2Gi
+              cpu: "1"
+              memory: 1Gi
           volumeMounts:
             - name: config
               mountPath: /app/config

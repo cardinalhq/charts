@@ -86,12 +86,16 @@ spec:
               port: 13133
             initialDelaySeconds: 3
             periodSeconds: 10
+          # NOTE: resource needs are highly load-dependent (telemetry volume,
+          # node density). These are sane low-load defaults; agent memory in
+          # particular scales with throughput (observed up to ~480Mi under load).
+          # Re-measure (kubectl top) and adjust per cluster.
           resources:
             requests:
-              cpu: "1"
+              cpu: 100m
               memory: 500Mi
             limits:
-              cpu: "1"
+              cpu: 500m
               memory: 500Mi
           volumeMounts:
             - name: config
