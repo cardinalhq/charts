@@ -49,6 +49,56 @@ To fix this error:
 ` }}
 {{- end }}
 
+{{- $cp := list -}}
+{{- range $svc := list "adminApi" "alertEvaluator" "monitoring" "sweeper" -}}
+  {{- $block := index $.Values $svc -}}
+  {{- if $block -}}
+    {{- range $key := list "enabled" "replicas" "image" "resources" "nodeSelector" "tolerations" "affinity" "podSecurityContext" "containerSecurityContext" -}}
+      {{- if hasKey $block $key -}}
+        {{- $cp = append $cp (printf "%s.%s" $svc $key) -}}
+      {{- end -}}
+    {{- end -}}
+  {{- end -}}
+{{- end -}}
+{{- if $cp }}
+{{- fail (printf `
+================================================================================
+DEPRECATION WARNING: per-service pod settings have moved to controlPlane
+
+admin-api, alert-evaluator, monitoring, and sweeper are now colocated in a
+single pod (Deployment <release>-control-plane). Pod-level settings are no
+longer read from the individual service blocks.
+
+Offending keys found in your values:
+  %s
+
+To fix this error:
+  1. Remove those keys from the adminApi / alertEvaluator / monitoring / sweeper
+     blocks.
+  2. Set pod-level settings under the new controlPlane block instead:
+
+     controlPlane:
+       replicas: 1
+       image:
+         repository: ghcr.io/cardinalhq/lakerunner
+         tag: ""
+       nodeSelector: {}
+       tolerations: []
+       affinity: {}
+       resources:
+         adminApi:       { requests: { cpu: 25m, memory: 64Mi }, limits: { memory: 256Mi } }
+         alertEvaluator: { requests: { cpu: 25m, memory: 64Mi }, limits: { memory: 256Mi } }
+         monitoring:     { requests: { cpu: 25m, memory: 64Mi }, limits: { memory: 256Mi } }
+         sweeper:        { requests: { cpu: 50m, memory: 64Mi }, limits: { memory: 256Mi } }
+
+  Service-specific keys are still read from their own blocks:
+    adminApi.port, adminApi.service, alertEvaluator.queryApiUrl,
+    alertEvaluator.env, monitoring.autoscaler
+
+================================================================================
+` (join ", " $cp)) }}
+{{- end }}
+
 {{- if or .Values.cloudProvider.gcp.accessKeyId .Values.cloudProvider.gcp.secretAccessKey }}
 {{- fail `
 ================================================================================

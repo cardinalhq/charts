@@ -769,11 +769,13 @@ Usage: {{ include "lakerunner.healthProbes" (list . .Values.serviceName) }}
 {{- define "lakerunner.healthProbes" -}}
 {{- $root := index . 0 -}}
 {{- $serviceConfig := index . 1 -}}
+{{- $portName := "healthcheck" -}}
+{{- if gt (len .) 2 -}}{{- $portName = index . 2 -}}{{- end -}}
 {{- if include "lakerunner.healthProbesEnabled" (list $root $serviceConfig) | eq "true" }}
 livenessProbe:
   httpGet:
     path: /livez
-    port: healthcheck
+    port: {{ $portName }}
   initialDelaySeconds: 30
   periodSeconds: 10
   timeoutSeconds: 5
@@ -781,7 +783,7 @@ livenessProbe:
 readinessProbe:
   httpGet:
     path: /readyz
-    port: healthcheck
+    port: {{ $portName }}
   initialDelaySeconds: 5
   periodSeconds: 5
   timeoutSeconds: 3

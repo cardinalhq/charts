@@ -1,11 +1,10 @@
-{{- if .Values.adminApi.enabled -}}
 apiVersion: v1
 kind: Service
 metadata:
   name: {{ include "lakerunner.fullname" . }}-admin-api
   labels:
     {{- include "lakerunner.labels" . | nindent 4 }}
-    app.kubernetes.io/component: admin-api
+    app.kubernetes.io/component: control-plane
   {{- if .Values.adminApi.service.annotations }}
   annotations:
     {{- toYaml .Values.adminApi.service.annotations | nindent 4 }}
@@ -29,5 +28,4 @@ spec:
       {{- end }}
   selector:
     {{- include "lakerunner.selectorLabels" . | nindent 4 }}
-    app.kubernetes.io/component: admin-api
-{{- end }}
+    app.kubernetes.io/component: control-plane

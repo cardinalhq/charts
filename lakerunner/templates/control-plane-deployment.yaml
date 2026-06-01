@@ -1,0 +1,258 @@
+{{/*
+Control-plane Deployment: colocates the four single-replica services
+(admin-api, alert-evaluator, monitoring, sweeper) into one pod. They share the
+same lakerunner image and are natural singletons, so running them as separate
+Deployments wasted a pod (and reserved capacity) per service.
+
+Each container binds a distinct HEALTH_CHECK_PORT (the binary reads this env;
+default 8090) because pod containers share one network namespace and would
+otherwise collide on the health port. Ports are derived from
+global.healthProbes.healthcheckPort + an offset, with matching named ports so
+each container's probes target its own listener.
+*/}}
+{{- $hcBase := .Values.global.healthProbes.healthcheckPort | int -}}
+{{- $hcAdmin := $hcBase -}}
+{{- $hcAlert := add $hcBase 1 -}}
+{{- $hcMon := add $hcBase 2 -}}
+{{- $hcSweep := add $hcBase 3 -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "lakerunner.fullname" . }}-control-plane
+  labels:
+    {{- include "lakerunner.labels" . | nindent 4 }}
+    app.kubernetes.io/component: control-plane
+  {{ include "lakerunner.annotations" . | nindent 2}}
+spec:
+  replicas: {{ .Values.controlPlane.replicas }}
+  selector:
+    matchLabels:
+      {{- include "lakerunner.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: control-plane
+  template:
+    metadata:
+      labels:
+        {{- include "lakerunner.labels" . | nindent 8 }}
+        app.kubernetes.io/component: control-plane
+        {{- if eq .Values.cloudProvider.azure.authType "workload_identity" }}
+        azure.workload.identity/use: "true"
+        {{- end }}
+      {{- include "lakerunner.annotations" . | nindent 6 }}
+    spec:
+      serviceAccountName: {{ include "lakerunner.serviceAccountName" . }}
+      {{- include "lakerunner.podSecurityContext" (dict "root" . "override" .Values.controlPlane.podSecurityContext) | nindent 6 }}
+      {{- include "lakerunner.imagePullSecrets" . | nindent 6 }}
+      {{- include "lakerunner.sched.nodeSelector" (list .Values.global.nodeSelector .Values.controlPlane.nodeSelector) | nindent 6 }}
+      {{- include "lakerunner.sched.tolerations"  (list .Values.global.tolerations  .Values.controlPlane.tolerations)  | nindent 6 }}
+      {{- include "lakerunner.sched.affinity"     (list .Values.global.affinity     .Values.controlPlane.affinity)     | nindent 6 }}
+      containers:
+      # ---------------------------------------------------------------- admin-api
+      - name: admin-api
+        {{- include "lakerunner.containerSecurityContext" (dict "root" . "override" .Values.controlPlane.containerSecurityContext) | nindent 8 }}
+        image: {{ include "lakerunner.image" (list .Values.controlPlane.image .) }}
+        imagePullPolicy: {{ .Values.controlPlane.image.pullPolicy | default .Values.global.image.pullPolicy }}
+        command: ["/app/bin/lakerunner"]
+        args:
+          - "admin-api"
+          - "serve"
+          - "--port={{ .Values.adminApi.port }}"
+        ports:
+          - name: http
+            containerPort: {{ .Values.adminApi.port }}
+            protocol: TCP
+          - name: hc-admin
+            containerPort: {{ $hcAdmin }}
+            protocol: TCP
+        env:
+          - name: POD_NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          - name: POD_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name
+          - name: POD_IP
+            valueFrom:
+              fieldRef:
+                fieldPath: status.podIP
+          - name: OTEL_SERVICE_NAME
+            value: {{ include "lakerunner.fullname" . }}-admin-api
+          - name: TMPDIR
+            value: /scratch
+          - name: HEALTH_CHECK_PORT
+            value: {{ $hcAdmin | quote }}
+          {{- include "lakerunner.injectEnv" (list . (dict "env" (.Values.adminApi.env | default list) "resources" .Values.controlPlane.resources.adminApi)) | nindent 8 }}
+          {{- include "lakerunner.cardinalTelemetryEnv" . | nindent 10 }}
+        {{- include "lakerunner.healthProbes" (list . .Values.controlPlane "hc-admin") | nindent 8 }}
+        {{- if .Values.global.resources.enabled }}
+        resources:
+          {{- toYaml .Values.controlPlane.resources.adminApi | nindent 10 }}
+        {{- end }}
+        volumeMounts:
+        - name: scratch-admin
+          mountPath: /scratch
+        {{- include "lakerunner.licenseVolumeMount" . | nindent 8 }}
+      # ---------------------------------------------------------- alert-evaluator
+      - name: alert-evaluator
+        {{- include "lakerunner.containerSecurityContext" (dict "root" . "override" .Values.controlPlane.containerSecurityContext) | nindent 8 }}
+        image: {{ include "lakerunner.image" (list .Values.controlPlane.image .) }}
+        imagePullPolicy: {{ .Values.controlPlane.image.pullPolicy | default .Values.global.image.pullPolicy }}
+        command: ["/app/bin/lakerunner"]
+        args: ["alert-evaluator"]
+        ports:
+          - name: hc-alert
+            containerPort: {{ $hcAlert }}
+            protocol: TCP
+        env:
+          - name: POD_NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          - name: POD_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name
+          - name: POD_IP
+            valueFrom:
+              fieldRef:
+                fieldPath: status.podIP
+          - name: OTEL_SERVICE_NAME
+            value: {{ include "lakerunner.fullname" . }}-alert-evaluator
+          - name: TMPDIR
+            value: /scratch
+          - name: HEALTH_CHECK_PORT
+            value: {{ $hcAlert | quote }}
+          - name: ALERT_EVALUATOR_QUERY_API_URL
+            value: {{ .Values.alertEvaluator.queryApiUrl | default (printf "http://%s-query-api:%v" (include "lakerunner.fullname" .) .Values.queryApi.service.port) | quote }}
+          {{- if eq .Values.cloudProvider.provider "azure" }}
+          - name: AZURE_AUTH_TYPE
+            value: {{ .Values.cloudProvider.azure.authType | quote }}
+          {{- end }}
+          {{- include "lakerunner.injectEnv" (list . (dict "env" (.Values.alertEvaluator.env | default list) "resources" .Values.controlPlane.resources.alertEvaluator)) | nindent 8 }}
+          {{- include "lakerunner.cardinalTelemetryEnv" . | nindent 10 }}
+        {{- if eq (include "lakerunner.injectCloudProviderCredentials" .) "true" }}
+        envFrom:
+          - secretRef:
+              name: {{ include "lakerunner.cloudProviderSecretName" . }}
+        {{- end }}
+        {{- include "lakerunner.healthProbes" (list . .Values.controlPlane "hc-alert") | nindent 8 }}
+        {{- if .Values.global.resources.enabled }}
+        resources:
+          {{- toYaml .Values.controlPlane.resources.alertEvaluator | nindent 10 }}
+        {{- end }}
+        volumeMounts:
+        - name: scratch-alert
+          mountPath: /scratch
+        {{- include "lakerunner.licenseVolumeMount" . | nindent 8 }}
+      # --------------------------------------------------------------- monitoring
+      - name: monitoring
+        {{- include "lakerunner.containerSecurityContext" (dict "root" . "override" .Values.controlPlane.containerSecurityContext) | nindent 8 }}
+        image: {{ include "lakerunner.image" (list .Values.controlPlane.image .) }}
+        imagePullPolicy: {{ .Values.controlPlane.image.pullPolicy | default .Values.global.image.pullPolicy }}
+        command: ["/app/bin/lakerunner"]
+        args:
+          - "monitoring"
+          - "serve"
+        ports:
+          - name: hc-mon
+            containerPort: {{ $hcMon }}
+            protocol: TCP
+        env:
+          - name: POD_NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          - name: POD_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name
+          - name: POD_IP
+            valueFrom:
+              fieldRef:
+                fieldPath: status.podIP
+          - name: OTEL_SERVICE_NAME
+            value: {{ include "lakerunner.fullname" . }}-monitoring
+          - name: TMPDIR
+            value: /scratch
+          - name: HEALTH_CHECK_PORT
+            value: {{ $hcMon | quote }}
+          {{- include "lakerunner.autoscalerEnv" . | nindent 10 }}
+          {{- include "lakerunner.injectEnv" (list . (dict "env" (.Values.monitoring.env | default list) "resources" .Values.controlPlane.resources.monitoring)) | nindent 8 }}
+          {{- include "lakerunner.cardinalTelemetryEnv" . | nindent 10 }}
+        {{- include "lakerunner.healthProbes" (list . .Values.controlPlane "hc-mon") | nindent 8 }}
+        {{- if .Values.global.resources.enabled }}
+        resources:
+          {{- toYaml .Values.controlPlane.resources.monitoring | nindent 10 }}
+        {{- end }}
+        volumeMounts:
+        - name: scratch-mon
+          mountPath: /scratch
+        {{- include "lakerunner.licenseVolumeMount" . | nindent 8 }}
+      # ------------------------------------------------------------------ sweeper
+      - name: sweeper
+        {{- include "lakerunner.containerSecurityContext" (dict "root" . "override" .Values.controlPlane.containerSecurityContext) | nindent 8 }}
+        image: {{ include "lakerunner.image" (list .Values.controlPlane.image .) }}
+        imagePullPolicy: {{ .Values.controlPlane.image.pullPolicy | default .Values.global.image.pullPolicy }}
+        command: ["/app/bin/lakerunner"]
+        args: ["sweeper"]
+        ports:
+          - name: hc-sweep
+            containerPort: {{ $hcSweep }}
+            protocol: TCP
+        env:
+          - name: POD_NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          - name: POD_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name
+          - name: POD_IP
+            valueFrom:
+              fieldRef:
+                fieldPath: status.podIP
+          - name: OTEL_SERVICE_NAME
+            value: {{ include "lakerunner.fullname" . }}-sweeper
+          - name: TMPDIR
+            value: /scratch
+          - name: HEALTH_CHECK_PORT
+            value: {{ $hcSweep | quote }}
+          {{- if eq .Values.cloudProvider.provider "azure" }}
+          - name: AZURE_AUTH_TYPE
+            value: {{ .Values.cloudProvider.azure.authType | quote }}
+          {{- end }}
+          {{- include "lakerunner.injectEnv" (list . (dict "env" (.Values.sweeper.env | default list) "resources" .Values.controlPlane.resources.sweeper)) | nindent 8 }}
+          {{- include "lakerunner.cardinalTelemetryEnv" . | nindent 10 }}
+        {{- if eq (include "lakerunner.injectCloudProviderCredentials" .) "true" }}
+        envFrom:
+          - secretRef:
+              name: {{ include "lakerunner.cloudProviderSecretName" . }}
+        {{- end }}
+        {{- include "lakerunner.healthProbes" (list . .Values.controlPlane "hc-sweep") | nindent 8 }}
+        {{- if .Values.global.resources.enabled }}
+        resources:
+          {{- toYaml .Values.controlPlane.resources.sweeper | nindent 10 }}
+        {{- end }}
+        volumeMounts:
+        - name: scratch-sweep
+          mountPath: /scratch
+        {{- if eq .Values.storageProfiles.source "config" }}
+        - name: storage-profiles
+          mountPath: /app/config/storage_profiles.yaml
+          subPath: storage_profiles.yaml
+          readOnly: true
+        {{- end }}
+        {{- include "lakerunner.licenseVolumeMount" . | nindent 8 }}
+      volumes:
+      {{- include "lakerunner.ephemeralVolumeBasic" (list "scratch-admin" .) | nindent 6 }}
+      {{- include "lakerunner.ephemeralVolumeBasic" (list "scratch-alert" .) | nindent 6 }}
+      {{- include "lakerunner.ephemeralVolumeBasic" (list "scratch-mon" .) | nindent 6 }}
+      {{- include "lakerunner.ephemeralVolumeBasic" (list "scratch-sweep" .) | nindent 6 }}
+      {{- if eq .Values.storageProfiles.source "config" }}
+      - name: storage-profiles
+        configMap:
+          name: {{ include "lakerunner.storageProfilesConfigmapName" . }}
+      {{- end }}
+      {{- include "lakerunner.licenseVolume" . | nindent 6 }}
