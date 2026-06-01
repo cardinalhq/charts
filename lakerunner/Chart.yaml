@@ -2,8 +2,8 @@ apiVersion: v2
 name: lakerunner
 description: A Helm chart for LakeRunner - a log and metrics processing platform
 type: application
-version: "3.12.23"
-appVersion: "v1.34.2"
+version: "3.12.24"
+appVersion: "v1.34.3"
 keywords:
   - lakerunner
   - logs
