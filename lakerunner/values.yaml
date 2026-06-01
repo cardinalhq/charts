@@ -473,6 +473,15 @@ controlPlane:
     repository: ghcr.io/cardinalhq/lakerunner
     tag: ""
     pullPolicy: ""
+  # pprof debug server. The four containers share the pod network namespace, so
+  # each gets a distinct PPROF_PORT = basePort + offset (admin-api +0,
+  # alert-evaluator +1, monitoring +2, sweeper +3) to avoid colliding on the
+  # default 6060. PPROF_PORT is always set per container; the binary only honors
+  # it when pprof is enabled (via this flag, or globally via global.env
+  # ENABLE_PPROF=true).
+  pprof:
+    enabled: false # sets ENABLE_PPROF=true on each control-plane container
+    basePort: 6060
   podSecurityContext: {}
   containerSecurityContext: {}
   labels: {}

@@ -15,6 +15,18 @@ each container's probes target its own listener.
 {{- $hcAlert := add $hcBase 1 -}}
 {{- $hcMon := add $hcBase 2 -}}
 {{- $hcSweep := add $hcBase 3 -}}
+{{/*
+pprof (gated by ENABLE_PPROF in the binary, which may come from the chart flag
+controlPlane.pprof.enabled or from global.env). Each container gets a distinct
+PPROF_PORT = basePort + offset so the four don't collide on the shared pod
+network namespace. PPROF_PORT is always emitted; the binary only honors it when
+pprof is enabled.
+*/}}
+{{- $pprofBase := .Values.controlPlane.pprof.basePort | int -}}
+{{- $pprofAdmin := $pprofBase -}}
+{{- $pprofAlert := add $pprofBase 1 -}}
+{{- $pprofMon := add $pprofBase 2 -}}
+{{- $pprofSweep := add $pprofBase 3 -}}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -82,6 +94,12 @@ spec:
             value: /scratch
           - name: HEALTH_CHECK_PORT
             value: {{ $hcAdmin | quote }}
+          {{- if .Values.controlPlane.pprof.enabled }}
+          - name: ENABLE_PPROF
+            value: "true"
+          {{- end }}
+          - name: PPROF_PORT
+            value: {{ $pprofAdmin | quote }}
           {{- include "lakerunner.injectEnv" (list . (dict "env" (.Values.adminApi.env | default list) "resources" .Values.controlPlane.resources.adminApi)) | nindent 8 }}
           {{- include "lakerunner.cardinalTelemetryEnv" . | nindent 10 }}
         {{- include "lakerunner.healthProbes" (list . .Values.controlPlane "hc-admin") | nindent 8 }}
@@ -123,6 +141,12 @@ spec:
             value: /scratch
           - name: HEALTH_CHECK_PORT
             value: {{ $hcAlert | quote }}
+          {{- if .Values.controlPlane.pprof.enabled }}
+          - name: ENABLE_PPROF
+            value: "true"
+          {{- end }}
+          - name: PPROF_PORT
+            value: {{ $pprofAlert | quote }}
           - name: ALERT_EVALUATOR_QUERY_API_URL
             value: {{ .Values.alertEvaluator.queryApiUrl | default (printf "http://%s-query-api:%v" (include "lakerunner.fullname" .) .Values.queryApi.service.port) | quote }}
           {{- if eq .Values.cloudProvider.provider "azure" }}
@@ -177,6 +201,12 @@ spec:
             value: /scratch
           - name: HEALTH_CHECK_PORT
             value: {{ $hcMon | quote }}
+          {{- if .Values.controlPlane.pprof.enabled }}
+          - name: ENABLE_PPROF
+            value: "true"
+          {{- end }}
+          - name: PPROF_PORT
+            value: {{ $pprofMon | quote }}
           {{- include "lakerunner.autoscalerEnv" . | nindent 10 }}
           {{- include "lakerunner.injectEnv" (list . (dict "env" (.Values.monitoring.env | default list) "resources" .Values.controlPlane.resources.monitoring)) | nindent 8 }}
           {{- include "lakerunner.cardinalTelemetryEnv" . | nindent 10 }}
@@ -219,6 +249,12 @@ spec:
             value: /scratch
           - name: HEALTH_CHECK_PORT
             value: {{ $hcSweep | quote }}
+          {{- if .Values.controlPlane.pprof.enabled }}
+          - name: ENABLE_PPROF
+            value: "true"
+          {{- end }}
+          - name: PPROF_PORT
+            value: {{ $pprofSweep | quote }}
           {{- if eq .Values.cloudProvider.provider "azure" }}
           - name: AZURE_AUTH_TYPE
             value: {{ .Values.cloudProvider.azure.authType | quote }}
