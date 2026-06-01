@@ -166,10 +166,14 @@ Pod reserves **125m CPU / 256Mi memory** (sum of requests); no CPU limit on any
 container; each container capped at 256Mi memory.
 
 The four existing blocks shrink to only their container-specific keys:
-- `adminApi`: `port`, `service`
+- `adminApi`: `port`, `service`, `env`
 - `alertEvaluator`: `queryApiUrl`, `env`
-- `monitoring`: `autoscaler`
-- `sweeper`: (none beyond global storage-profiles)
+- `monitoring`: `autoscaler`, `env`
+- `sweeper`: `env`
+
+Each block keeps `env` (a per-container env-var list, injected via
+`lakerunner.injectEnv`) — the standalone deployments all honored it and prod
+relies on `sweeper.env` for log/metric/trace expiry settings.
 
 Removed from each: `enabled`, `replicas`, `resources`, `image`, `nodeSelector`,
 `tolerations`, `affinity`, security contexts, `labels`, `annotations` (now

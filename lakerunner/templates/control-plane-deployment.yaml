@@ -82,7 +82,7 @@ spec:
             value: /scratch
           - name: HEALTH_CHECK_PORT
             value: {{ $hcAdmin | quote }}
-          {{- include "lakerunner.injectEnv" (list . (dict "resources" .Values.controlPlane.resources.adminApi)) | nindent 8 }}
+          {{- include "lakerunner.injectEnv" (list . (dict "env" (.Values.adminApi.env | default list) "resources" .Values.controlPlane.resources.adminApi)) | nindent 8 }}
           {{- include "lakerunner.cardinalTelemetryEnv" . | nindent 10 }}
         {{- include "lakerunner.healthProbes" (list . .Values.controlPlane "hc-admin") | nindent 8 }}
         {{- if .Values.global.resources.enabled }}
@@ -178,7 +178,7 @@ spec:
           - name: HEALTH_CHECK_PORT
             value: {{ $hcMon | quote }}
           {{- include "lakerunner.autoscalerEnv" . | nindent 10 }}
-          {{- include "lakerunner.injectEnv" (list . (dict "resources" .Values.controlPlane.resources.monitoring)) | nindent 8 }}
+          {{- include "lakerunner.injectEnv" (list . (dict "env" (.Values.monitoring.env | default list) "resources" .Values.controlPlane.resources.monitoring)) | nindent 8 }}
           {{- include "lakerunner.cardinalTelemetryEnv" . | nindent 10 }}
         {{- include "lakerunner.healthProbes" (list . .Values.controlPlane "hc-mon") | nindent 8 }}
         {{- if .Values.global.resources.enabled }}
@@ -223,7 +223,7 @@ spec:
           - name: AZURE_AUTH_TYPE
             value: {{ .Values.cloudProvider.azure.authType | quote }}
           {{- end }}
-          {{- include "lakerunner.injectEnv" (list . (dict "resources" .Values.controlPlane.resources.sweeper)) | nindent 8 }}
+          {{- include "lakerunner.injectEnv" (list . (dict "env" (.Values.sweeper.env | default list) "resources" .Values.controlPlane.resources.sweeper)) | nindent 8 }}
           {{- include "lakerunner.cardinalTelemetryEnv" . | nindent 10 }}
         {{- if eq (include "lakerunner.injectCloudProviderCredentials" .) "true" }}
         envFrom:

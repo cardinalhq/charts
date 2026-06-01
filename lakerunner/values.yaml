@@ -512,7 +512,8 @@ controlPlane:
         memory: 256Mi
 
 # Sweeper configuration (colocated in the control-plane pod; see controlPlane).
-sweeper: {}
+sweeper:
+  env: []
 
 # Alert Evaluator configuration (colocated in the control-plane pod; see controlPlane).
 alertEvaluator:
@@ -529,6 +530,7 @@ monitoring:
   autoscaler:
     # Set to true to log scaling decisions without actually changing replicas.
     observeOnly: false
+  env: []
 
 # Perch operator — version control and collector management
 perch:
@@ -621,6 +623,7 @@ adminApi:
     nodePort: null
     loadBalancerIP: ""
     loadBalancerSourceRanges: []
+  env: []
 
 # PubSub configuration
 pubsub:
