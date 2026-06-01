@@ -54,6 +54,17 @@ collide. Confirmed in the lakerunner repo that
 env, **no binary change required**. Port audit confirmed only admin-api binds a
 second port (HTTP `:9091`); the others bind only their health port.
 
+The same shared-namespace collision applies to the **pprof** debug server
+(`:6060`, gated by `ENABLE_PPROF`): when pprof is enabled (commonly via
+`global.env ENABLE_PPROF=true`), all four containers would bind `:6060`. The
+binary honors `PPROF_PORT`, so each container gets a distinct
+`PPROF_PORT = controlPlane.pprof.basePort + offset` (default base `6060`:
+admin-api 6060, alert-evaluator 6061, monitoring 6062, sweeper 6063). PPROF_PORT
+is always emitted; the binary only honors it when pprof is on. A
+`controlPlane.pprof.enabled` flag sets `ENABLE_PPROF=true` per container.
+(Added in chart 3.13.1, after the 3.13.0 rollout surfaced the collision in
+prod.)
+
 ## Design
 
 ### New template: `templates/control-plane-deployment.yaml`
