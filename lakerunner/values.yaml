@@ -459,78 +459,76 @@ processTraces:
   tolerations: []
   affinity: {}
 
-# Sweeper configuration
-sweeper:
-  enabled: true
-  replicas: 1
+# Control-plane configuration.
+#
+# admin-api, alert-evaluator, monitoring, and sweeper are single-replica
+# services that share the lakerunner image. They are colocated into one pod
+# (Deployment lakerunner-control-plane) to avoid running four pods for four tiny
+# always-on singletons. Pod-level settings (replicas, image, scheduling,
+# security context, resources) live here; service-specific settings remain in
+# the adminApi / alertEvaluator / monitoring blocks below.
+controlPlane:
+  replicas: 1 # singleton; not intended to scale
   image:
     repository: ghcr.io/cardinalhq/lakerunner
     tag: ""
     pullPolicy: ""
-  resources:
-    requests:
-      cpu: "500m"
-      memory: 512Mi
-    limits:
-      cpu: "500m"
-      memory: 512Mi
+  podSecurityContext: {}
+  containerSecurityContext: {}
   labels: {}
   annotations: {}
   nodeSelector: {}
   tolerations: []
   affinity: {}
+  # Per-container resources, sized to measured prod usage.
+  # CPU: requests only (no limit) so any container can burst into idle
+  # node/sibling capacity instead of being CFS-throttled.
+  # Memory: request + per-container limit so a leak is confined to one container
+  # rather than taking down its podmates.
+  resources:
+    adminApi:
+      requests:
+        cpu: "25m"
+        memory: 64Mi
+      limits:
+        memory: 256Mi
+    alertEvaluator:
+      requests:
+        cpu: "25m"
+        memory: 64Mi
+      limits:
+        memory: 256Mi
+    monitoring:
+      requests:
+        cpu: "25m"
+        memory: 64Mi
+      limits:
+        memory: 256Mi
+    sweeper:
+      requests:
+        cpu: "50m"
+        memory: 64Mi
+      limits:
+        memory: 256Mi
 
-# Alert Evaluator configuration
+# Sweeper configuration (colocated in the control-plane pod; see controlPlane).
+sweeper: {}
+
+# Alert Evaluator configuration (colocated in the control-plane pod; see controlPlane).
 alertEvaluator:
-  enabled: true
-  replicas: 1
-  image:
-    repository: ghcr.io/cardinalhq/lakerunner
-    tag: ""
-    pullPolicy: ""
   queryApiUrl: "" # auto-configured to internal query-api if empty
-  resources:
-    requests:
-      cpu: "1"
-      memory: 512Mi
-    limits:
-      cpu: "1"
-      memory: 512Mi
-  labels: {}
-  annotations: {}
-  nodeSelector: {}
-  tolerations: []
-  affinity: {}
   env: []
 
-# Monitoring service configuration
+# Monitoring service configuration (colocated in the control-plane pod; see controlPlane).
 monitoring:
-  enabled: true
-  replicas: 1
   # PI autoscaler configuration
-  # The autoscaler runs inside the monitoring pod and manages worker deployment replicas.
-  # It is always enabled. To disable scaling for a specific service, set its
-  # autoscaling.minReplicas and autoscaling.maxReplicas both to 0.
+  # The autoscaler runs inside the monitoring container and manages worker
+  # deployment replicas. It is always enabled. To disable scaling for a specific
+  # service, set its autoscaling.minReplicas and autoscaling.maxReplicas both to 0.
   # To pin a service at a fixed replica count, set min == max (e.g., min=5 max=5).
   autoscaler:
     # Set to true to log scaling decisions without actually changing replicas.
     observeOnly: false
-  image:
-    repository: ghcr.io/cardinalhq/lakerunner
-    tag: ""
-    pullPolicy: ""
-  resources:
-    requests:
-      cpu: "1"
-      memory: 512Mi
-    limits:
-      cpu: "1"
-      memory: 512Mi
-  labels: {}
-  annotations: {}
-  nodeSelector: {}
-  tolerations: []
-  affinity: {}
 
 # Perch operator — version control and collector management
 perch:
@@ -614,10 +612,8 @@ perch:
     heartbeatInterval: "5m"
     reconcileInterval: "15m"
 
-# Admin API configuration
+# Admin API configuration (colocated in the control-plane pod; see controlPlane).
 adminApi:
-  enabled: true
-  replicas: 1
   port: 9091
   service:
     type: ClusterIP
@@ -625,22 +621,6 @@ adminApi:
     nodePort: null
     loadBalancerIP: ""
     loadBalancerSourceRanges: []
-  image:
-    repository: ghcr.io/cardinalhq/lakerunner
-    tag: ""
-    pullPolicy: ""
-  resources:
-    requests:
-      cpu: 250m
-      memory: 200Mi
-    limits:
-      cpu: 250m
-      memory: 200Mi
-  labels: {}
-  annotations: {}
-  nodeSelector: {}
-  tolerations: []
-  affinity: {}
 
 # PubSub configuration
 pubsub:
