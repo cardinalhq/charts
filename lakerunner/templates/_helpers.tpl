@@ -605,6 +605,47 @@ Usage: {{ include "lakerunner.autoscalerEnv" . }}
 {{- end -}}
 
 {{/*
+Emit the LAKERUNNER_SCRATCH_DISK_SIZE_BYTES env var for scratch-using services.
+
+Behavior (issue #783):
+  - global.temporaryStorage.type == "ephemeral" (a real PersistentVolume via
+    volumeClaimTemplate): emit NOTHING. The app falls back to statfs(), which is
+    accurate on a dedicated PV. Setting an explicit size here would only cap the
+    real volume.
+  - otherwise (emptyDir backed by the node disk, with a sizeLimit): emit the
+    sizeLimit converted to bytes so the app treats it as its authoritative scratch
+    slice and stays within it. statfs on an emptyDir reports the whole node disk,
+    not the pod's slice, so the explicit value is required.
+
+The size value is the same one passed to lakerunner.ephemeralVolume, so the env
+var always matches the emptyDir sizeLimit. Emits nothing if no size is set or it
+parses to <= 0.
+
+Takes two args:
+  0: the root chart context
+  1: the component's values block (must have .temporaryStorage.size)
+Usage:
+  {{ include "lakerunner.scratchDiskSizeEnv" (list $root $comp) }}
+*/}}
+{{- define "lakerunner.scratchDiskSizeEnv" -}}
+{{- $root := index . 0 -}}
+{{- $comp := index . 1 -}}
+{{- if ne $root.Values.global.temporaryStorage.type "ephemeral" -}}
+{{- $size := "" -}}
+{{- if and $comp.temporaryStorage $comp.temporaryStorage.size -}}
+  {{- $size = $comp.temporaryStorage.size -}}
+{{- end -}}
+{{- if $size -}}
+{{- $bytes := include "lakerunner.parseMemoryToBytes" $size | int64 -}}
+{{- if gt $bytes 0 }}
+- name: LAKERUNNER_SCRATCH_DISK_SIZE_BYTES
+  value: {{ $bytes | quote }}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
 Generate ephemeral volume configuration based on global settings.
 Takes three arguments: volume name, storage size, and root context
 Usage: {{ include "lakerunner.ephemeralVolume" (list "scratch" .Values.componentName.temporaryStorage.size .) }}
@@ -993,6 +1034,7 @@ Usage: {{ include "lakerunner.duckdbRuntimeEnv" (list . .Values.componentName .V
   value: "2"
 {{- end }}
 {{- end -}}
+{{- include "lakerunner.scratchDiskSizeEnv" (list $root $comp) }}
 {{- end -}}
 
 {{/*
@@ -1054,6 +1096,7 @@ Usage: {{ include "lakerunner.queryWorkerRuntimeEnv" (list . .Values.queryWorker
   value: "2"
 {{- end }}
 {{- end -}}
+{{- include "lakerunner.scratchDiskSizeEnv" (list $root $comp) }}
 {{- end -}}
 
 {{/*
