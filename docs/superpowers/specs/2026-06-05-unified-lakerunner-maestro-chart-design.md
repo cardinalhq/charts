@@ -1,7 +1,7 @@
 # Unified LakeRunner + Maestro Helm Chart — Design
 
 **Date:** 2026-06-05
-**Status:** Draft (Codex-reviewed; SA decision resolved; 2 open — see §11)
+**Status:** Draft (Codex-reviewed; all §11 decisions resolved — ready for user review)
 **Branch:** `worktree-unified-chart`
 
 ## 1. Goal
@@ -130,9 +130,9 @@ serialization. All phases are idempotent and driven by durable state.
 - **Rollback:** bootstrap Jobs must not run schema-assuming or destructive logic on
   `helm rollback`; migrations are forward-only and gated on detected schema version.
 
-### 6.1 Admin-key model (Secret-anchored, DB-reconciled)
-Chosen to eliminate the unrecoverable-crash failure mode (capturing a one-time random
-plaintext) and to make LakeRunner the durable owner:
+### 6.1 Admin-key model (Secret-anchored, DB-reconciled) — CHOSEN
+Selected over the alternative below. Eliminates the unrecoverable-crash failure mode
+(capturing a one-time random plaintext) and makes LakeRunner the durable owner:
 
 1. **Anchor the plaintext once.** Broker ensures a durable Secret holding the admin
    key plaintext: if `adminKey.existingSecret` is set, use it (operator-supplied,
@@ -164,12 +164,16 @@ Read durable state and classify (see §7). Output a clear status (configmap/Job 
 so operators can see *why* fresh/adopt/error was chosen.
 
 ### 6.4 Provisioning phase (fresh only)
-Maestro, via `MAESTRO_BOOTSTRAP_*`, provisions the shared LakeRunner deployment + org
-+ storage, authenticating to in-cluster admin-api with the anchor key. Because Maestro
-bootstrap runs at process start, it **must tolerate admin-api readiness delays** (retry
-/ backoff) — this is a hard prerequisite on the Maestro app (§11). If the app's
-bootstrap is not resilient to admin-api being down, provisioning moves into a dedicated
-Job that waits for admin-api readiness instead of relying on pod start order.
+Maestro, via `MAESTRO_BOOTSTRAP_*`, provisions the shared LakeRunner deployment + org +
+storage, authenticating to in-cluster admin-api with the anchor key. **Verified: the
+Maestro app already decouples this from admin-api readiness** — bootstrap writes a DB
+row (no admin-api call at startup), then an **async provisioning worker retries with
+exponential backoff** (`1s,2s,4s,8s,16s`, ≤6 attempts) and treats 5xx/network errors as
+retryable; a failure logs-and-continues (find-or-create idempotent on every boot). So
+**no dedicated provisioning Job and no readiness gate are required** — the chart only
+sets the env (§6.5). admin-api's `POST /api/v1/provision` is itself idempotent (upsert).
+Chart detail: point the admin-api readiness probe at **`/readyz`** (gates on DB
+connectivity), not `/healthz` (which goes 200 before DBs connect).
 
 ### 6.5 Maestro wiring (net-new in Helm)
 ```
@@ -271,9 +275,6 @@ Suggested order: **A → B → C → D** (D can overlap once maestro templates l
 
 ## 10. Risks
 
-- **MAESTRO_BOOTSTRAP_* app contract** is unproven in Helm (exists only in the ECS
-  reference). Pin exact env names, retry-on-admin-api-down behavior, restart
-  idempotency, and skip/fail logging before implementing B (§11 prerequisite).
 - **Maestro DB migrations on adopt** must be forward-only and safe against a populated
   maestro DB; the migration phase must prevent multi-replica concurrent auto-migrate.
 - **Admin-key lifecycle.** The anchor key is a high-value global admin credential.
@@ -291,11 +292,12 @@ Suggested order: **A → B → C → D** (D can overlap once maestro templates l
    a `controlPlane` SA with deployment-scale rights, a `maestro` SA); when a component
    names its own SA it gets a narrowly-scoped Role, else it uses the shared union SA.
    RBAC templates are structured so each component's Role binds to its *effective* SA.
-2. **Admin-key model.** §6.1 primary (Secret-anchored *and* DB-reconciled via
-   `UpsertAdminAPIKey`, so LakeRunner owns the hash) vs the §6.1 alternative
-   (Secret-only via `ADMIN_INITIAL_API_KEY` fallback, no DB row — simpler, matches
-   CloudFormation, but key not stored in LakeRunner). Recommendation: primary.
-3. **Maestro-bootstrap resilience prerequisite.** Implementing B cleanly assumes
-   Maestro's `MAESTRO_BOOTSTRAP_*` flow retries when admin-api isn't ready yet. If the
-   Maestro app doesn't already do this, we either fix it app-side or move provisioning
-   into a readiness-gated Job. Needs confirmation against the Maestro source.
+2. **Admin-key model — RESOLVED: primary** (§6.1: Secret-anchored *and* DB-reconciled
+   via `UpsertAdminAPIKey`, so LakeRunner owns the hash).
+3. **Maestro-bootstrap resilience — RESOLVED: no gap.** Verified against `../conductor`
+   (maestro source) and `../lakerunner`: maestro bootstrap writes a DB row and never
+   calls admin-api at startup; an async provisioning worker retries with exponential
+   backoff and treats 5xx/network errors as retryable; failures log-and-continue,
+   idempotent every boot. admin-api `/api/v1/provision` is idempotent (upsert). The
+   chart only sets `MAESTRO_BOOTSTRAP_*` and probes admin-api at `/readyz`. No app
+   change and no issue filed.
