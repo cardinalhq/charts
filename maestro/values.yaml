@@ -186,10 +186,17 @@ maestro:
       # `maestro.baseUrl`. Used only by the autoGenerate path.
       sans: []
       # Image used by the cert-init container. openssl CLI is the only
-      # requirement.
+      # requirement. Pinned to an immutable digest (SP5): the previous
+      # cgr.dev/chainguard/openssl:latest is a mutable floating tag, is not
+      # anonymously pullable, and is distroless (no /bin/sh — but the tls-init
+      # container overrides command: ["/bin/sh","-c"]). alpine/openssl is
+      # publicly pullable, Alpine-based (has /bin/sh), and ships the openssl CLI.
+      # Digest resolved via `crane digest alpine/openssl:3.5.4` (2026-06-02) and
+      # mirrors the server default in
+      # packages/maestro/src/lib/maestro-workload-config.ts.
       image:
-        repository: cgr.dev/chainguard/openssl
-        tag: latest
+        repository: alpine/openssl
+        tag: "3.5.4@sha256:42c7389ef077aed0eb4e96d0abbd094083d701bbaff1313073b061c0c9cd8278"
         pullPolicy: IfNotPresent
       # Inline-provided PEM certificate and private key. When both are
       # non-empty, the chart creates a kubernetes.io/tls Secret named

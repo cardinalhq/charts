@@ -86,7 +86,7 @@ spec:
             if [ -n "${EXTRA_SANS}" ]; then SAN="${SAN},${EXTRA_SANS}"; fi
             cat >/tmp/openssl.cnf <<EOF
             [req]
-            distinguished_name=req
+            distinguished_name=req_distinguished_name
             prompt=no
             req_extensions=v3
             [req_distinguished_name]

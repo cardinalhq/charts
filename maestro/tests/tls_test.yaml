@@ -270,6 +270,36 @@ tests:
             image: registry.example.com/openssl:3.3
           any: true
 
+  - it: cert-init defaults to the pinned immutable openssl image
+    set:
+      maestro.baseUrl: https://m.example.com
+      maestro.tls.enabled: true
+    asserts:
+      # SP5: default openssl image must be an immutable digest pin, never :latest.
+      - template: maestro-deployment.yaml
+        contains:
+          path: spec.template.spec.initContainers
+          content:
+            name: tls-init
+            image: alpine/openssl:3.5.4@sha256:42c7389ef077aed0eb4e96d0abbd094083d701bbaff1313073b061c0c9cd8278
+          any: true
+
+  - it: cert-init openssl config uses the correct distinguished_name section
+    set:
+      maestro.baseUrl: https://m.example.com
+      maestro.tls.enabled: true
+    asserts:
+      # A `distinguished_name=req` typo makes openssl reject the config and the
+      # tls-init container crash-loops. The DN must reference the actual section.
+      - template: maestro-deployment.yaml
+        matchRegex:
+          path: spec.template.spec.initContainers[?(@.name=="tls-init")].args[0]
+          pattern: "distinguished_name=req_distinguished_name"
+      - template: maestro-deployment.yaml
+        notMatchRegex:
+          path: spec.template.spec.initContainers[?(@.name=="tls-init")].args[0]
+          pattern: "distinguished_name=req\\n"
+
   - it: cert-init injects host derived from baseUrl into env
     set:
       maestro.baseUrl: https://m.example.com:8443
