@@ -459,6 +459,18 @@ dex:
   # in prod so only the real base URL is accepted.
   # extraRedirectURIs:
   #   - http://localhost:5173/
+  #
+  # CORS origins Dex allows on its own HTTP endpoints (discovery, token,
+  # keys). Needed when a browser SPA served from a DIFFERENT origin than
+  # the maestro backend completes OIDC against the bundled Dex — e.g. a
+  # local Vite dev server (`ui-vite-dev`) at http://localhost:5173, which
+  # fetches /dex/.well-known/openid-configuration cross-origin. maestro's
+  # CORS middleware covers /api but not the /dex reverse-proxy, so Dex must
+  # allow the origin itself. Values are origins (scheme+host[:port], no
+  # path/trailing slash) — the redirect counterpart is extraRedirectURIs.
+  # Leave empty ([]) in prod (SPA is same-origin with maestro).
+  # allowedOrigins:
+  #   - http://localhost:5173
 
 # Global settings
 global:
