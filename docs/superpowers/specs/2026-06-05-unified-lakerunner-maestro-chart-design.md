@@ -1,7 +1,7 @@
 # Unified LakeRunner + Maestro Helm Chart — Design
 
 **Date:** 2026-06-05
-**Status:** Draft (Codex-reviewed; 2 decisions open for user — see §11)
+**Status:** Draft (Codex-reviewed; SA decision resolved; 2 open — see §11)
 **Branch:** `worktree-unified-chart`
 
 ## 1. Goal
@@ -51,7 +51,7 @@ The unified chart must support two distinct lifecycles:
 | Fresh-install bootstrap | **In-cluster port of the CloudFormation pattern** via idempotent broker Job(s) | Matches the stated end-state: naked LakeRunner + Maestro provisions the shared instance. |
 | Admin key model | **Secret-anchored, DB-reconciled** (see §6.1). Operator override via `existingSecret`. | LakeRunner ends up holding the key's hash (source of truth) while a durable Secret is the recoverable plaintext anchor — idempotent and crash-safe. |
 | Adopt vs fresh | **Detection-driven state machine (fresh/adopt/error), no required flag.** Optional `bootstrap: auto\|force\|never` override (default `auto`). | No "install fresh then remember to change something" footgun; removing any override can never re-trigger bootstrap. |
-| ServiceAccount | **OPEN — see §11.** Leaning: one SA for steady-state workloads + a separate, narrowly-scoped bootstrap SA. | User wanted one SA; Codex flagged blast-radius. Compromise honors both. |
+| ServiceAccount | **Configurable; single shared SA by default, splittable into two or more.** | Customers who don't care get one SA (simple). Security-conscious customers opt into per-component SAs with narrowly-scoped Roles. Honors the single-SA preference *and* Codex's blast-radius concern. |
 
 ## 4. Verified facts about the LakeRunner binary
 
@@ -92,8 +92,8 @@ chart/
   values.yaml           # one merged, flat values surface
   templates/
     _helpers.tpl        # merged helpers, one label/name scheme
-    serviceaccount.yaml # SAs (count TBD — §11)
-    rbac.yaml           # Role/RoleBindings (scoped per SA)
+    serviceaccount.yaml # one shared SA by default; per-component SAs opt-in
+    rbac.yaml           # Role/RoleBindings scoped per effective SA
     secrets/            # db, object-store, license, admin-key anchor
     lakerunner/         # LR workloads
     maestro/            # maestro, mcp-gateway, github-cache, dex, ingress
@@ -284,13 +284,13 @@ Suggested order: **A → B → C → D** (D can overlap once maestro templates l
 
 ## 11. Open decisions (need user input)
 
-1. **ServiceAccount split.** You wanted one normalized SA ("open to not, if enterprisey
-   reasons"). Codex's enterprisey reason: the broker needs **Secret-mutation** rights
-   and elevated DB access that no steady-state pod should carry, and LakeRunner
-   control-plane needs deployment-scale rights Maestro doesn't.
-   **Recommendation:** one normalized SA for steady-state workloads **+** a separate,
-   narrowly-scoped **bootstrap SA** (Secret write + DB). Optionally keep
-   control-plane's scaling RBAC on its own SA. Your call on how far to split.
+1. **ServiceAccount split — RESOLVED.** Configurable, with a **single shared SA as the
+   default** (broker + lakerunner + maestro all use it; its Role is the union of needed
+   perms) — simplest for customers who don't care. Operators who want least-privilege
+   **opt into per-component SAs** (e.g. a narrow `bootstrap` SA with Secret-write + DB,
+   a `controlPlane` SA with deployment-scale rights, a `maestro` SA); when a component
+   names its own SA it gets a narrowly-scoped Role, else it uses the shared union SA.
+   RBAC templates are structured so each component's Role binds to its *effective* SA.
 2. **Admin-key model.** §6.1 primary (Secret-anchored *and* DB-reconciled via
    `UpsertAdminAPIKey`, so LakeRunner owns the hash) vs the §6.1 alternative
    (Secret-only via `ADMIN_INITIAL_API_KEY` fallback, no DB row — simpler, matches
