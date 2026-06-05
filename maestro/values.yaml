@@ -443,6 +443,15 @@ dex:
   # maestro pod returns 404 for /<pathPrefix>/* and an Ingress is
   # required for the OIDC flow to work).
   # proxyEnabled: true
+  #
+  # Extra redirect URIs to whitelist on the maestro-ui Dex client, in
+  # addition to the canonical "<baseUrl>/" the chart always registers.
+  # Use this for non-prod origins that complete the same OIDC PKCE flow —
+  # e.g. a local Vite dev server (`ui-vite-dev`) pointed at this backend,
+  # which sends redirect_uri = http://localhost:5173/. Leave empty ([])
+  # in prod so only the real base URL is accepted.
+  # extraRedirectURIs:
+  #   - http://localhost:5173/
 
 # Global settings
 global:

@@ -3,6 +3,7 @@
 {{- include "maestro.dexValidate" . -}}
 {{- $d := .Values.dex | default dict -}}
 {{- $users := dig "staticUsers" list $d -}}
+{{- $extraRedirects := dig "extraRedirectURIs" list $d -}}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -34,6 +35,13 @@ data:
         public: true
         redirectURIs:
           - {{ include "maestro.dexRedirectUri" . }}
+          {{- /* Extra dev/CI redirect URIs (e.g. a local Vite dev server at
+              http://localhost:5173/ pointed at this backend). Appended verbatim
+              so non-prod origins can complete the OIDC PKCE flow without
+              hand-patching the live ConfigMap. Leave empty in prod. */}}
+          {{- range $extraRedirects }}
+          - {{ . | quote }}
+          {{- end }}
     staticPasswords:
       {{- toYaml $users | nindent 6 }}
 {{- end }}
