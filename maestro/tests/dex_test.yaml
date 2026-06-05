@@ -292,6 +292,41 @@ tests:
           path: data["config.yaml"]
           pattern: "localhost"
 
+  - it: emits web.allowedOrigins when dex.allowedOrigins is set
+    set:
+      dex.enabled: true
+      ingress.enabled: true
+      ingress.host: m.example.com
+      dex.staticUsers:
+        - email: a@example.com
+          username: a
+          userID: u1
+          hash: "$2a$10$abc"
+      dex.allowedOrigins:
+        - http://localhost:5173
+    template: dex-configmap.yaml
+    asserts:
+      # allowedOrigins nested under web:, before oauth2:
+      - matchRegex:
+          path: data["config.yaml"]
+          pattern: "web:\\s*\\n\\s*http: 0.0.0.0:5556\\s*\\n\\s*allowedOrigins:\\s*\\n\\s*- \"http://localhost:5173\""
+
+  - it: omits web.allowedOrigins when dex.allowedOrigins is unset
+    set:
+      dex.enabled: true
+      ingress.enabled: true
+      ingress.host: m.example.com
+      dex.staticUsers:
+        - email: a@example.com
+          username: a
+          userID: u1
+          hash: "$2a$10$abc"
+    template: dex-configmap.yaml
+    asserts:
+      - notMatchRegex:
+          path: data["config.yaml"]
+          pattern: "allowedOrigins"
+
   - it: dex deployment mounts a writable /tmp emptyDir
     set:
       dex.enabled: true

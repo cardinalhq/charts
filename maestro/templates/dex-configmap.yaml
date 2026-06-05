@@ -4,6 +4,7 @@
 {{- $d := .Values.dex | default dict -}}
 {{- $users := dig "staticUsers" list $d -}}
 {{- $extraRedirects := dig "extraRedirectURIs" list $d -}}
+{{- $allowedOrigins := dig "allowedOrigins" list $d -}}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -22,6 +23,22 @@ data:
       type: memory
     web:
       http: 0.0.0.0:{{ $cfg.port }}
+      {{- /* CORS allowed origins for Dex's own HTTP endpoints (discovery,
+          token, keys). A browser SPA served from a DIFFERENT origin than the
+          maestro backend — e.g. a local Vite dev server (`ui-vite-dev`) at
+          http://localhost:5173 — fetches /dex/.well-known/openid-configuration
+          and the token endpoint cross-origin; without Dex emitting CORS
+          headers the OIDC PKCE flow fails at discovery. maestro's own CORS
+          middleware covers /api but NOT the /dex reverse-proxy pass-through,
+          so Dex must allow the origin itself. Pairs with extraRedirectURIs
+          (which whitelists the redirect; this whitelists the fetch origin).
+          Empty in prod (SPA is same-origin with maestro, no CORS needed). */}}
+      {{- with $allowedOrigins }}
+      allowedOrigins:
+        {{- range . }}
+        - {{ . | quote }}
+        {{- end }}
+      {{- end }}
     oauth2:
       skipApprovalScreen: true
     enablePasswordDB: true
