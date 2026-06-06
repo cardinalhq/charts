@@ -218,14 +218,21 @@ maestro:
     # cert.autoGenerate=true and cert.crt/cert.key.
     # secretName: ""
 
-  # Persistent storage for ephemeral working data: orchestra artifact
-  # payloads (per-run subdirs) and ontology git checkouts. Off by default
-  # — when enabled, mounts a PVC at `mountPath` and sets the env vars
-  # ORCHESTRA_ARTIFACT_DIR and ONTOLOGY_WORKSPACE_DIR so maestro routes
-  # both into the volume. Recommended for SaaS deployments where memory
-  # budgets are tight; not required for small/dev installs (orchestra
-  # falls back to its in-memory artifact store).
-  persistence:
+  # Scratch storage for rebuildable working data: orchestra artifact
+  # payloads (per-run subdirs) and ontology git checkouts. This is a
+  # throw-away cache, not durable state — contents are re-fetchable /
+  # re-clonable, so the backing PVC (<release>-maestro-scratch) carries
+  # the `scratch` token for data-classification tooling (matches the
+  # lakerunner scratch-volume convention; "definitely-no-backup").
+  # Off by default — when enabled, mounts a PVC at `mountPath` and sets
+  # the env vars ORCHESTRA_ARTIFACT_DIR and ONTOLOGY_WORKSPACE_DIR so
+  # maestro routes both into the volume. Recommended for SaaS deployments
+  # where memory budgets are tight; not required for small/dev installs
+  # (orchestra falls back to its in-memory artifact store).
+  #
+  # Renamed from `maestro.persistence` (chart 0.9.0). The old key now
+  # fails template rendering — see templates/deprecation-warnings.yaml.
+  temporaryStorage:
     enabled: false
     size: 5Gi
     accessMode: ReadWriteOnce
@@ -327,7 +334,7 @@ githubCache:
       # storageClass: ""   # leave empty to use the cluster default
       mountPath: /var/lib/github-cache
       # SELinux MCS level pinned across pod restarts so a re-attached PVC's
-      # mirror bytes stay readable (same rationale as maestro.persistence).
+      # mirror bytes stay readable (same rationale as maestro.temporaryStorage).
       seLinuxLevel: "s0:c100,c200"
     resources:
       requests:

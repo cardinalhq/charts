@@ -1,0 +1,29 @@
+{{/*
+Deprecation warnings for removed or renamed features.
+This template doesn't produce any resources, it only validates configuration.
+*/}}
+
+{{- if .Values.maestro.persistence }}
+{{- fail `
+================================================================================
+DEPRECATION WARNING: maestro.persistence has been renamed to maestro.temporaryStorage
+
+The maestro scratch PVC and its values key were renamed to reflect cache
+semantics (rebuildable artifacts + git checkouts, not durable state) and to
+match the lakerunner scratch-volume convention. The backing PVC is now named
+<release>-maestro-scratch instead of <release>-maestro-data.
+
+To fix this error:
+  1. Rename the maestro.persistence section in your values.yaml to
+     maestro.temporaryStorage (all sub-keys are unchanged: enabled, size,
+     accessMode, storageClass, mountPath, seLinuxLevel).
+
+Upgrade impact:
+  The old <release>-maestro-data PVC is replaced by a new (empty)
+  <release>-maestro-scratch PVC. Contents are cache, so the only effect is a
+  one-time warm-up. With a Delete-reclaim StorageClass the old PVC/PV/volume
+  are cleaned up automatically on upgrade; with a Retain StorageClass, delete
+  the orphaned <release>-maestro-data PV manually.
+================================================================================
+` }}
+{{- end }}

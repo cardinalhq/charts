@@ -177,7 +177,7 @@ Two `maestro` pods + the `github-cache` `StatefulSet` (per-pod RWO PVCs for the 
 The chart fails template rendering — at install time, not silently at runtime — when any HA invariant is violated:
 
 * `ha.enabled=true` and `objectStore.bucket` is empty
-* `ha.enabled=true` and `maestro.persistence.enabled: true`
+* `ha.enabled=true` and `maestro.temporaryStorage.enabled: true`
 * `ha.enabled=true` and explicit `githubCache.enabled: false`
 * `ha.enabled=true` and explicit `maestro.replicas` or `mcpGateway.replicas` `< 2`
 * `objectStore.auth.existingSecret` set but a key-name field is blank

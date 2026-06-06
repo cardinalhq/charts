@@ -2,10 +2,11 @@ suite: test persistent storage for artifacts and ontology checkouts
 templates:
   - maestro-deployment.yaml
   - maestro-pvc.yaml
+  - deprecation-warnings.yaml
 tests:
   - it: omits PVC when persistence disabled
     set:
-      maestro.persistence.enabled: false
+      maestro.temporaryStorage.enabled: false
     template: maestro-pvc.yaml
     asserts:
       - hasDocuments:
@@ -13,7 +14,7 @@ tests:
 
   - it: omits volume mount and env vars when persistence disabled
     set:
-      maestro.persistence.enabled: false
+      maestro.temporaryStorage.enabled: false
     template: maestro-deployment.yaml
     asserts:
       - notContains:
@@ -27,8 +28,8 @@ tests:
 
   - it: renders PVC, mount, and env vars when persistence enabled
     set:
-      maestro.persistence.enabled: true
-      maestro.persistence.size: 5Gi
+      maestro.temporaryStorage.enabled: true
+      maestro.temporaryStorage.size: 5Gi
     template: maestro-pvc.yaml
     asserts:
       - hasDocuments:
@@ -42,10 +43,13 @@ tests:
       - equal:
           path: spec.accessModes[0]
           value: ReadWriteOnce
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-maestro-scratch
 
   - it: wires the volume mount and env vars when persistence enabled
     set:
-      maestro.persistence.enabled: true
+      maestro.temporaryStorage.enabled: true
     template: maestro-deployment.yaml
     asserts:
       - contains:
@@ -61,19 +65,19 @@ tests:
       - contains:
           path: spec.template.spec.containers[0].volumeMounts
           content:
-            name: data
+            name: scratch
             mountPath: "/var/lib/maestro"
       - contains:
           path: spec.template.spec.volumes
           content:
-            name: data
+            name: scratch
             persistentVolumeClaim:
-              claimName: RELEASE-NAME-maestro-data
+              claimName: RELEASE-NAME-maestro-scratch
 
   - it: respects custom mountPath
     set:
-      maestro.persistence.enabled: true
-      maestro.persistence.mountPath: /data/maestro
+      maestro.temporaryStorage.enabled: true
+      maestro.temporaryStorage.mountPath: /data/maestro
     template: maestro-deployment.yaml
     asserts:
       - contains:
@@ -84,18 +88,18 @@ tests:
 
   - it: fails when replicas > 1 with default RWO accessMode
     set:
-      maestro.persistence.enabled: true
+      maestro.temporaryStorage.enabled: true
       maestro.replicas: 2
     template: maestro-pvc.yaml
     asserts:
       - failedTemplate:
-          errorMessage: "maestro.persistence is enabled with replicas > 1, but accessMode is not ReadWriteMany. Set maestro.persistence.accessMode=ReadWriteMany (e.g. EFS) or scale to 1 replica."
+          errorMessage: "maestro.temporaryStorage is enabled with replicas > 1, but accessMode is not ReadWriteMany. Set maestro.temporaryStorage.accessMode=ReadWriteMany (e.g. EFS) or scale to 1 replica."
 
   - it: allows replicas > 1 when accessMode is ReadWriteMany
     set:
-      maestro.persistence.enabled: true
+      maestro.temporaryStorage.enabled: true
       maestro.replicas: 2
-      maestro.persistence.accessMode: ReadWriteMany
+      maestro.temporaryStorage.accessMode: ReadWriteMany
     template: maestro-pvc.yaml
     asserts:
       - hasDocuments:
@@ -103,3 +107,11 @@ tests:
       - equal:
           path: spec.accessModes[0]
           value: ReadWriteMany
+
+  - it: fails when the renamed maestro.persistence key is still set
+    set:
+      maestro.persistence.enabled: true
+    template: deprecation-warnings.yaml
+    asserts:
+      - failedTemplate:
+          errorPattern: "DEPRECATION WARNING: maestro.persistence has been renamed to maestro.temporaryStorage"
