@@ -160,7 +160,7 @@ maestro:
     # Sidecar image. Overridable for air-gapped registries.
     image:
       repository: nginxinc/nginx-unprivileged
-      tag: "1.27-alpine"
+      tag: "1.31-alpine"
       pullPolicy: IfNotPresent
     # Additional resources for the sidecar.
     resources:
@@ -191,12 +191,12 @@ maestro:
       # anonymously pullable, and is distroless (no /bin/sh — but the tls-init
       # container overrides command: ["/bin/sh","-c"]). alpine/openssl is
       # publicly pullable, Alpine-based (has /bin/sh), and ships the openssl CLI.
-      # Digest resolved via `crane digest alpine/openssl:3.5.4` (2026-06-02) and
+      # Digest resolved via `crane digest alpine/openssl:3.5.6` (2026-06-06) and
       # mirrors the server default in
       # packages/maestro/src/lib/maestro-workload-config.ts.
       image:
         repository: alpine/openssl
-        tag: "3.5.4@sha256:42c7389ef077aed0eb4e96d0abbd094083d701bbaff1313073b061c0c9cd8278"
+        tag: "3.5.6@sha256:87adbe7a8c904b825b9068d5a4060799b1e8280c67a64684f72cef376f627a46"
         pullPolicy: IfNotPresent
       # Inline-provided PEM certificate and private key. When both are
       # non-empty, the chart creates a kubernetes.io/tls Secret named

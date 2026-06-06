@@ -906,7 +906,7 @@ grafana:
     # Grafana downloads the plugin zip at startup via GF_INSTALL_PLUGINS.
     # Air-gapped deployments should either host the zip internally and point
     # this at it, or enable initContainer mode below.
-    url: "https://github.com/cardinalhq/cardinalhq-lakerunner-datasource/releases/download/v2.4.0/cardinalhq-lakerunner-datasource.zip;cardinalhq-lakerunner-datasource"
+    url: "https://github.com/cardinalhq/cardinalhq-lakerunner-datasource/releases/download/v2.5.0/cardinalhq-lakerunner-datasource.zip;cardinalhq-lakerunner-datasource"
     # Pre-install the Cardinal datasource plugin via an init container that
     # carries the plugin baked into its image, instead of relying on Grafana
     # pulling it over HTTP at startup. Recommended for air-gapped clusters
