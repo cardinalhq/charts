@@ -3,7 +3,7 @@ Deprecation warnings for removed or renamed features.
 This template doesn't produce any resources, it only validates configuration.
 */}}
 
-{{- if .Values.maestro.persistence }}
+{{- if (.Values.maestro | default dict).persistence }}
 {{- fail `
 ================================================================================
 DEPRECATION WARNING: maestro.persistence has been renamed to maestro.temporaryStorage

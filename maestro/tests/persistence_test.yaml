@@ -4,7 +4,7 @@ templates:
   - maestro-pvc.yaml
   - deprecation-warnings.yaml
 tests:
-  - it: omits PVC when persistence disabled
+  - it: omits PVC when temporaryStorage disabled
     set:
       maestro.temporaryStorage.enabled: false
     template: maestro-pvc.yaml
@@ -12,7 +12,7 @@ tests:
       - hasDocuments:
           count: 0
 
-  - it: omits volume mount and env vars when persistence disabled
+  - it: omits volume mount and env vars when temporaryStorage disabled
     set:
       maestro.temporaryStorage.enabled: false
     template: maestro-deployment.yaml
@@ -26,7 +26,7 @@ tests:
           content:
             name: ONTOLOGY_WORKSPACE_DIR
 
-  - it: renders PVC, mount, and env vars when persistence enabled
+  - it: renders PVC, mount, and env vars when temporaryStorage enabled
     set:
       maestro.temporaryStorage.enabled: true
       maestro.temporaryStorage.size: 5Gi
@@ -47,7 +47,7 @@ tests:
           path: metadata.name
           value: RELEASE-NAME-maestro-scratch
 
-  - it: wires the volume mount and env vars when persistence enabled
+  - it: wires the volume mount and env vars when temporaryStorage enabled
     set:
       maestro.temporaryStorage.enabled: true
     template: maestro-deployment.yaml
@@ -111,6 +111,16 @@ tests:
   - it: fails when the renamed maestro.persistence key is still set
     set:
       maestro.persistence.enabled: true
+    template: deprecation-warnings.yaml
+    asserts:
+      - failedTemplate:
+          errorPattern: "DEPRECATION WARNING: maestro.persistence has been renamed to maestro.temporaryStorage"
+
+  # The guard tests map truthiness, so it must fire on ANY leftover subkey —
+  # e.g. an operator who renamed `enabled` but left `size`/`storageClass` behind.
+  - it: deprecation fires on any persistence subkey, not just .enabled
+    set:
+      maestro.persistence.size: 10Gi
     template: deprecation-warnings.yaml
     asserts:
       - failedTemplate:

@@ -14,7 +14,7 @@ fullnameOverride: ""
 #   ha.enabled=true — HA: two maestro pods + two mcp-gateway pods (operator
 #     can override higher), github-cache split into its StatefulSet +
 #     singleton provisioner, S3-compat object store REQUIRED for artifacts.
-#     Maestro `persistence.enabled` must be false (RWO PVC + Recreate
+#     Maestro `temporaryStorage.enabled` must be false (RWO PVC + Recreate
 #     strategy deadlocks rolling updates under replicas>1).
 #
 # Defaults for `maestro.replicas` and `githubCache.enabled` auto-derive
