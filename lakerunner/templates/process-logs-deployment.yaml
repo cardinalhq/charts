@@ -53,6 +53,18 @@ spec:
             value: {{ include "lakerunner.fullname" . }}-process-logs
           - name: TMPDIR
             value: /scratch
+          {{- if .Values.processLogs.agentSessions.enabled }}
+          # Enable the in-process agent-sessions sub-processor (taps
+          # claude-code records from each ingested Parquet bin, UPSERTs
+          # into the agent_sessions table). See
+          # docs/specs/agent-sessions.md in the lakerunner repo.
+          - name: LAKERUNNER_AGENT_SESSIONS_ENABLE
+            value: "true"
+          {{- if .Values.processLogs.agentSessions.rulesConfigMap.enabled }}
+          - name: AGENT_SESSIONS_RULES_PATH
+            value: /etc/lakerunner/agent-sessions-rules.yaml
+          {{- end }}
+          {{- end }}
           {{- if eq .Values.cloudProvider.provider "azure" }}
           - name: AZURE_AUTH_TYPE
             value: {{ .Values.cloudProvider.azure.authType | quote }}
@@ -78,6 +90,12 @@ spec:
         {{- end }}
         - name: scratch
           mountPath: /scratch
+        {{- if and .Values.processLogs.agentSessions.enabled .Values.processLogs.agentSessions.rulesConfigMap.enabled }}
+        - name: agent-sessions-rules
+          mountPath: /etc/lakerunner/agent-sessions-rules.yaml
+          subPath: rules.yaml
+          readOnly: true
+        {{- end }}
         {{- include "lakerunner.azureTokenVolumeMount" . | nindent 8 }}
         {{- include "lakerunner.licenseVolumeMount" . | nindent 8 }}
       {{- include "lakerunner.sched.nodeSelector" (list .Values.global.nodeSelector .Values.processLogs.nodeSelector) | nindent 6 }}
@@ -89,6 +107,11 @@ spec:
       - name: storage-profiles
         configMap:
           name: {{ include "lakerunner.storageProfilesConfigmapName" . }}
+      {{- end }}
+      {{- if and .Values.processLogs.agentSessions.enabled .Values.processLogs.agentSessions.rulesConfigMap.enabled }}
+      - name: agent-sessions-rules
+        configMap:
+          name: {{ .Values.processLogs.agentSessions.rulesConfigMap.name | default (printf "%s-agent-sessions-rules" (include "lakerunner.fullname" .)) }}
       {{- end }}
       {{- include "lakerunner.azureTokenVolume" . | nindent 6 }}
       {{- include "lakerunner.licenseVolume" . | nindent 6 }}
