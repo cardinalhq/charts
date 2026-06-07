@@ -1246,9 +1246,11 @@ bootstrap:
     # When set, use this existing Secret instead of generating one (sealed-secrets/GitOps).
     existingSecret: ""
     existingSecretKey: "admin-api-key"
-  # Bucket coordinates Maestro provisions for the shared org. Mirror the object store.
+  # Bucket coordinates Maestro provisions for the shared org. Optional: when set,
+  # mirror the object store; when omitted, Maestro creates a bucket-less
+  # deployment and storage is provisioned later in the maestro UI.
   bucket:
-    name: ""               # REQUIRED when mode!=never
+    name: ""               # optional; omit for a bucket-less deployment (provision storage later in the maestro UI)
     region: "us-east-1"
     cloudProvider: "aws"   # aws|gcp|azure
     collectorName: "default"

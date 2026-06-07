@@ -47,6 +47,8 @@ spec:
             value: {{ .Values.configdb.lrdb.name | quote }}
           - name: CONFIGDB_USER
             value: {{ .Values.configdb.lrdb.username | quote }}
+          - name: PGSSLMODE
+            value: {{ .Values.configdb.lrdb.sslMode | default "require" | quote }}
           - name: CONFIGDB_PASSWORD
             valueFrom:
               secretKeyRef:

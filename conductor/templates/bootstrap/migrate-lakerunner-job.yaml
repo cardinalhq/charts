@@ -52,5 +52,5 @@ spec:
       volumes:
       {{- include "lakerunner.ephemeralVolumeBasic" (list "scratch" .) | nindent 6 }}
       {{- include "lakerunner.licenseVolume" . | nindent 6 }}
-  backoffLimit: 0
+  backoffLimit: 3
 {{- end }}
