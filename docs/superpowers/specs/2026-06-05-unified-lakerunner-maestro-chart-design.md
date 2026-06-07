@@ -163,34 +163,48 @@ serialization. All phases are idempotent and driven by durable state.
 - **Rollback:** bootstrap Jobs must not run schema-assuming or destructive logic on
   `helm rollback`; migrations are forward-only and gated on detected schema version.
 
-### 6.1 Admin-key model (Secret-anchored, DB-reconciled) — CHOSEN
-Selected over the alternative below. Eliminates the unrecoverable-crash failure mode
-(capturing a one-time random plaintext) and makes LakeRunner the durable owner:
+### 6.1 Admin-key model — CHOSEN: provision-both seeds configdb directly
+The "provision-both" broker step already needs DB access to both databases (for
+detection), so it seeds the admin key by a **direct, idempotent SQL upsert into
+LakeRunner's configdb** — no missing LakeRunner CLI, no cross-repo change, and
+LakeRunner still owns the key (its hash lives in configdb). "Choose once, done."
 
-1. **Anchor the plaintext once.** Broker ensures a durable Secret holding the admin
-   key plaintext: if `adminKey.existingSecret` is set, use it (operator-supplied,
-   sealed-secrets/GitOps path); else generate a random value and create the Secret
-   with lookup-or-create (atomic; a losing concurrent creator reads the winner's).
-2. **Reconcile the DB hash from the anchor.** Feed that plaintext through the existing
-   `UpsertAdminAPIKey` import path → configdb stores the hash (LakeRunner = source of
-   truth). Deterministic: re-running re-hashes the same plaintext → same hash → no-op.
-3. admin-api validates the key from configdb (with the in-memory env fallback as a
-   belt-and-suspenders). Maestro reads the plaintext from the anchor Secret.
+1. **Anchor the plaintext once.** Broker ensures a durable Secret holds the admin-key
+   plaintext: if `adminKey.existingSecret` is set, use it (operator-supplied,
+   sealed-secrets/GitOps path); else generate a random `ak_<hex>` and create the Secret
+   lookup-or-create (atomic; a losing concurrent creator reads the winner's).
+2. **Seed the hash into configdb directly.** Compute `key_hash = sha256(plaintext)` (hex)
+   and upsert into the `admin_api_keys` table (current name — the `lrconfig_` prefix was
+   removed by migration `1755713265`). DDL: `(id UUID default gen_random_uuid() PK,
+   key_hash TEXT NOT NULL UNIQUE, name TEXT NOT NULL, description, created_at default
+   now())`. SQL: `INSERT INTO admin_api_keys (key_hash, name, description) VALUES (...)
+   ON CONFLICT (key_hash) DO NOTHING;`. Idempotent on the unique hash.
+   `admin-api ValidateAPIKey` hashes any presented key the same way and looks it up —
+   no key-format requirement — so the chosen plaintext is accepted.
+3. Maestro receives the same plaintext via `MAESTRO_BOOTSTRAP_..._ADMIN_API_KEY`
+   (from the anchor Secret); it stores it in its `maestro_lakerunner_deployments` row
+   (same unprotected-in-maestro-DB state as today, per user) and uses it to call
+   admin-api, which now accepts it.
 
-This is crash-idempotent in every order: Secret-but-no-DB-row → re-import; the anchor
-is created before anything depends on it, so plaintext is never lost.
+Crash-idempotent in every order: the anchor Secret is created before anything depends
+on it; the configdb upsert is idempotent on the hash; re-runs no-op.
 
-> **Alternative (simpler, if import wiring proves awkward):** skip step 2 and inject
-> the anchor value as `ADMIN_INITIAL_API_KEY` into admin-api (in-memory fallback,
-> no DB row) **and** as `MAESTRO_BOOTSTRAP_..._ADMIN_API_KEY` into Maestro — exactly
-> the CloudFormation shape. Trade-off: the key lives only in the Secret, not in
-> LakeRunner's DB. Recorded as the fallback in §11.
+> **Documented coupling:** the broker takes a schema dependency on the `admin_api_keys`
+> table. If that schema drifts, the broker's SQL must change. Escape hatch: add a
+> `lakerunner` CLI command to drive `internal/bootstrap` `UpsertAdminAPIKey` and have
+> the broker call that instead. Acceptable for now (user-confirmed "most direct").
+> The in-memory `ADMIN_INITIAL_API_KEY` fallback remains available as a belt-and-
+> suspenders but is not the primary mechanism.
 
-### 6.2 Migration phase (pre-workload)
-Run LakeRunner (`lrdb`,`configdb`) and Maestro DB migrations as a dedicated phase
-**before** app pods that depend on the schema start. One runner per DB; never let
-multiple Maestro replicas auto-migrate concurrently. Idempotent and safe on populated
-(adopted) DBs.
+### 6.2 Migration phases (pre-workload) — two ordered jobs
+Per user's "migrate-lakerunner, migrate-maestro(-mcp), provision both" model:
+- **migrate-lakerunner:** `lakerunner migrate --databases lrdb,configdb` (golang-migrate
+  handles its own locking; idempotent; safe on populated/adopted DBs).
+- **migrate-maestro:** mcp-gateway image with `MCP_MIGRATE_ONLY=true` — runs maestro DB
+  migrations (`gomigrate_maestro`, golang-migrate) and exits 0. This is the supported
+  migrate-only mode; it avoids multiple maestro replicas auto-migrating concurrently.
+Both run as pre-install/pre-upgrade hook Jobs (ordered via hook weights) before app pods
+that depend on the schema start.
 
 ### 6.3 Detection / classification phase
 Read durable state and classify (see §7). Output a clear status (configmap/Job log)
