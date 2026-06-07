@@ -364,7 +364,7 @@ setup:
   enabled: true
   replicas: 1
   image:
-    repository: ghcr.io/cardinalhq/lakerunner
+    repository: public.ecr.aws/cardinalhq.io/lakerunner # ecr-public default; ghcr.io/cardinalhq/lakerunner is a supported alternate
     tag: ""
     pullPolicy: ""
   resources:
@@ -403,7 +403,7 @@ processLogs:
   enabled: true
   replicas: 1
   image:
-    repository: ghcr.io/cardinalhq/lakerunner
+    repository: public.ecr.aws/cardinalhq.io/lakerunner # ecr-public default; ghcr.io/cardinalhq/lakerunner is a supported alternate
     tag: ""
     pullPolicy: ""
   resources:
@@ -437,7 +437,7 @@ processMetrics:
   enabled: true
   replicas: 1
   image:
-    repository: ghcr.io/cardinalhq/lakerunner
+    repository: public.ecr.aws/cardinalhq.io/lakerunner # ecr-public default; ghcr.io/cardinalhq/lakerunner is a supported alternate
     tag: ""
     pullPolicy: ""
   resources:
@@ -471,7 +471,7 @@ processTraces:
   enabled: true
   replicas: 1
   image:
-    repository: ghcr.io/cardinalhq/lakerunner
+    repository: public.ecr.aws/cardinalhq.io/lakerunner # ecr-public default; ghcr.io/cardinalhq/lakerunner is a supported alternate
     tag: ""
     pullPolicy: ""
   resources:
@@ -511,7 +511,7 @@ processTraces:
 controlPlane:
   replicas: 1 # singleton; not intended to scale
   image:
-    repository: ghcr.io/cardinalhq/lakerunner
+    repository: public.ecr.aws/cardinalhq.io/lakerunner # ecr-public default; ghcr.io/cardinalhq/lakerunner is a supported alternate
     tag: ""
     pullPolicy: ""
   # pprof debug server. The four containers share the pod network namespace, so
@@ -605,7 +605,7 @@ pubsub:
       loadBalancerIP: ""
       loadBalancerSourceRanges: []
     image:
-      repository: ghcr.io/cardinalhq/lakerunner
+      repository: public.ecr.aws/cardinalhq.io/lakerunner # ecr-public default; ghcr.io/cardinalhq/lakerunner is a supported alternate
       tag: ""
       pullPolicy: ""
     resources:
@@ -629,7 +629,7 @@ pubsub:
     region: ""
     roleARN: ""
     image:
-      repository: ghcr.io/cardinalhq/lakerunner
+      repository: public.ecr.aws/cardinalhq.io/lakerunner # ecr-public default; ghcr.io/cardinalhq/lakerunner is a supported alternate
       tag: ""
       pullPolicy: ""
     resources:
@@ -652,7 +652,7 @@ pubsub:
     # Example: "my-subscription"
     subscriptionID: ""
     image:
-      repository: ghcr.io/cardinalhq/lakerunner
+      repository: public.ecr.aws/cardinalhq.io/lakerunner # ecr-public default; ghcr.io/cardinalhq/lakerunner is a supported alternate
       tag: ""
       pullPolicy: ""
     resources:
@@ -676,7 +676,7 @@ pubsub:
     # Example: "sqs"
     queueName: ""
     image:
-      repository: ghcr.io/cardinalhq/lakerunner
+      repository: public.ecr.aws/cardinalhq.io/lakerunner # ecr-public default; ghcr.io/cardinalhq/lakerunner is a supported alternate
       tag: ""
       pullPolicy: ""
     resources:
@@ -703,7 +703,7 @@ queryApi:
     loadBalancerIP: ""
     loadBalancerSourceRanges: []
   image:
-    repository: ghcr.io/cardinalhq/lakerunner
+    repository: public.ecr.aws/cardinalhq.io/lakerunner # ecr-public default; ghcr.io/cardinalhq/lakerunner is a supported alternate
     tag: ""
     pullPolicy: ""
   resources:
@@ -730,7 +730,7 @@ queryWorker:
   enabled: true
   replicas: 2
   image:
-    repository: ghcr.io/cardinalhq/lakerunner
+    repository: public.ecr.aws/cardinalhq.io/lakerunner # ecr-public default; ghcr.io/cardinalhq/lakerunner is a supported alternate
     tag: ""
     pullPolicy: ""
   resources:
