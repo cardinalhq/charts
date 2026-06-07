@@ -1,0 +1,143 @@
+{{/*
+Deprecation warnings for removed or changed features.
+This template doesn't produce any resources, it only validates configuration.
+*/}}
+
+{{- if .Values.cloudProvider.duckdb }}
+{{- fail `
+================================================================================
+DEPRECATION WARNING: cloudProvider.duckdb has been removed
+
+The cloudProvider.duckdb configuration section has been removed because the
+injected S3_ACCESS_KEY_ID and S3_SECRET_ACCESS_KEY environment variables were
+not actually used by the application.
+
+LakeRunner uses the standard AWS SDK credential chain for S3 access:
+  - IAM roles (recommended for Kubernetes)
+  - AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY environment variables
+  - ~/.aws/credentials file
+
+To fix this error:
+  1. Remove the cloudProvider.duckdb section from your values.yaml
+  2. If you need explicit S3 credentials, use cloudProvider.aws instead:
+
+     cloudProvider:
+       provider: aws
+       aws:
+         inject: true
+         create: true
+         accessKeyId: "your-access-key"
+         secretAccessKey: "your-secret-key"
+
+================================================================================
+` }}
+{{- end }}
+
+{{- if .Values.notificationSender }}
+{{- fail `
+================================================================================
+DEPRECATION WARNING: notificationSender has been removed
+
+The notificationSender component has been removed. Webhook delivery and incident
+garbage collection are now built into the alert-evaluator process.
+
+To fix this error:
+  1. Remove the notificationSender section from your values.yaml
+  2. Ensure alertEvaluator.enabled is true (it handles everything now)
+
+================================================================================
+` }}
+{{- end }}
+
+{{- $cp := list -}}
+{{- range $svc := list "adminApi" "alertEvaluator" "monitoring" "sweeper" -}}
+  {{- $block := index $.Values $svc -}}
+  {{- if $block -}}
+    {{- range $key := list "enabled" "replicas" "image" "resources" "nodeSelector" "tolerations" "affinity" "podSecurityContext" "containerSecurityContext" -}}
+      {{- if hasKey $block $key -}}
+        {{- $cp = append $cp (printf "%s.%s" $svc $key) -}}
+      {{- end -}}
+    {{- end -}}
+  {{- end -}}
+{{- end -}}
+{{- if $cp }}
+{{- fail (printf `
+================================================================================
+DEPRECATION WARNING: per-service pod settings have moved to controlPlane
+
+admin-api, alert-evaluator, monitoring, and sweeper are now colocated in a
+single pod (Deployment <release>-control-plane). Pod-level settings are no
+longer read from the individual service blocks.
+
+Offending keys found in your values:
+  %s
+
+To fix this error:
+  1. Remove those keys from the adminApi / alertEvaluator / monitoring / sweeper
+     blocks.
+  2. Set pod-level settings under the new controlPlane block instead:
+
+     controlPlane:
+       replicas: 1
+       image:
+         repository: ghcr.io/cardinalhq/lakerunner
+         tag: ""
+       nodeSelector: {}
+       tolerations: []
+       affinity: {}
+       resources:
+         adminApi:       { requests: { cpu: 25m, memory: 64Mi }, limits: { memory: 256Mi } }
+         alertEvaluator: { requests: { cpu: 25m, memory: 64Mi }, limits: { memory: 256Mi } }
+         monitoring:     { requests: { cpu: 25m, memory: 64Mi }, limits: { memory: 256Mi } }
+         sweeper:        { requests: { cpu: 50m, memory: 64Mi }, limits: { memory: 256Mi } }
+
+  Service-specific keys are still read from their own blocks:
+    adminApi.port, adminApi.service, alertEvaluator.queryApiUrl,
+    alertEvaluator.env, monitoring.autoscaler
+
+================================================================================
+` (join ", " $cp)) }}
+{{- end }}
+
+{{- if or .Values.cloudProvider.gcp.accessKeyId .Values.cloudProvider.gcp.secretAccessKey }}
+{{- fail `
+================================================================================
+DEPRECATION WARNING: cloudProvider.gcp HMAC credentials have been removed
+
+The cloudProvider.gcp.accessKeyId and cloudProvider.gcp.secretAccessKey fields
+have been removed. GCP no longer requires AWS-style HMAC credentials.
+
+LakeRunner uses native GCP authentication for GCS access:
+  - Workload Identity (recommended for GKE)
+  - Service Account JSON credentials
+
+To fix this error:
+  1. Remove accessKeyId and secretAccessKey from cloudProvider.gcp
+  2. Use one of these authentication methods:
+
+     # Option 1: Workload Identity (recommended)
+     cloudProvider:
+       provider: gcp
+       gcp:
+         inject: false
+         create: false
+
+     # Option 2: Service Account JSON
+     cloudProvider:
+       provider: gcp
+       gcp:
+         inject: true
+         create: true
+         serviceAccountJson: '{"type":"service_account",...}'
+
+     # Option 3: Existing secret with GOOGLE_APPLICATION_CREDENTIALS
+     cloudProvider:
+       provider: gcp
+       gcp:
+         inject: true
+         create: false
+         secretName: "my-gcp-credentials"
+
+================================================================================
+` }}
+{{- end }}
