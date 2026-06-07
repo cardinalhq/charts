@@ -126,8 +126,8 @@ Discovered while building sub-project A; adopters' override files must account f
   matching the CF `cardinal-license` end-state). Default `license.secretName` =
   `cardinal-license`. Adopters who kept separate per-product license secrets, or a
   differently-named one, set `license.secretName` (+ `license.create:false`) to point at
-  their existing secret. **User confirm:** is one suite license correct for all existing
-  installs, or do any have genuinely distinct lakerunner vs maestro licenses?
+  their existing secret. **RESOLVED (user confirmed):** one shared suite license is
+  correct; the chart ships a single `license:` block (default secret `cardinal-license`).
 - **Known future-dedup debt (not defects; deferred):** duplicate `license-validation`
   hooks (one per family validating the same block), duplicate `cardinal-api-key` secrets
   (one per family, identical data), and large near-duplicate `_helpers-*.tpl` families.
@@ -141,12 +141,10 @@ SHA-pinned, with third-party images mirrored on ecr-public
 (`public.ecr.aws/docker/library/postgres:18-alpine`, `public.ecr.aws/aws-cli/...`).
 **ecr-public is the default; ghcr.io is the documented alternate.** The unified chart
 should default Cardinal images to ecr-public for consistency.
-- **Discrepancy to resolve:** the legacy lakerunner chart defaults its image to
-  `ghcr.io/cardinalhq/lakerunner`, whereas maestro + CF use `public.ecr.aws/cardinalhq.io/*`.
-  Decision (pending user confirm): unify the default to `public.ecr.aws/cardinalhq.io/lakerunner`,
-  keeping ghcr.io as a documented override. **Deferred out of sub-project A** (which copies
-  live values verbatim to keep render-parity clean); applied as a deliberate values change
-  before/within sub-project B so the diff is intentional and reviewable.
+- **RESOLVED (user confirmed):** unify the lakerunner default to
+  `public.ecr.aws/cardinalhq.io/lakerunner`, keeping ghcr.io as a documented override.
+  Applied as a deliberate, reviewed values change **in sub-project B** (kept out of A so
+  A's render-parity stayed clean).
 
 ## 6. Bootstrap — phased, not one monolithic hook
 
