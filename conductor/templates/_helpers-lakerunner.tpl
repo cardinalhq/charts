@@ -1182,9 +1182,12 @@ injected. Override with .Values.serviceAccount.name. Per-component SAs
 {{- end -}}
 {{- end }}
 
-{{/* Whether fresh-install bootstrap is active (false when mode=never). */}}
+{{/* Whether fresh-install bootstrap is active. Emits "true" when active and an
+     empty string when mode=never, so callers can use `include` directly in
+     `if`/`and` (a non-empty string is truthy, empty is falsy — unlike the
+     literal string "false", which is truthy). */}}
 {{- define "conductor.bootstrapEnabled" -}}
-{{- ne (.Values.bootstrap.mode | default "auto") "never" -}}
+{{- if ne (.Values.bootstrap.mode | default "auto") "never" -}}true{{- end -}}
 {{- end }}
 
 {{/* Name of the admin-key anchor Secret (operator-supplied or chart-managed). */}}
