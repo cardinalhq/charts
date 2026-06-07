@@ -1,0 +1,81 @@
+{{- if include "conductor.detectionEnabled" . -}}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ .Release.Name }}-bootstrap-detect
+  labels:
+    {{- include "lakerunner.labels" . | nindent 4 }}
+  annotations:
+    helm.sh/hook: pre-install,pre-upgrade
+    # weight 1: after the migrate hooks (weight 0) have brought both schemas up,
+    # before the post-install key-seed (weight 5). A non-zero exit here aborts
+    # the install before maestro can start and create a duplicate shared org.
+    helm.sh/hook-weight: "1"
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+spec:
+  # A classification failure (legacy/foreign or inconsistent DB) must ABORT the
+  # install, not retry — so no backoff.
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        {{- include "lakerunner.selectorLabels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "conductor.serviceAccountName" . }}
+      restartPolicy: Never
+      {{- include "lakerunner.imagePullSecrets" . | nindent 6 }}
+      containers:
+      - name: detect
+        image: public.ecr.aws/docker/library/postgres:18-alpine
+        command: ["/bin/sh","-ec"]
+        args:
+          - |
+            set -eu
+            # q QUERY PASSWORD HOST PORT USER DB SSLMODE
+            q() { PGPASSWORD="$2" PGSSLMODE="$7" psql -tA -v ON_ERROR_STOP=1 -h "$3" -p "$4" -U "$5" -d "$6" -c "$1"; }
+            LR_BUCKETS=$(q "SELECT count(*) FROM organization_buckets;"     "$CONFIGDB_PASSWORD" "$CONFIGDB_HOST" "$CONFIGDB_PORT" "$CONFIGDB_USER" "$CONFIGDB_NAME" "$CONFIGDB_SSLMODE")
+            LR_ORGS=$(q    "SELECT count(*) FROM organizations;"            "$CONFIGDB_PASSWORD" "$CONFIGDB_HOST" "$CONFIGDB_PORT" "$CONFIGDB_USER" "$CONFIGDB_NAME" "$CONFIGDB_SSLMODE")
+            M_ORGS=$(q     "SELECT count(*) FROM maestro_organizations;"    "$MDB_PASSWORD" "$MDB_HOST" "$MDB_PORT" "$MDB_USER" "$MDB_NAME" "$MDB_SSLMODE")
+            M_SHARED=$(q   "SELECT count(*) FROM maestro_lakerunner_deployments WHERE source='shared_cardinal' AND enabled AND is_demo=false AND auto_add_to_all_orgs AND btrim(coalesce(admin_api_url,''))<>'' AND btrim(coalesce(admin_api_key,''))<>'';" "$MDB_PASSWORD" "$MDB_HOST" "$MDB_PORT" "$MDB_USER" "$MDB_NAME" "$MDB_SSLMODE")
+            M_LEGACY=$(q   "SELECT count(*) FROM maestro_integrations WHERE type='lakerunner' AND deployment_id IS NULL;" "$MDB_PASSWORD" "$MDB_HOST" "$MDB_PORT" "$MDB_USER" "$MDB_NAME" "$MDB_SSLMODE")
+            echo "signals: lr_buckets=$LR_BUCKETS lr_orgs=$LR_ORGS m_orgs=$M_ORGS m_shared=$M_SHARED m_legacy=$M_LEGACY"
+            LR_PROV=0; { [ "$LR_BUCKETS" -gt 0 ] || [ "$LR_ORGS" -gt 0 ]; } && LR_PROV=1
+            if [ "$M_SHARED" -gt 0 ]; then echo "ADOPT_CONDUCTOR: shared deployment present — idempotent, proceeding"; exit 0; fi
+            if [ "$LR_PROV" -eq 0 ] && [ "$M_ORGS" -eq 0 ]; then echo "FRESH: proceeding with bootstrap"; exit 0; fi
+            if [ "$M_LEGACY" -gt 0 ] || [ "$M_ORGS" -gt 0 ]; then
+              echo "ADOPT_LEGACY: existing non-conductor install detected. Re-run with bootstrap.mode=adopt to adopt it without provisioning."; exit 1; fi
+            echo "ERROR: inconsistent state (configdb provisioned but maestro empty, or vice versa). Investigate before proceeding."; exit 1
+        env:
+          # --- configdb (lakerunner) ---
+          - name: CONFIGDB_HOST
+            value: {{ .Values.configdb.lrdb.host | quote }}
+          - name: CONFIGDB_PORT
+            value: {{ .Values.configdb.lrdb.port | quote }}
+          - name: CONFIGDB_NAME
+            value: {{ .Values.configdb.lrdb.name | quote }}
+          - name: CONFIGDB_USER
+            value: {{ .Values.configdb.lrdb.username | quote }}
+          - name: CONFIGDB_SSLMODE
+            value: {{ .Values.configdb.lrdb.sslMode | default "require" | quote }}
+          - name: CONFIGDB_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: {{ include "lakerunner.configdbSecretName" . | quote }}
+                key: {{ .Values.configdb.passwordKey | default "CONFIGDB_PASSWORD" | quote }}
+          # --- maestro DB ---
+          - name: MDB_HOST
+            value: {{ .Values.maestroDatabase.host | quote }}
+          - name: MDB_PORT
+            value: {{ .Values.maestroDatabase.port | quote }}
+          - name: MDB_NAME
+            value: {{ .Values.maestroDatabase.name | quote }}
+          - name: MDB_USER
+            value: {{ .Values.maestroDatabase.username | quote }}
+          - name: MDB_SSLMODE
+            value: {{ .Values.maestroDatabase.sslMode | default "require" | quote }}
+          - name: MDB_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: {{ include "maestro.databaseSecretName" . }}
+                key: {{ .Values.maestroDatabase.passwordKey }}
+{{- end }}
