@@ -1,0 +1,46 @@
+# Legacy maestro@0.8.22 install values, wired to the EXTERNAL postgres fixture.
+# No MAESTRO_BOOTSTRAP_* — legacy maestro does NOT auto-create a shared_cardinal
+# deployment. The maestro<->lakerunner integration is a manual UI step, which we
+# simulate after install with a direct DB insert (20-populate-legacy.sh). After
+# uninstall, the maestro DB retains the org + integration rows.
+
+ha:
+  enabled: false
+
+image:
+  repository: public.ecr.aws/cardinalhq.io/maestro
+  pullPolicy: IfNotPresent
+
+objectStore:
+  bucket: "lakerunner"
+  region: "us-east-1"
+  endpoint: "http://rustfs:9000"
+  forcePathStyle: true
+  auth:
+    existingSecret: "aws-credentials"
+    accessKeyIdKey: AWS_ACCESS_KEY_ID
+    secretAccessKeyKey: AWS_SECRET_ACCESS_KEY
+
+license:
+  create: false
+  secretName: "cardinal-license"
+
+database:
+  create: false
+  secretName: "pg-credentials"
+  passwordKey: "MAESTRO_DB_PASSWORD"
+  host: "postgres"
+  port: 5432
+  name: "maestro"
+  username: "maestro"
+  sslMode: "disable"
+
+maestro:
+  enabled: true
+  replicas: 1
+  baseUrl: "http://ms-maestro.conductor-adopt.svc.cluster.local:4200"
+  tls:
+    enabled: false
+
+dex:
+  enabled: false

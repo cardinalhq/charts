@@ -1,0 +1,71 @@
+{{- if and .Values.setup (hasKey .Values.setup "enabled" | ternary .Values.setup.enabled true) -}}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ .Release.Name }}-migrate-lakerunner
+  labels:
+    {{- include "lakerunner.labelsWithComponent" (list . .Values.setup.labels) | nindent 4 }}
+  annotations:
+    {{- $global := .Values.global.annotations | default dict -}}
+    {{- $component := .Values.setup.annotations | default dict -}}
+    {{- $merged := merge $component $global -}}
+    {{- if gt (len $merged) 0 }}
+    {{- toYaml $merged | nindent 4 }}
+    {{- end }}
+    helm.sh/hook: pre-install,pre-upgrade
+    helm.sh/hook-weight: "0"
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+spec:
+  template:
+    metadata:
+      labels:
+        {{- include "lakerunner.labelsWithComponent" (list . .Values.setup.labels) | nindent 8 }}
+      {{- include "lakerunner.annotationsWithComponent" (list . .Values.setup.annotations) | nindent 6 }}
+    spec:
+      serviceAccountName: {{ include "conductor.serviceAccountName" . }}
+      restartPolicy: Never
+      {{- include "lakerunner.podSecurityContext" (dict "root" . "override" .Values.setup.podSecurityContext) | nindent 6 }}
+      {{- include "lakerunner.imagePullSecrets" . | nindent 6 }}
+      {{- include "lakerunner.sched.nodeSelector" (list .Values.global.nodeSelector .Values.setup.nodeSelector) | nindent 6 }}
+      {{- include "lakerunner.sched.tolerations"  (list .Values.global.tolerations  .Values.setup.tolerations)  | nindent 6 }}
+      {{- include "lakerunner.sched.affinity"     (list .Values.global.affinity     .Values.setup.affinity)     | nindent 6 }}
+      containers:
+      - name: run-migrations
+        {{- include "lakerunner.containerSecurityContext" (dict "root" . "override" .Values.setup.containerSecurityContext) | nindent 8 }}
+        image: {{ include "lakerunner.image" (list .Values.setup.image .) }}
+        imagePullPolicy: {{ .Values.setup.image.pullPolicy | default .Values.global.image.pullPolicy }}
+        command: ["/app/bin/lakerunner"]
+        args: ["migrate", "--databases", "lrdb,configdb"]
+        env:
+          - name: OTEL_SERVICE_NAME
+            value: {{ .Release.Name }}-migrate-lakerunner
+          {{- include "lakerunner.injectEnvSetup" (list . .Values.setup) | nindent 8 }}
+          {{- include "lakerunner.cardinalTelemetryEnv" . | nindent 10 }}
+        {{- if .Values.global.resources.enabled }}
+        resources:
+          {{- toYaml .Values.setup.resources | nindent 10 }}
+        {{- end }}
+        volumeMounts:
+        {{- /* migrate runs initialize-if-needed which reads STORAGE_PROFILE_FILE
+               (set by injectEnvSetup); mount the (empty) storage-profiles
+               ConfigMap so that step succeeds instead of erroring on a missing
+               file. The ConfigMap is itself a pre-install hook (weight -10). */}}
+        {{- if eq .Values.storageProfiles.source "config" }}
+        - name: storage-profiles
+          mountPath: /app/config/storage_profiles.yaml
+          subPath: storage_profiles.yaml
+          readOnly: true
+        {{- end }}
+        - name: scratch
+          mountPath: /scratch
+        {{- include "lakerunner.licenseVolumeMount" . | nindent 8 }}
+      volumes:
+      {{- if eq .Values.storageProfiles.source "config" }}
+      - name: storage-profiles
+        configMap:
+          name: {{ include "lakerunner.storageProfilesConfigmapName" . }}
+      {{- end }}
+      {{- include "lakerunner.ephemeralVolumeBasic" (list "scratch" .) | nindent 6 }}
+      {{- include "lakerunner.licenseVolume" . | nindent 6 }}
+  backoffLimit: 3
+{{- end }}

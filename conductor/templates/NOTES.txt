@@ -1,0 +1,44 @@
+{{- $ha := include "maestro.haEnabled" . -}}
+{{- $ghEnabled := include "maestro.githubCacheEnabled" . -}}
+{{- $mReplicas := include "maestro.replicas" (dict "root" . "explicit" .Values.maestro.replicas) -}}
+{{- $gReplicas := include "maestro.replicas" (dict "root" . "explicit" .Values.mcpGateway.replicas) -}}
+{{- $bucket := dig "bucket" "" (.Values.objectStore | default dict) -}}
+conductor — the unified CardinalHQ chart — is installed. It deploys BOTH:
+  - lakerunner: the log/metrics/trace pipeline (process-logs/metrics/traces,
+    query-api, query-worker, control-plane, pubsub ingest, setup job)
+  - maestro: the UI + mcp-gateway + (optional) Dex OIDC, with github-cache in HA
+
+Mode:               {{ if $ha }}HA{{ else }}POC{{ end }}
+Maestro replicas:   {{ $mReplicas }}
+MCP-gateway replicas: {{ $gReplicas }}
+GitHub-cache:       {{ if $ghEnabled }}split (StatefulSet + provisioner){{ else }}in-process (rolled into maestro){{ end }}
+Artifact bytes:     {{ if $bucket }}S3 → {{ $bucket }}{{ if dig "endpoint" "" .Values.objectStore }} ({{ .Values.objectStore.endpoint }}){{ end }}{{ else }}in-memory (single-pod only){{ end }}
+{{- if and $ha (not $bucket) }}
+WARNING: ha.enabled=true but objectStore.bucket is empty — this combination is rejected at render time. If you see this message, something is wrong.
+{{- end }}
+{{- if and (not $ha) $bucket }}
+
+Note: objectStore.bucket is set but ha.enabled=false. The S3 backend is wired
+but artifact persistence isn't strictly required in POC mode — set ha.enabled=true
+to commit to multi-pod operation.
+{{- end }}
+
+Reach the maestro UI:
+{{- if .Values.ingress.enabled }}
+  Ingress is enabled — browse to https://{{ .Values.ingress.host | default "<ingress.host>" }}/
+{{- else }}
+  No Ingress configured. Port-forward the maestro Service:
+    kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "maestro.fullname" . }}-maestro {{ .Values.maestro.port }}:{{ .Values.maestro.port }}
+  then open http://localhost:{{ .Values.maestro.port }}/
+{{- end }}
+
+Check the lakerunner pipeline:
+  kubectl -n {{ .Release.Namespace }} get pods -l app.kubernetes.io/name=lakerunner
+  kubectl -n {{ .Release.Namespace }} logs -l app.kubernetes.io/component=control-plane --tail=50
+
+Check maestro:
+  kubectl -n {{ .Release.Namespace }} get pods -l app.kubernetes.io/name=maestro
+  kubectl -n {{ .Release.Namespace }} logs -l app.kubernetes.io/component=maestro --tail=50
+
+All pods for this release:
+  kubectl -n {{ .Release.Namespace }} get pods -l app.kubernetes.io/instance={{ .Release.Name }}

@@ -1,0 +1,151 @@
+{{- if include "maestro.githubCacheEnabled" . -}}
+{{- $svc := include "maestro.githubCacheFullname" . -}}
+{{- $serving := .Values.githubCache.serving -}}
+{{- $mountPath := $serving.persistence.mountPath | default "/var/lib/github-cache" -}}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "maestro.githubCacheFullname" . }}
+  labels:
+    {{- include "maestro.labels" . | nindent 4 }}
+    app.kubernetes.io/component: github-cache
+  {{ include "maestro.annotations" . | nindent 2 }}
+spec:
+  serviceName: {{ $svc }}
+  replicas: {{ $serving.replicas }}
+  # RWO volumes attach to one node at a time; parallel pod management avoids a
+  # serial rollout deadlock and lets warm replicas come back independently.
+  podManagementPolicy: Parallel
+  selector:
+    matchLabels:
+      {{- include "maestro.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: github-cache
+  template:
+    metadata:
+      labels:
+        {{- include "maestro.labels" . | nindent 8 }}
+        app.kubernetes.io/component: github-cache
+        {{- with $serving.labels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- include "maestro.annotations" . | nindent 6 }}
+    spec:
+      serviceAccountName: {{ include "maestro.serviceAccountName" . }}
+      {{- /*
+        Pin SELinux MCS categories so a re-attached PVC's mirror bytes stay
+        readable across pod restarts (same rationale as maestro.persistence).
+        Operators can override seLinuxOptions in serving.podSecurityContext.
+      */}}
+      {{- $podSec := $serving.podSecurityContext | default dict -}}
+      {{- if not (hasKey $podSec "seLinuxOptions") -}}
+        {{- $merged := dict -}}
+        {{- range $k, $v := $podSec }}{{- $_ := set $merged $k $v -}}{{- end -}}
+        {{- $_ := set $merged "seLinuxOptions" (dict "level" $serving.persistence.seLinuxLevel) -}}
+        {{- $podSec = $merged -}}
+      {{- end }}
+      {{- include "maestro.podSecurityContext" (dict "root" . "override" $podSec) | nindent 6 }}
+      {{- include "maestro.imagePullSecrets" . | nindent 6 }}
+      initContainers:
+      # mcp-gateway native sidecar. The serving container does not call the
+      # gateway today, but co-locating it keeps the topology uniform across
+      # the maestro stack and gives any future cache-side feature a
+      # pod-local gateway over loopback. See conductor#838.
+      {{- include "maestro.mcpGatewaySidecar" (dict "root" . "containerSec" $serving.containerSecurityContext) | nindent 6 }}
+      containers:
+      - name: github-cache
+        {{- include "maestro.containerSecurityContext" (dict "root" . "override" $serving.containerSecurityContext) | nindent 8 }}
+        image: {{ include "maestro.image" . }}
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        command: ["/app/entrypoint.sh"]
+        args: ["github-cache"]
+        ports:
+        - containerPort: {{ $serving.port }}
+          name: http
+        env:
+          {{ include "maestro.databaseEnv" . | nindent 10 }}
+          {{- include "maestro.databaseUrlAlias" . | nindent 10 }}
+          - name: GITHUB_CACHE_PORT
+            value: {{ $serving.port | quote }}
+          # Stable per-pod identity: the StatefulSet ordinal hostname.
+          - name: POD_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name
+          - name: GITHUB_CACHE_REPLICA_ID
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name
+          # Endpoint the placement directory advertises to maestro. Code
+          # appends ":<port>", so this is host-only — the stable per-pod DNS
+          # backed by the headless Service.
+          - name: GITHUB_CACHE_ENDPOINT
+            value: "$(POD_NAME).{{ $svc }}.{{ .Release.Namespace }}.svc"
+          - name: MIRROR_ROOT
+            value: {{ printf "%s/mirrors" $mountPath | quote }}
+          # git writes ~/.gitconfig etc.; point HOME at the writable tmp
+          # emptyDir so readOnlyRootFilesystem=true doesn't break it.
+          - name: HOME
+            value: /tmp
+          {{- with .Values.githubCache.diskBudgetBytes }}
+          - name: GITHUB_CACHE_DISK_BUDGET_BYTES
+            value: {{ . | quote }}
+          {{- end }}
+          {{- include "maestro.cardinalTelemetryEnv" . | nindent 10 }}
+          {{- with .Values.global.env }}
+          {{- toYaml . | nindent 10 }}
+          {{- end }}
+          {{- with .Values.githubCache.env }}
+          {{- toYaml . | nindent 10 }}
+          {{- end }}
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: http
+          periodSeconds: 10
+          timeoutSeconds: 10
+          failureThreshold: 3
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: http
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 6
+        {{- if .Values.global.resources.enabled }}
+        resources:
+          {{- toYaml $serving.resources | nindent 10 }}
+        {{- end }}
+        volumeMounts:
+        - name: tmp
+          mountPath: /tmp
+        - name: mirrors
+          mountPath: {{ $mountPath | quote }}
+        {{- include "maestro.licenseVolumeMount" . | nindent 8 }}
+      {{- include "maestro.sched.nodeSelector" (list .Values.global.nodeSelector $serving.nodeSelector) | nindent 6 }}
+      {{- include "maestro.sched.tolerations"  (list .Values.global.tolerations  $serving.tolerations)  | nindent 6 }}
+      {{- include "maestro.sched.affinity"     (list .Values.global.affinity     $serving.affinity)     | nindent 6 }}
+      volumes:
+      - name: tmp
+        emptyDir: {}
+      {{- include "maestro.licenseVolume" . | nindent 6 }}
+  volumeClaimTemplates:
+  - metadata:
+      name: mirrors
+      # volumeClaimTemplates is IMMUTABLE: use only stable selector labels here.
+      # maestro.labels embeds app.kubernetes.io/version + helm.sh/chart, which
+      # change every release and make the StatefulSet un-updatable (forbidden
+      # immutable-field patch). Stable labels keep future releases syncable.
+      labels:
+        {{- include "maestro.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: github-cache
+    spec:
+      accessModes:
+        - {{ $serving.persistence.accessMode | quote }}
+      resources:
+        requests:
+          storage: {{ $serving.persistence.size | quote }}
+      {{- with $serving.persistence.storageClass }}
+      storageClassName: {{ . | quote }}
+      {{- end }}
+{{- end }}

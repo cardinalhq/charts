@@ -1,0 +1,5 @@
+# Minimal values to render the legacy lakerunner chart (mirrors lakerunner/tests/test-values.yaml).
+aws:
+  region: us-west-2
+license:
+  data: '{"key":"test"}'

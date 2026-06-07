@@ -1,0 +1,60 @@
+{{- if include "conductor.bootstrapEnabled" . -}}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ .Release.Name }}-bootstrap-key-seed
+  labels:
+    {{- include "lakerunner.labels" . | nindent 4 }}
+  annotations:
+    helm.sh/hook: post-install,post-upgrade
+    helm.sh/hook-weight: "5"
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: 6
+  template:
+    metadata:
+      labels:
+        {{- include "lakerunner.selectorLabels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "conductor.serviceAccountName" . }}
+      restartPolicy: Never
+      {{- include "lakerunner.imagePullSecrets" . | nindent 6 }}
+      containers:
+      - name: key-seed
+        image: public.ecr.aws/docker/library/postgres:18-alpine
+        command: ["/bin/sh","-ec"]
+        args:
+          - |
+            HASH=$(printf %s "$ADMIN_KEY" | sha256sum | cut -d' ' -f1)
+            echo "seeding admin key hash ${HASH%${HASH#????}}… into admin_api_keys"
+            # The hash is lowercase hex (sha256) — no SQL-injection surface — so we
+            # inline it directly into the -c command string. psql does NOT expand
+            # -v variables (:'hash') inside -c, only in -f/stdin scripts, so the
+            # earlier -v approach failed with a syntax error.
+            PGPASSWORD="$CONFIGDB_PASSWORD" psql \
+              --set=ON_ERROR_STOP=1 \
+              -h "$CONFIGDB_HOST" -p "$CONFIGDB_PORT" -U "$CONFIGDB_USER" -d "$CONFIGDB_NAME" \
+              -c "INSERT INTO admin_api_keys (key_hash, name, description) VALUES ('$HASH', 'conductor-bootstrap', 'seeded by conductor bootstrap') ON CONFLICT (key_hash) DO NOTHING;"
+            echo "done"
+        env:
+          - name: ADMIN_KEY
+            valueFrom:
+              secretKeyRef:
+                name: {{ include "conductor.adminKeySecretName" . }}
+                key: {{ include "conductor.adminKeySecretKey" . }}
+          - name: CONFIGDB_HOST
+            value: {{ .Values.configdb.lrdb.host | quote }}
+          - name: CONFIGDB_PORT
+            value: {{ .Values.configdb.lrdb.port | quote }}
+          - name: CONFIGDB_NAME
+            value: {{ .Values.configdb.lrdb.name | quote }}
+          - name: CONFIGDB_USER
+            value: {{ .Values.configdb.lrdb.username | quote }}
+          - name: PGSSLMODE
+            value: {{ .Values.configdb.lrdb.sslMode | default "require" | quote }}
+          - name: CONFIGDB_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: {{ include "lakerunner.configdbSecretName" . | quote }}
+                key: {{ .Values.configdb.passwordKey | default "CONFIGDB_PASSWORD" | quote }}
+{{- end }}

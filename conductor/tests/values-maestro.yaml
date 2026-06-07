@@ -1,0 +1,5 @@
+# Minimal values to render the legacy maestro chart.
+database:
+  host: db.example.com
+license:
+  data: '{"key":"test"}'

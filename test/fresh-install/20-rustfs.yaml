@@ -1,0 +1,89 @@
+# rustfs S3-compatible object store fixture for the conductor fresh-install test.
+#
+# Adapted from conductor/dev/trial-testenv/scripts/07-lakerunner.sh. rustfs runs as
+# uid/gid 10001, so fsGroup=10001 lets it write the freshly-provisioned PVC.
+#
+# NOTE on the ingest-notification path: we do NOT use rustfs webhook notifications
+# here. The collector's awss3 exporter (40-collector.yaml) POSTs the S3-event
+# envelope to pubsub-http directly via s3uploader.notifications.endpoint, which is
+# simpler and avoids the rustfs ARN/webhook quirks. rustfs only needs to serve the
+# S3 API and hold the bucket.
+#
+# Access/secret key: rustfsadmin / rustfsadmin (path-style, region us-east-1).
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: rustfs-data
+  labels: { app: rustfs }
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 20Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rustfs
+  labels: { app: rustfs }
+spec:
+  replicas: 1
+  # RWO PVC: never run two pods at once.
+  strategy: { type: Recreate }
+  selector: { matchLabels: { app: rustfs } }
+  template:
+    metadata:
+      labels: { app: rustfs }
+    spec:
+      # rustfs runs as non-root uid/gid 10001; without fsGroup the server FATALs
+      # with "Permission denied" writing /data on a fresh PVC.
+      securityContext: { fsGroup: 10001 }
+      containers:
+        - name: rustfs
+          image: rustfs/rustfs:1.0.0-beta.7
+          env:
+            - { name: RUSTFS_ACCESS_KEY, value: "rustfsadmin" }
+            - { name: RUSTFS_SECRET_KEY, value: "rustfsadmin" }
+            - { name: RUSTFS_VOLUMES, value: "/data" }
+            - { name: RUSTFS_CONSOLE_ADDRESS, value: ":9001" }
+          ports: [{ containerPort: 9000 }, { containerPort: 9001 }]
+          volumeMounts: [{ name: data, mountPath: /data }]
+      volumes: [{ name: data, persistentVolumeClaim: { claimName: rustfs-data } }]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: rustfs
+  labels: { app: rustfs }
+spec:
+  selector: { app: rustfs }
+  ports:
+    - { name: api, port: 9000, targetPort: 9000 }
+    - { name: console, port: 9001, targetPort: 9001 }
+---
+# One-shot bucket create. mc (the MinIO client) drives rustfs unchanged for
+# bucket ops. Idempotent (--ignore-existing) and retries until rustfs is up.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: rustfs-mkbucket
+  labels: { app: rustfs }
+spec:
+  backoffLimit: 10
+  template:
+    metadata:
+      labels: { app: rustfs-mkbucket }
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: mc
+          image: minio/mc:RELEASE.2025-04-08T15-39-49Z
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              until mc alias set m http://rustfs.conductor-fresh.svc.cluster.local:9000 rustfsadmin rustfsadmin; do
+                echo "waiting for rustfs..."; sleep 3
+              done
+              mc mb --ignore-existing m/lakerunner
+              mc ls m

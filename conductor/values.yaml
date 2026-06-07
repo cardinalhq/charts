@@ -1,0 +1,1267 @@
+# Unified conductor chart values (merged from lakerunner + maestro)
+# === lakerunner ===
+# Default values for lakerunner
+# This is a YAML-formatted file.
+
+# Global settings
+global:
+  # Global resource configuration
+  resources:
+    # Whether to render resource limits and requests in deployments
+    # Set to false to omit resource specifications entirely from rendered templates
+    # Default: true
+    enabled: true
+  # CardinalHQ telemetry configuration
+  cardinal:
+    # API key for CardinalHQ telemetry endpoint
+    # If provided, telemetry will be sent to CardinalHQ's controlled endpoint
+    # If not provided, no telemetry endpoint will be configured
+    apiKey: ""
+    # Set to "test" to route at the test intake endpoint instead of prod.
+    # (Consumed by maestro/mcp-gateway telemetry wiring.)
+    env: ""
+  # The names of image pull secrets to use for all images.
+  # Optional.
+  imagePullSecrets: []
+  # Global image settings
+  image:
+    # Default repository for all lakerunner images
+    # Override this to use a different registry/repository for all images
+    # Example: "public.ecr.aws/cardinalhq.io/lakerunner"
+    repository: ""
+    # Default tag for all lakerunner images.
+    # Pinned explicitly here so lakerunner images do NOT default to the unified
+    # Chart.appVersion (which tracks maestro). Mirrors the legacy lakerunner
+    # chart's appVersion. Per-component image.tag still wins over this.
+    tag: "v1.40.4"
+    # Default pull policy for all images
+    pullPolicy: "IfNotPresent"
+  # Global temporary storage (scratch / DuckDB temp / cache) configuration.
+  # This allows switching between emptyDir and ephemeral volume claim templates.
+  # Storage sizes are configured per-service in their respective temporaryStorage.size settings.
+  #
+  # Scratch-disk-size behavior (LAKERUNNER_SCRATCH_DISK_SIZE_BYTES):
+  #   The scratch-using services (process-logs/metrics/traces, query-worker) tell
+  #   the app how much scratch they may use via LAKERUNNER_SCRATCH_DISK_SIZE_BYTES.
+  #   How that env var is set depends on `type` below:
+  #   - type: "ephemeral" (a dedicated PersistentVolume via volumeClaimTemplate):
+  #       LAKERUNNER_SCRATCH_DISK_SIZE_BYTES is left UNSET. The app probes the
+  #       filesystem with statfs(), which is accurate on a real PV.
+  #   - type: "emptyDir" (node-disk-backed, with a sizeLimit): the env var is set
+  #       to the per-service temporaryStorage.size converted to bytes. statfs on an
+  #       emptyDir reports the whole node disk, not the pod's slice, so the app
+  #       needs the explicit value to stay within its slice.
+  temporaryStorage:
+    # Type of temporary storage: "emptyDir" or "ephemeral"
+    # - emptyDir: Traditional emptyDir volumes (default). The pod's scratch slice
+    #   is bounded by sizeLimit, and LAKERUNNER_SCRATCH_DISK_SIZE_BYTES is set to
+    #   that size so the app stays within it.
+    # - ephemeral: Uses ephemeral volume claim templates for CSI-based storage
+    #   (a real PV). LAKERUNNER_SCRATCH_DISK_SIZE_BYTES is left unset so the app
+    #   uses statfs(), which is accurate for a dedicated PV.
+    type: "emptyDir"
+    # Configuration for ephemeral volume claim templates (only used when type: "ephemeral")
+    ephemeral:
+      # Storage class to use for ephemeral volumes (leave empty for default storage class)
+      storageClassName: ""
+      # Additional labels to apply to ephemeral volume claim templates
+      labels:
+        {}
+        # type: my-frontend-volume
+  # Monitoring and observability configuration
+  monitoring:
+    traces:
+      # OpenTelemetry trace sampler to use
+      sampler: "parentbased_traceidratio"
+      # Sampler argument (e.g., sampling ratio for ratio-based samplers)
+      arg: "0.01"
+  # Global health probe configuration
+  # These defaults can be overridden per service
+  healthProbes:
+    # Global default for health probe enablement
+    enabled: false # Set to true to enable health probes globally
+    # Default health check port name (most services use this)
+    healthcheckPort: 8090
+  # Additional annotations to add to all resources.
+  # This is a key: value map.
+  # Optional.
+  annotations: {}
+  # Additional labels to add to all resources.
+  # This is a key: value map.
+  # Optional.
+  labels: {}
+  # Common environment variables to inject into all containers.
+  # This is a key: value map.
+  # Optional.
+  env: []
+    # - name: ENVAR1
+    #   value: "value1"
+    # - name: ENVAR2
+    #   value: "value2"
+  # Pod-level securityContext applied to every workload by default.
+  # Components may override individual fields via <component>.podSecurityContext
+  # (component fields win, missing fields fall back to these globals).
+  # For OpenShift's restricted-v2 SCC, set this to {runAsNonRoot: true} (or {})
+  # so the SCC can inject runAsUser/runAsGroup/fsGroup from the namespace's
+  # assigned UID range.
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 65532
+    runAsGroup: 65532
+    fsGroup: 65532
+  # Container-level securityContext applied to every container by default.
+  # Components may override individual fields via <component>.containerSecurityContext.
+  containerSecurityContext:
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
+    capabilities:
+      drop:
+        - ALL
+    seccompProfile:
+      type: RuntimeDefault
+  # A node selector to apply to all pods.
+  # This is standard Kubernetes node selector syntax.
+  # Optional.
+  nodeSelector:
+    {}
+    # node-role.kubernetes.io/worker: ""
+    # spot-instance: "true"
+  # A set of tolerations to apply to all pods.
+  # This is standard Kubernetes toleration syntax.
+  # Optional.
+  tolerations:
+    []
+    # - key: "spot"
+    #   operator: "Equal"
+    #   value: "true"
+    #   effect: "NoSchedule"
+  # A set of affinity rules to apply to all pods.
+  # This is standard Kubernetes affinity syntax.
+  # Optional.
+  affinity:
+    {}
+    # nodeAffinity:
+    #   requiredDuringSchedulingIgnoredDuringExecution:
+    #     nodeSelectorTerms:
+    #       - matchExpressions:
+    #           - key: "node-role.kubernetes.io/worker"
+    #             operator: In
+    #             values:
+    #               - "true"
+  # The default service account to use for all pods.
+  # This service account is assigned some namespaced permissions.
+  # Additional cloud-provider specific permissions can be added
+  # to this service account, either by annotations or through
+  # systems like EKS's IAM roles for service accounts (IRSA).
+  # Required.
+
+# Single shared ServiceAccount for the unified chart. Both the lakerunner.* and
+# maestro.* families delegate to conductor.serviceAccountName, so exactly one SA
+# (+ Role + RoleBinding) renders. With an empty name it is named after the
+# release (the "named install") — the chart name is intentionally NOT injected.
+serviceAccount:
+  create: true
+  name: ""        # empty → conductor.serviceAccountName uses the release name
+  annotations: {}
+
+# License configuration (single shared CardinalHQ suite license).
+# One license covers BOTH the lakerunner pipeline and maestro; the secret is
+# mounted to /app/license in all pods of both families. Each family prefixes the
+# secret name with its own fullname, so this renders as
+# <release>-lakerunner-cardinal-license and <release>-maestro-cardinal-license.
+# A valid license is required to operate.
+#
+# BYOS (bring your own secret): adopters with an existing license secret should
+# set license.create=false and license.secretName to that secret's name.
+license:
+  # Whether to create the license secret from the data below.
+  # Set to false to use an existing secret (BYOS).
+  create: true
+  # Name of the Kubernetes secret containing the license.
+  # Used whether create is true or false. Neutral suite name (not product-specific)
+  # since one license is shared by lakerunner and maestro.
+  secretName: "cardinal-license"
+  # Raw license.json content (only used when create: true).
+  # The content will be stored under the key "license.json" in the secret.
+  data: ""
+
+# Cloud provider configuration for storage operations
+# This section configures authentication for the cloud storage backend used by LakeRunner.
+# Choose the primary cloud provider and configure credentials accordingly.
+cloudProvider:
+  # Primary cloud provider for storage operations
+  # Options: "aws", "gcp", "azure"
+  # This determines which credentials are injected into all LakeRunner pods.
+  # Required.
+  provider: "aws" # Change to "azure" or "gcp" based on your storage profiles
+
+  # AWS configuration (used when provider: "aws")
+  aws:
+    # AWS region for the deployment
+    # Required when using AWS provider
+    region: ""
+
+    # Name of the Kubernetes secret that contains AWS credentials
+    # Secret should contain: AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY
+    secretName: "aws-credentials"
+
+    # Whether to create the AWS credentials secret
+    create: false
+
+    # Whether to inject AWS credentials into pods
+    # Set to false if using IAM roles (IRSA) or EC2 instance profiles
+    inject: true
+
+    # AWS credentials (only used if create: true)
+    accessKeyId: ""
+    secretAccessKey: ""
+
+  # Azure configuration (used when provider: "azure")
+  azure:
+    # Name of the Kubernetes secret that contains Azure credentials
+    # Secret contents vary based on authType
+    secretName: "azure-credentials"
+
+    # Whether to create the Azure credentials secret
+    create: false
+
+    # Whether to inject Azure credentials into pods
+    # Set to false if using system managed identity without explicit configuration
+    inject: true
+
+    # Azure authentication type
+    # Options: "service_principal", "user_managed_identity", "system_managed_identity",
+    #          "workload_identity", "connection_string"
+    authType: "service_principal"
+
+    # Azure service principal credentials (only used if authType: "service_principal")
+    clientId: ""
+    clientSecret: ""
+    tenantId: ""
+
+    # Connection string (only used if authType: "connection_string")
+    connectionString: ""
+
+    # Federated token file path (only used if authType: "workload_identity")
+    # Default path for Azure Workload Identity webhook
+    federatedTokenFile: "/var/run/secrets/azure/tokens/azure-identity-token"
+
+  # GCP configuration (used when provider: "gcp")
+  gcp:
+    # Name of the Kubernetes secret that contains GCP credentials
+    secretName: "gcp-credentials"
+
+    # Whether to create the GCP credentials secret
+    create: false
+
+    # Whether to inject GCP credentials into pods
+    # Set to false if using Workload Identity or other GCP auth methods
+    inject: true
+
+    # GCP credentials (only used if create: true)
+    # Service account JSON for native GCP API access (e.g., Pub/Sub, GCS)
+    serviceAccountJson: ""
+
+# Storage profile configuration
+# At least one storage profile is required for the LakeRunner to function.
+# Required.
+# If you want to auto create the Cardinal Collector, make sure that your storage profile has the following fields:
+# organization_id, collector_name, cloud_provider, region, bucket
+storageProfiles:
+  source: config # only value for general use.
+  configmapName: "storage-profiles" # Name of the ConfigMap containing storage profiles
+  create: true
+  yaml:
+    []
+    # - organization_id: dddddddd-aaaa-4ff9-ae8f-365873c552f0
+    #   instance_num: 1
+    #   collector_name: "kubepi"
+    #   cloud_provider: "aws"
+    #   region: "us-east-2"
+    #   bucket: "datalake-11ndajkhk"
+    #   endpoint: ""
+    #   use_path_style: true
+
+# API keys are used to control access to the data lake through the data-api service.
+# Each key must be unique, and it associates an API key with an organization ID.
+# An example format is shown below.  If you wish to create the secret outside of the
+# helm chart, follow this format, set `apiKeys.create` to `false`, and create a Kubernetes secret
+# with the content in the secret under a key named `apikeys.yaml`.
+# Required.
+apiKeys:
+  source: config # don't change as no other source is supported.
+  secretName: "apikeys" # will have the format <release-name>-apikeys once deployed
+  create: true
+  yaml:
+    []
+    # - organization_id: dddddddd-aaaa-4ff9-ae8f-365873c552f0
+    #   keys:
+    #     - my-api-key-1
+    #     - my-api-key-2
+
+# Database configuration
+# Required.
+database:
+  secretName: "pg-credentials" # Name of the Kubernetes secret containing database credentials
+  create: true # Whether to create the database credentials secret
+  # Secret key names (only needed if using an existing secret with different key names)
+  passwordKey: "LRDB_PASSWORD" # Key name for password in the secret
+  # LRDB (LakeRunner Database) - PostgreSQL
+  lrdb:
+    # PostgreSQL hostname.
+    # Required.
+    host: ""
+    # PostgreSQL port.  Default is 5432.
+    # Required.
+    port: 5432
+    # PostgreSQL database name.
+    # Required.
+    name: "lakerunner"
+    # PostgreSQL username.
+    # Required.
+    username: "lakerunner"
+    # PostgreSQL password.
+    # Optional, but recommended if not using an existing secret.
+    password: ""
+    # SSL mode for PostgreSQL connection.  Default is "require".
+    # Options are "disable", "allow", "prefer", "require", "verify-ca", and "verify-full".
+    # See https://www.postgresql.org/docs/current/libpq-ssl.html#LIBPQ-SSL-SSLMODE-STATEMENTS for more details.
+    # Optional, but recommended.
+    sslMode: "require"
+
+# Configuration database settings
+configdb:
+  secretName: "configdb-credentials" # Name of the Kubernetes secret containing configdb credentials
+  create: true # Whether to create the configdb credentials secret
+  # Secret key names (only needed if using an existing secret with different key names)
+  passwordKey: "CONFIGDB_PASSWORD" # Key name for password in the secret
+  # CONFIGDB (Configuration Database) - PostgreSQL
+  lrdb:
+    # PostgreSQL hostname.
+    # Required.
+    host: ""
+    # PostgreSQL port.  Default is 5432.
+    # Required.
+    port: 5432
+    # PostgreSQL database name.
+    # Required.
+    name: "config"
+    # PostgreSQL username.
+    # Required.
+    username: "config"
+    # PostgreSQL password.
+    # Optional, but recommended if not using an existing secret.
+    password: ""
+    # SSL mode for PostgreSQL connection.  Default is "require".
+    # Options are "disable", "allow", "prefer", "require", "verify-ca", and "verify-full".
+    # See https://www.postgresql.org/docs/current/libpq-ssl.html#LIBPQ-SSL-SSLMODE-STATEMENTS for more details.
+    # Optional, but recommended.
+    sslMode: "require"
+
+# Setup job configuration (runs before all other services)
+# This job is responsible for running database migrations and initial setup tasks.
+setup:
+  enabled: true
+  replicas: 1
+  image:
+    repository: public.ecr.aws/cardinalhq.io/lakerunner # ecr-public default; ghcr.io/cardinalhq/lakerunner is a supported alternate
+    tag: ""
+    pullPolicy: ""
+  resources:
+    requests:
+      cpu: "1"
+      memory: 512Mi
+    limits:
+      cpu: "1"
+      memory: 512Mi
+  labels: {}
+  annotations: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  # Override database connection for the setup job.
+  # This is useful when running migrations that require direct PostgreSQL
+  # connections (e.g., advisory locks that don't work through pgbouncer).
+  # Any field not set here falls back to the global database/configdb values.
+  database:
+    lrdb:
+      host: ""
+      port: ""
+      name: ""
+      username: ""
+      sslMode: ""
+  configdb:
+    lrdb:
+      host: ""
+      port: ""
+      name: ""
+      username: ""
+      sslMode: ""
+
+# Process Logs configuration (handles both ingest and compact for logs)
+processLogs:
+  enabled: true
+  replicas: 1
+  image:
+    repository: public.ecr.aws/cardinalhq.io/lakerunner # ecr-public default; ghcr.io/cardinalhq/lakerunner is a supported alternate
+    tag: ""
+    pullPolicy: ""
+  resources:
+    requests:
+      cpu: "1"
+      memory: 2Gi
+    limits:
+      cpu: "1"
+      memory: 2Gi
+  temporaryStorage:
+    # Scratch/DuckDB-temp size for this service. Sizes the volume (emptyDir
+    # sizeLimit or ephemeral PVC request). When global.temporaryStorage.type is
+    # "emptyDir", this value is also exported as LAKERUNNER_SCRATCH_DISK_SIZE_BYTES
+    # (in bytes) so the app stays within its node-disk slice; when "ephemeral"
+    # (a real PV) it is left unset and the app uses statfs(). See
+    # global.temporaryStorage above.
+    size: "10Gi"
+  autoscaling:
+    minReplicas: 1
+    maxReplicas: 10
+  healthProbes:
+    enabled: null # null = inherit from global.healthProbes.enabled
+  labels: {}
+  annotations: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+# Process Metrics configuration (handles ingest, compact, and rollup for metrics)
+processMetrics:
+  enabled: true
+  replicas: 1
+  image:
+    repository: public.ecr.aws/cardinalhq.io/lakerunner # ecr-public default; ghcr.io/cardinalhq/lakerunner is a supported alternate
+    tag: ""
+    pullPolicy: ""
+  resources:
+    requests:
+      cpu: "1"
+      memory: 2Gi
+    limits:
+      cpu: "1"
+      memory: 2Gi
+  temporaryStorage:
+    # Scratch/DuckDB-temp size for this service. Sizes the volume (emptyDir
+    # sizeLimit or ephemeral PVC request). When global.temporaryStorage.type is
+    # "emptyDir", this value is also exported as LAKERUNNER_SCRATCH_DISK_SIZE_BYTES
+    # (in bytes) so the app stays within its node-disk slice; when "ephemeral"
+    # (a real PV) it is left unset and the app uses statfs(). See
+    # global.temporaryStorage above.
+    size: "10Gi"
+  autoscaling:
+    minReplicas: 1
+    maxReplicas: 10
+  healthProbes:
+    enabled: null # null = inherit from global.healthProbes.enabled
+  labels: {}
+  annotations: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+# Process Traces configuration (handles both ingest and compact for traces)
+processTraces:
+  enabled: true
+  replicas: 1
+  image:
+    repository: public.ecr.aws/cardinalhq.io/lakerunner # ecr-public default; ghcr.io/cardinalhq/lakerunner is a supported alternate
+    tag: ""
+    pullPolicy: ""
+  resources:
+    requests:
+      cpu: "1"
+      memory: 2Gi
+    limits:
+      cpu: "1"
+      memory: 2Gi
+  temporaryStorage:
+    # Scratch/DuckDB-temp size for this service. Sizes the volume (emptyDir
+    # sizeLimit or ephemeral PVC request). When global.temporaryStorage.type is
+    # "emptyDir", this value is also exported as LAKERUNNER_SCRATCH_DISK_SIZE_BYTES
+    # (in bytes) so the app stays within its node-disk slice; when "ephemeral"
+    # (a real PV) it is left unset and the app uses statfs(). See
+    # global.temporaryStorage above.
+    size: "10Gi"
+  autoscaling:
+    minReplicas: 1
+    maxReplicas: 10
+  healthProbes:
+    enabled: null # null = inherit from global.healthProbes.enabled
+  labels: {}
+  annotations: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+# Control-plane configuration.
+#
+# admin-api, alert-evaluator, monitoring, and sweeper are single-replica
+# services that share the lakerunner image. They are colocated into one pod
+# (Deployment lakerunner-control-plane) to avoid running four pods for four tiny
+# always-on singletons. Pod-level settings (replicas, image, scheduling,
+# security context, resources) live here; service-specific settings remain in
+# the adminApi / alertEvaluator / monitoring blocks below.
+controlPlane:
+  replicas: 1 # singleton; not intended to scale
+  image:
+    repository: public.ecr.aws/cardinalhq.io/lakerunner # ecr-public default; ghcr.io/cardinalhq/lakerunner is a supported alternate
+    tag: ""
+    pullPolicy: ""
+  # pprof debug server. The four containers share the pod network namespace, so
+  # each gets a distinct PPROF_PORT = basePort + offset (admin-api +0,
+  # alert-evaluator +1, monitoring +2, sweeper +3) to avoid colliding on the
+  # default 6060. PPROF_PORT is always set per container; the binary only honors
+  # it when pprof is enabled (via this flag, or globally via global.env
+  # ENABLE_PPROF=true).
+  pprof:
+    enabled: false # sets ENABLE_PPROF=true on each control-plane container
+    basePort: 6060
+  podSecurityContext: {}
+  containerSecurityContext: {}
+  labels: {}
+  annotations: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  # Per-container resources, sized to measured prod usage.
+  # CPU: requests only (no limit) so any container can burst into idle
+  # node/sibling capacity instead of being CFS-throttled.
+  # Memory: request + per-container limit so a leak is confined to one container
+  # rather than taking down its podmates.
+  resources:
+    adminApi:
+      requests:
+        cpu: "25m"
+        memory: 64Mi
+      limits:
+        memory: 256Mi
+    alertEvaluator:
+      requests:
+        cpu: "25m"
+        memory: 64Mi
+      limits:
+        memory: 256Mi
+    monitoring:
+      requests:
+        cpu: "25m"
+        memory: 64Mi
+      limits:
+        memory: 256Mi
+    sweeper:
+      requests:
+        cpu: "50m"
+        memory: 64Mi
+      limits:
+        memory: 256Mi
+
+# Sweeper configuration (colocated in the control-plane pod; see controlPlane).
+sweeper:
+  env: []
+
+# Alert Evaluator configuration (colocated in the control-plane pod; see controlPlane).
+alertEvaluator:
+  queryApiUrl: "" # auto-configured to internal query-api if empty
+  env: []
+
+# Monitoring service configuration (colocated in the control-plane pod; see controlPlane).
+monitoring:
+  # PI autoscaler configuration
+  # The autoscaler runs inside the monitoring container and manages worker
+  # deployment replicas. It is always enabled. To disable scaling for a specific
+  # service, set its autoscaling.minReplicas and autoscaling.maxReplicas both to 0.
+  # To pin a service at a fixed replica count, set min == max (e.g., min=5 max=5).
+  autoscaler:
+    # Set to true to log scaling decisions without actually changing replicas.
+    observeOnly: false
+  env: []
+
+adminApi:
+  port: 9091
+  service:
+    type: ClusterIP
+    annotations: {}
+    nodePort: null
+    loadBalancerIP: ""
+    loadBalancerSourceRanges: []
+  env: []
+
+# PubSub configuration
+pubsub:
+  HTTP:
+    enabled: false
+    replicas: 2 # recommend at least 2 in production
+    service:
+      type: ClusterIP
+      port: 8080
+      annotations: {}
+      nodePort: null
+      loadBalancerIP: ""
+      loadBalancerSourceRanges: []
+    image:
+      repository: public.ecr.aws/cardinalhq.io/lakerunner # ecr-public default; ghcr.io/cardinalhq/lakerunner is a supported alternate
+      tag: ""
+      pullPolicy: ""
+    resources:
+      requests:
+        cpu: "1"
+        memory: 512Mi
+      limits:
+        cpu: "1"
+        memory: 512Mi
+    nodeSelector: {}
+    tolerations: []
+    affinity: {}
+  SQS:
+    enabled: false
+    replicas: 2
+    # REQUIRED when enabled: Your SQS queue URL
+    # Example: "https://sqs.us-east-2.amazonaws.com/123456789012/my-queue"
+    queueURL: ""
+    # AWS region for the SQS queue - defaults to global aws.region if not specified
+    # Example: "us-east-2"
+    region: ""
+    roleARN: ""
+    image:
+      repository: public.ecr.aws/cardinalhq.io/lakerunner # ecr-public default; ghcr.io/cardinalhq/lakerunner is a supported alternate
+      tag: ""
+      pullPolicy: ""
+    resources:
+      requests:
+        cpu: "1"
+        memory: 512Mi
+      limits:
+        cpu: "1"
+        memory: 512Mi
+    nodeSelector: {}
+    tolerations: []
+    affinity: {}
+  GCP:
+    enabled: false
+    replicas: 1
+    # REQUIRED when enabled: Your GCP project ID
+    # Example: "my-project-123456"
+    projectID: ""
+    # REQUIRED when enabled: Your GCP Pub/Sub subscription ID
+    # Example: "my-subscription"
+    subscriptionID: ""
+    image:
+      repository: public.ecr.aws/cardinalhq.io/lakerunner # ecr-public default; ghcr.io/cardinalhq/lakerunner is a supported alternate
+      tag: ""
+      pullPolicy: ""
+    resources:
+      requests:
+        cpu: "1"
+        memory: 512Mi
+      limits:
+        cpu: "1"
+        memory: 512Mi
+    nodeSelector: {}
+    tolerations: []
+    affinity: {}
+    env: []
+  Azure:
+    enabled: false
+    replicas: 1
+    # REQUIRED when enabled: Your Azure Storage Account name
+    # Example: "mystorageaccount"
+    storageAccount: ""
+    # REQUIRED when enabled: Your Azure Storage Queue name
+    # Example: "sqs"
+    queueName: ""
+    image:
+      repository: public.ecr.aws/cardinalhq.io/lakerunner # ecr-public default; ghcr.io/cardinalhq/lakerunner is a supported alternate
+      tag: ""
+      pullPolicy: ""
+    resources:
+      requests:
+        cpu: "1"
+        memory: 512Mi
+      limits:
+        cpu: "1"
+        memory: 512Mi
+    nodeSelector: {}
+    tolerations: []
+    affinity: {}
+    env: []
+
+# Query API configuration
+queryApi:
+  enabled: true
+  replicas: 2
+  service:
+    type: ClusterIP
+    port: 8080
+    annotations: {}
+    nodePort: null
+    loadBalancerIP: ""
+    loadBalancerSourceRanges: []
+  image:
+    repository: public.ecr.aws/cardinalhq.io/lakerunner # ecr-public default; ghcr.io/cardinalhq/lakerunner is a supported alternate
+    tag: ""
+    pullPolicy: ""
+  resources:
+    requests:
+      cpu: "1"
+      memory: 2Gi
+    limits:
+      cpu: "1"
+      memory: 2Gi
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  env: []
+  # Per-component override of global.monitoring.traces. Any keys set here
+  # win over the global values; unset keys fall back to the global config.
+  # Example:
+  #   monitoring:
+  #     traces:
+  #       arg: "1.0"   # 100% sampling for query-api only
+  monitoring: {}
+
+# Query Worker configuration
+queryWorker:
+  enabled: true
+  replicas: 2
+  image:
+    repository: public.ecr.aws/cardinalhq.io/lakerunner # ecr-public default; ghcr.io/cardinalhq/lakerunner is a supported alternate
+    tag: ""
+    pullPolicy: ""
+  resources:
+    requests:
+      cpu: "2"
+      memory: 4Gi
+    limits:
+      cpu: "2"
+      memory: 4Gi
+  service:
+    type: ClusterIP
+    port: 8081
+    annotations: {}
+    nodePort: null
+    loadBalancerIP: ""
+    loadBalancerSourceRanges: []
+  temporaryStorage:
+    # Scratch/DuckDB-temp size for this service. Sizes the volume (emptyDir
+    # sizeLimit or ephemeral PVC request). When global.temporaryStorage.type is
+    # "emptyDir", this value is also exported as LAKERUNNER_SCRATCH_DISK_SIZE_BYTES
+    # (in bytes) so the app stays within its node-disk slice; when "ephemeral"
+    # (a real PV) it is left unset and the app uses statfs(). See
+    # global.temporaryStorage above.
+    size: "100Gi"
+  labels: {}
+  annotations: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  # Per-component override of global.monitoring.traces. Any keys set here
+  # win over the global values; unset keys fall back to the global config.
+  # Example:
+  #   monitoring:
+  #     traces:
+  #       arg: "0.5"   # 50% sampling for query-worker only
+  monitoring: {}
+
+nameOverride: ""
+fullnameOverride: ""
+
+# Deployment topology.
+#
+# Two modes:
+#   ha.enabled=false (default) — POC: one maestro pod + one mcp-gateway pod,
+#     github-cache rolled into maestro (in-process), no object store required.
+#     Artifacts kept in-memory; ontology git checkouts on the pod's /tmp
+#     emptyDir (re-cloned on restart).
+#   ha.enabled=true — HA: two maestro pods + two mcp-gateway pods (operator
+#     can override higher), github-cache split into its StatefulSet +
+#     singleton provisioner, S3-compat object store REQUIRED for artifacts.
+#     Maestro `persistence.enabled` must be false (RWO PVC + Recreate
+#     strategy deadlocks rolling updates under replicas>1).
+#
+# Defaults for `maestro.replicas` and `githubCache.enabled` auto-derive
+# from this flag when left unset (null). Explicit operator values are
+# honored; conflicting explicit values fail template rendering with a
+# clear message. mcp-gateway is no longer a standalone Deployment — it
+# runs as a native sidecar in every maestro stack pod, so there's no
+# replica count to configure.
+ha:
+  enabled: false
+
+# Object storage for HA-mode artifact bytes. Required when ha.enabled=true.
+# S3 and S3-compatible only (AWS S3, Ceph RGW, MinIO, Rook OBC, ...).
+#
+# Credentials: maestro uses the AWS SDK default credential chain. Set
+# `auth.existingSecret` to inject AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY
+# from an existing Kubernetes secret (e.g. one created by a Rook
+# ObjectBucketClaim, or one you manage yourself). Leave it empty to rely
+# on ambient credentials — IRSA via `serviceAccount.annotations`, EC2/EKS
+# instance profile, or a workload-identity webhook. The chart does not
+# create the secret; it must already exist when set.
+#
+# Examples:
+#   AWS S3 via IRSA:
+#     ha: { enabled: true }
+#     objectStore:
+#       bucket: maestro-artifacts
+#       region: us-east-2
+#     serviceAccount:
+#       annotations:
+#         eks.amazonaws.com/role-arn: arn:aws:iam::123456789012:role/maestro-s3
+#
+#   Rook-Ceph ObjectBucketClaim (Ceph RGW):
+#     ha: { enabled: true }
+#     objectStore:
+#       bucket: maestro-artifacts-abc1234       # BUCKET_NAME from the OBC ConfigMap
+#       endpoint: http://rook-ceph-rgw-store.rook-ceph.svc:80
+#       forcePathStyle: true                    # required by Ceph/MinIO
+#       auth:
+#         existingSecret: maestro-artifacts-obc # the OBC-generated secret
+objectStore:
+  bucket: ""
+  # Optional. Set for AWS S3; usually omitted for Ceph/MinIO.
+  region: ""
+  # Optional. Set for S3-compatible stores (Ceph RGW, MinIO).
+  endpoint: ""
+  # Path-style addressing. Required by most S3-compatible stores.
+  forcePathStyle: false
+  auth:
+    # Empty → rely on AWS SDK default credential chain (IRSA, instance
+    # profile, workload identity webhook). Non-empty → inject the named
+    # env vars from this existing Kubernetes Secret. Chart does NOT
+    # create the secret.
+    existingSecret: ""
+    # Secret keys to read AWS credential env vars from. Override only
+    # when the secret uses non-standard key names.
+    accessKeyIdKey: AWS_ACCESS_KEY_ID
+    secretAccessKeyKey: AWS_SECRET_ACCESS_KEY
+    # Optional. STS-issued temporary credentials. Empty → not injected.
+    sessionTokenKey: ""
+
+# Unified image for all components (Maestro + MCP Gateway + UI SPA).
+# Entrypoint selects which component to run.
+image:
+  repository: public.ecr.aws/cardinalhq.io/maestro
+  tag: "v1.53.0"   # pinned (mirrors legacy maestro appVersion); do not rely on Chart.appVersion
+  pullPolicy: IfNotPresent
+
+# Maestro API server + UI configuration
+maestro:
+  enabled: true
+  # Replica count. Leave unset (null) to auto-derive from ha.enabled
+  # (1 in POC, 2 in HA). Explicit values are honored; under HA an
+  # explicit value <2 fails template rendering.
+  replicas: ~
+  port: 4200
+  resources:
+    requests:
+      cpu: 1
+      memory: 512Mi
+    limits:
+      cpu: 1
+      memory: 512Mi
+  labels: {}
+  annotations: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  # Additional env vars applied to the maestro container. OIDC and
+  # per-integration credentials live here (LLM creds live in the database
+  # and are managed from the admin UI). Commonly-set OIDC claim-mapping
+  # vars — all optional, defaults preserve Keycloak-shaped behavior; see
+  # https://docs.cardinalhq.io/maestro/install/oidc#claim-mapping
+  #
+  # env:
+  #   - name: OIDC_ISSUER_URL
+  #     value: https://auth.example.com/realms/cardinal
+  #   - name: OIDC_AUDIENCE                   # expected `aud` claim on issued tokens
+  #     value: maestro-ui
+  #   - name: OIDC_CLIENT_ID                   # OAuth client_id the SPA sends in authorize
+  #     value: maestro-ui                      # requests; for Okta custom auth servers this
+  #                                            # differs from OIDC_AUDIENCE. Defaults to
+  #                                            # OIDC_AUDIENCE when unset.
+  #   - name: OIDC_SUPERADMIN_EMAILS
+  #     value: admin@example.com
+  #   # Claim mapping (override only when your IdP's token shape differs from
+  #   # Keycloak defaults — e.g. Okta access tokens, Auth0, Azure AD).
+  #   - name: OIDC_EMAIL_CLAIM              # default: email
+  #     value: sub
+  #   - name: OIDC_EMAIL_VERIFIED_CLAIM     # default: email_verified
+  #     value: email_verified
+  #   - name: OIDC_DISPLAY_NAME_CLAIMS      # default: name,preferred_username,email
+  #     value: name,preferred_username,sub
+  #   - name: OIDC_GROUPS_CLAIM             # default: groups
+  #     value: groups
+  #   - name: OIDC_EXTERNAL_ID_CLAIM        # default: sub — persistent account key;
+  #     value: uid                          # changing on a live install is a migration event
+  #   - name: OIDC_TRUST_UNVERIFIED_EMAILS  # default: false — pair carefully with a
+  #     value: "true"                       # remapped OIDC_EMAIL_CLAIM (see docs)
+  env: []
+  extraVolumes: []       # additional volumes
+  extraVolumeMounts: []  # additional volume mounts
+
+  # Optional in-pod TLS termination. When enabled, the chart adds an
+  # nginx-unprivileged sidecar that listens on `tls.port` with a
+  # certificate from one of two sources, and the maestro Service exposes
+  # both the HTTP port (still cluster-internal) and the new HTTPS port.
+  # Use this when the consumer requires HTTPS but no Ingress controller
+  # is doing TLS termination — for example a POC bastion port-forward
+  # against the maestro Service. The maestro container itself keeps
+  # speaking plain HTTP on localhost; the sidecar terminates TLS and
+  # proxies to it.
+  #
+  # The chart fails template rendering when tls.enabled=true unless
+  # `maestro.baseUrl` (or the derived ingress.host+ingress.tls combo)
+  # uses https://, so the OIDC URLs the SPA hands to the browser match
+  # the actual scheme served.
+  tls:
+    enabled: false
+    # Container port the sidecar listens on. The maestro Service exposes
+    # this as `https`. Operators typically port-forward this port.
+    port: 4443
+    # Sidecar image. Overridable for air-gapped registries.
+    image:
+      repository: nginxinc/nginx-unprivileged
+      tag: "1.31-alpine"
+      pullPolicy: IfNotPresent
+    # Additional resources for the sidecar.
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        cpu: 200m
+        memory: 128Mi
+    # Certificate source — pick exactly one of three paths. The chart
+    # fails rendering if more than one is configured, or if none is.
+    #   1. cert.autoGenerate=true (default) — in-pod self-signed
+    #   2. secretName — reference an existing kubernetes.io/tls Secret
+    #   3. cert.crt + cert.key — inline PEM, chart creates the Secret
+    cert:
+      # When true and both `secretName` and `cert.crt`/`cert.key` are
+      # empty, an init container generates a self-signed cert into an
+      # emptyDir at pod start. The cert regenerates on every pod
+      # restart, so browsers re-prompt for trust each time — fine for
+      # POC, swap to one of the two BYO paths below for stable certs.
+      autoGenerate: true
+      # Extra Subject Alternative Names beyond the host extracted from
+      # `maestro.baseUrl`. Used only by the autoGenerate path.
+      sans: []
+      # Image used by the cert-init container. openssl CLI is the only
+      # requirement. Pinned to an immutable digest (SP5): the previous
+      # cgr.dev/chainguard/openssl:latest is a mutable floating tag, is not
+      # anonymously pullable, and is distroless (no /bin/sh — but the tls-init
+      # container overrides command: ["/bin/sh","-c"]). alpine/openssl is
+      # publicly pullable, Alpine-based (has /bin/sh), and ships the openssl CLI.
+      # Digest resolved via `crane digest alpine/openssl:3.5.6` (2026-06-06) and
+      # mirrors the server default in
+      # packages/maestro/src/lib/maestro-workload-config.ts.
+      image:
+        repository: alpine/openssl
+        tag: "3.5.6@sha256:87adbe7a8c904b825b9068d5a4060799b1e8280c67a64684f72cef376f627a46"
+        pullPolicy: IfNotPresent
+      # Inline-provided PEM certificate and private key. When both are
+      # non-empty, the chart creates a kubernetes.io/tls Secret named
+      # "<release>-maestro-tls-cert" and the sidecar mounts it. Mutually
+      # exclusive with autoGenerate=true and secretName. Set
+      # `cert.autoGenerate: false` when using this path.
+      #
+      # Generate a matching pair for an IP-only deployment with the
+      # bundled scripts/gen-tls-cert.sh helper, then feed the files
+      # in via `helm --set-file`:
+      #   helm install ... \
+      #     --set maestro.tls.cert.autoGenerate=false \
+      #     --set-file maestro.tls.cert.crt=tls.crt \
+      #     --set-file maestro.tls.cert.key=tls.key
+      crt: ""
+      key: ""
+    # Reference an existing kubernetes.io/tls Secret instead of
+    # generating one or providing inline PEM. Mutually exclusive with
+    # cert.autoGenerate=true and cert.crt/cert.key.
+    # secretName: ""
+
+  # Persistent storage for ephemeral working data: orchestra artifact
+  # payloads (per-run subdirs) and ontology git checkouts. Off by default
+  # — when enabled, mounts a PVC at `mountPath` and sets the env vars
+  # ORCHESTRA_ARTIFACT_DIR and ONTOLOGY_WORKSPACE_DIR so maestro routes
+  # both into the volume. Recommended for SaaS deployments where memory
+  # budgets are tight; not required for small/dev installs (orchestra
+  # falls back to its in-memory artifact store).
+  persistence:
+    enabled: false
+    size: 5Gi
+    accessMode: ReadWriteOnce
+    # storageClass: ""    # leave empty to use the cluster default
+    mountPath: /var/lib/maestro
+    # SELinux MCS level pinned across pod restarts. Without a stable level,
+    # each new pod gets random MCS categories and cannot read files written
+    # by a previous pod (EACCES). The actual values are arbitrary as long as
+    # they're consistent — pick anything two-category and stick with it.
+    # Override only if it conflicts with another workload sharing the
+    # cluster's MCS namespace.
+    seLinuxLevel: "s0:c100,c200"
+
+# MCP Gateway configuration.
+#
+# mcp-gateway runs as a native sidecar (initContainer with restartPolicy:
+# Always, GA in k8s 1.29+) in every maestro stack pod — maestro itself,
+# the github-cache StatefulSet pods, and the github-cache-provisioner.
+# Each pod's main container talks to the gateway over loopback, so every
+# MCP session lives entirely within one pod. This sidesteps the
+# "session not found" error stateful MCP drivers would otherwise hit
+# under round-robin Service routing (conductor#838).
+#
+# Because the sidecar topology eliminates the standalone Deployment,
+# `mcpGateway.replicas` no longer exists.
+mcpGateway:
+  port: 8080
+  debugPort: 9090
+  apiKey: ""
+  # External ClusterIP Service in front of the sidecar. Off by default
+  # so the gateway stays pod-local in self-hosted installs. SaaS
+  # operators who terminate TLS at an Ingress/IngressRoute and gate the
+  # endpoint with an API key flip this on. Maestro itself always reaches
+  # the sidecar via localhost; this Service is only for external traffic.
+  service:
+    enabled: false
+  # Alternative to plaintext `apiKey`: source MCP_API_KEY from an
+  # existing Secret. When `apiKey` is set it wins; otherwise the sidecar
+  # emits a secretKeyRef. Leave both empty for unauthenticated local dev.
+  apiKeySecret:
+    name: ""
+    key: "MCP_API_KEY"
+  # Resources for the sidecar container. CPU is generously over-provisioned
+  # at the default request (1 CPU) given observed steady-state usage of
+  # 1-2 millicores; operators tight on node capacity can drop the request
+  # to ~100m without touching the limit. Memory keeps the standalone default
+  # since steady-state observed ranges 25-110 MiB across deployments.
+  resources:
+    requests:
+      cpu: 1
+      memory: 512Mi
+    limits:
+      cpu: 1
+      memory: 512Mi
+  # Additional env vars applied to every mcp-gateway sidecar.
+  env: []
+
+# GitHub Cache Service (split mode).
+#
+# When enabled, the per-tenant VCS repo mirror cache + git code-search/read
+# tools and the ontology poller/provisioner run as their own pods instead of
+# in-process inside maestro. Maestro then runs as a pure client
+# (GITHUB_CACHE_REMOTE=1): it holds no repo bytes and routes every git tool call
+# to a serving replica via the Postgres placement directory, with failover.
+#
+# Default enablement is auto-derived from ha.enabled (see `enabled:` below).
+#
+# Two roles, both off the unified image:
+#   - serving (`github-cache`): a StatefulSet; each pod owns a stable RWO PVC
+#     holding its bare mirrors and answers MCP-over-HTTP. A headless Service
+#     gives each pod stable per-pod DNS so the directory can address it directly.
+#   - provisioner (`github-cache-provisioner`): a singleton Deployment that runs
+#     the ontology poller + dead-row sweeper (guarded by a persisted lease).
+#     Required whenever split mode is on — in remote mode maestro disables its
+#     in-process poller, so without this pod ontology refresh stops.
+#
+# Leave `enabled` unset (null) to auto-derive from ha.enabled — split mode
+# is the right shape for HA (it's the only multi-pod-safe topology), and
+# in-process is the right shape for POC. Explicitly setting `true` or
+# `false` is honored; pairing `ha.enabled=true` with explicit
+# `githubCache.enabled=false` fails template rendering.
+#
+# NOTE: split mode provisions one RWO PVC per serving replica. The cluster
+# therefore needs a default StorageClass (or serving.persistence.storageClass
+# set) — without dynamic provisioning the serving pods stay Pending.
+githubCache:
+  enabled: ~
+
+  # Serving replicas — the mirror cache + git tool hosts.
+  serving:
+    replicas: 2
+    port: 4300
+    # Per-pod mirror storage. Each StatefulSet pod is the sole writer to its
+    # own RWO volume (volumeClaimTemplate), so a restart re-attaches a warm
+    # disk → delta-fetch instead of a full re-clone.
+    persistence:
+      size: 10Gi
+      accessMode: ReadWriteOnce
+      # storageClass: ""   # leave empty to use the cluster default
+      mountPath: /var/lib/github-cache
+      # SELinux MCS level pinned across pod restarts so a re-attached PVC's
+      # mirror bytes stay readable (same rationale as maestro.persistence).
+      seLinuxLevel: "s0:c100,c200"
+    resources:
+      requests:
+        cpu: 500m
+        memory: 512Mi
+      limits:
+        cpu: 1
+        memory: 1Gi
+    labels: {}
+    annotations: {}
+    nodeSelector: {}
+    tolerations: []
+    affinity: {}
+
+  # Ontology poller + sweeper singleton. Holds no mirror PVC.
+  provisioner:
+    replicas: 1
+    resources:
+      requests:
+        cpu: 250m
+        memory: 256Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
+    labels: {}
+    annotations: {}
+    nodeSelector: {}
+    tolerations: []
+    affinity: {}
+
+  # Optional override of the per-replica disk-budget LRU ceiling (bytes).
+  # Leave empty to use the service default (10 GiB), which matches the
+  # serving PVC size above.
+  diskBudgetBytes: ""
+
+  # Additional env vars applied to both the serving and provisioner containers.
+  env: []
+
+# (License configuration is shared — see the single top-level `license:` block
+# above, merged from both charts. The maestro license helpers are repointed at
+# that shared secret so only one license Secret renders.)
+
+# Maestro database configuration.
+# NOTE (unified-chart deviation): the legacy maestro chart used a top-level
+# `database:` with a FLAT shape (host/port/name/...). That collides with the
+# lakerunner `database:` which is nested under `.lrdb`. The two schemas are
+# incompatible (both also read flat secretName/create/passwordKey with different
+# values), so maestro's DB config is namespaced here as `maestroDatabase:` and
+# the maestro.* helpers are repointed at it. Rendered output is unchanged.
+# Required.
+maestroDatabase:
+  secretName: "pg-credentials"
+  # Whether to create the database credentials secret.
+  # Set to false to use an existing secret (BYOS).
+  create: true
+  # Key name for password in the secret
+  passwordKey: "MAESTRO_DB_PASSWORD"
+  # PostgreSQL hostname.
+  # Required.
+  host: ""
+  # PostgreSQL port.
+  port: 5432
+  # PostgreSQL database name.
+  name: "maestro"
+  # PostgreSQL username.
+  username: "maestro"
+  # PostgreSQL password (only used when create: true).
+  password: ""
+  # SSL mode for PostgreSQL connection.
+  sslMode: "require"
+
+# Ingress configuration
+ingress:
+  enabled: false
+  className: ""
+  host: ""
+  annotations: {}
+  tls: []
+
+# Bundled Dex OIDC provider. Most fields are kept out of this file on purpose
+# so that `--set dex.enabled=true` is enough to turn it on — defaults live in
+# templates/_helpers-maestro.tpl (maestro.dexConfig) and inline `dig` in the dex
+# templates. `resources` is surfaced here so operators can tune CPU/memory
+# without chasing template internals.
+dex:
+  # Dex container image. Defaults are also defined in templates/_helpers-maestro.tpl
+  # (maestro.dexConfig) so `--set dex.enabled=true` keeps working with
+  # zero extra fields. Surfaced here so air-gapped/private-registry
+  # installs can override without chasing template internals.
+  # image:
+  #   repository: ghcr.io/dexidp/dex
+  #   tag: v2.41.1
+  #   pullPolicy: IfNotPresent
+  resources:
+    requests:
+      cpu: 200m
+      memory: 128Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+  # When dex.enabled is true, also have the maestro container expose
+  # /<dex.pathPrefix> as a reverse proxy to the in-cluster Dex Service.
+  # This lets the SPA's OIDC flow complete through any path that reaches
+  # the maestro Service alone — for example a POC bastion port-forward
+  # against svc/<release>-maestro — without an Ingress controller doing
+  # /dex path-routing. Harmless when an Ingress is also routing /dex
+  # directly: the Ingress path-match wins and the in-pod proxy is never
+  # exercised. Set to false to opt out (env vars are not emitted; the
+  # maestro pod returns 404 for /<pathPrefix>/* and an Ingress is
+  # required for the OIDC flow to work).
+  # proxyEnabled: true
+  #
+  # Extra redirect URIs to whitelist on the maestro-ui Dex client, in
+  # addition to the canonical "<baseUrl>/" the chart always registers.
+  # Use this for non-prod origins that complete the same OIDC PKCE flow —
+  # e.g. a local Vite dev server (`ui-vite-dev`) pointed at this backend,
+  # which sends redirect_uri = http://localhost:5173/. Leave empty ([])
+  # in prod so only the real base URL is accepted.
+  # extraRedirectURIs:
+  #   - http://localhost:5173/
+  #
+  # CORS origins Dex allows on its own HTTP endpoints (discovery, token,
+  # keys). Needed when a browser SPA served from a DIFFERENT origin than
+  # the maestro backend completes OIDC against the bundled Dex — e.g. a
+  # local Vite dev server (`ui-vite-dev`) at http://localhost:5173, which
+  # fetches /dex/.well-known/openid-configuration cross-origin. maestro's
+  # CORS middleware covers /api but not the /dex reverse-proxy, so Dex must
+  # allow the origin itself. Values are origins (scheme+host[:port], no
+  # path/trailing slash) — the redirect counterpart is extraRedirectURIs.
+  # Leave empty ([]) in prod (SPA is same-origin with maestro).
+  # allowedOrigins:
+  #   - http://localhost:5173
+
+# Fresh-install bootstrap. On a fresh install the chart seeds a shared admin key
+# and Maestro provisions a shared LakeRunner org at boot.
+bootstrap:
+  # Bootstrap mode. One of:
+  #   auto  (default) = run a pre-install detection Job that inspects configdb +
+  #         the maestro DB and classifies the install. Fresh installs bootstrap;
+  #         a conductor-shaped install is adopted idempotently; a legacy/foreign
+  #         or inconsistent DB ABORTS the install (re-run with mode: adopt).
+  #   adopt = skip ALL bootstrap (no detection, key-seed, anchor Secret, or
+  #         MAESTRO_BOOTSTRAP_*). Point at an existing external DB/store and
+  #         provision nothing. Use this to adopt a prior split lakerunner+maestro
+  #         install; keep it set for the life of that adopted release.
+  #   force = bootstrap unconditionally with NO detection safety net
+  #         (recovery/testing only).
+  # "never" is a deprecated alias of "adopt".
+  mode: auto
+  # The shared org Maestro provisions and that telemetry is attributed to.
+  org:
+    id: ""                 # UUID; REQUIRED when bootstrap is active (mode != adopt). e.g. 11111111-1111-1111-1111-111111111111
+    name: "default"
+    ownerEmail: ""         # REQUIRED when bootstrap is active (mode != adopt)
+  # Admin key shared by admin-api (validated from configdb) and Maestro.
+  adminKey:
+    # When set, use this existing Secret instead of generating one (sealed-secrets/GitOps).
+    existingSecret: ""
+    existingSecretKey: "admin-api-key"
+  # Bucket coordinates Maestro provisions for the shared org. Optional: when set,
+  # mirror the object store; when omitted, Maestro creates a bucket-less
+  # deployment and storage is provisioned later in the maestro UI.
+  bucket:
+    name: ""               # optional; omit for a bucket-less deployment (provision storage later in the maestro UI)
+    region: "us-east-1"
+    cloudProvider: "aws"   # aws|gcp|azure
+    collectorName: "default"
+    endpoint: ""           # S3-compatible endpoint (rustfs/minio)
+    usePathStyle: false
+    insecureTls: false

@@ -1,0 +1,21 @@
+{{ if eq .Values.storageProfiles.source "config" }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "lakerunner.storageProfilesConfigmapName" . }}
+  labels:
+    {{- include "lakerunner.labels" . | nindent 4 }}
+  annotations:
+    {{- /* pre-install/pre-upgrade hook (weight -10) so the bootstrap migrate Job
+           (weight 0) can mount it for `migrate`'s initialize-if-needed step (it
+           reads STORAGE_PROFILE_FILE=/app/config/storage_profiles.yaml). An empty
+           list imports zero profiles — maestro provisions them dynamically.
+           See lakerunner/postgresql-secret.yaml. */}}
+    helm.sh/hook: pre-install,pre-upgrade
+    helm.sh/hook-weight: "-10"
+    helm.sh/hook-delete-policy: before-hook-creation
+    {{- include "lakerunner.annotationPairs" . | nindent 4 }}
+data:
+  storage_profiles.yaml: |
+{{ .Values.storageProfiles.yaml | toYaml | indent 6 }}
+{{ end }}

@@ -1,0 +1,122 @@
+# Postgres 18 (pgvector) fixture for the conductor fresh-install test.
+#
+# Image: pgvector/pgvector:pg18 — Postgres 18 with the pgvector ("vector")
+# extension preinstalled. The maestro/mcp-gateway migrations require the
+# vector, pgcrypto, and citext extensions; plain postgres:18-alpine lacks
+# pgvector and fails migration 000001 with `extension "vector" is not available`.
+#
+# Provides the three databases the unified chart expects, each owned by its own
+# role (matching the chart's default usernames):
+#   - lakerunner  (db lakerunner, role lakerunner)  -> LRDB
+#   - configdb    (db configdb,   role config)       -> CONFIGDB
+#   - maestro     (db maestro,    role maestro)      -> MAESTRO_DB
+#
+# All roles share one test password. NO TLS (the chart values set sslMode=disable).
+# Modeled on conductor/dev/trial-testenv/scripts/07-lakerunner.sh (postgres:18-alpine,
+# PGDATA subdir, init SQL via /docker-entrypoint-initdb.d) but with all three DBs.
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: pg-credentials
+  labels: { app: postgres }
+type: Opaque
+stringData:
+  # The chart-created credential secrets read these key names; we keep one
+  # password for every role so a single value flows everywhere.
+  LRDB_PASSWORD: "testpassword123"
+  CONFIGDB_PASSWORD: "testpassword123"
+  MAESTRO_DB_PASSWORD: "testpassword123"
+  POSTGRES_PASSWORD: "testpassword123"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-init
+  labels: { app: postgres }
+data:
+  # initdb runs *.sql once on first boot (empty PGDATA). The default POSTGRES_DB
+  # (lakerunner) + role (lakerunner) are created by the entrypoint from env; here
+  # we add the configdb + maestro databases and their owning roles.
+  01-init.sql: |
+    -- configdb (chart default db name "configdb" in our values; role "config")
+    CREATE ROLE config WITH LOGIN PASSWORD 'testpassword123';
+    CREATE DATABASE configdb OWNER config;
+    GRANT ALL PRIVILEGES ON DATABASE configdb TO config;
+
+    -- maestro. SUPERUSER so the mcp-gateway migrations can run
+    -- `CREATE EXTENSION vector/pgcrypto/citext` (vector is not a trusted
+    -- extension, so a plain role cannot create it). Test-only convenience.
+    CREATE ROLE maestro WITH LOGIN SUPERUSER PASSWORD 'testpassword123';
+    CREATE DATABASE maestro OWNER maestro;
+    GRANT ALL PRIVILEGES ON DATABASE maestro TO maestro;
+
+    -- lakerunner role/db are created by the entrypoint (POSTGRES_USER/DB), but
+    -- make the lakerunner role a superuser-lite so migrations can create
+    -- extensions/objects freely.
+    ALTER ROLE lakerunner CREATEDB;
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-data
+  labels: { app: postgres }
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+  labels: { app: postgres }
+spec:
+  replicas: 1
+  # RWO PVC: never run two pods at once.
+  strategy: { type: Recreate }
+  selector: { matchLabels: { app: postgres } }
+  template:
+    metadata:
+      labels: { app: postgres }
+    spec:
+      containers:
+        - name: postgres
+          # pgvector-enabled Postgres 18 (maestro migrations need CREATE EXTENSION vector)
+          image: pgvector/pgvector:pg18
+          # Raise the connection ceiling — the full lakerunner stack's pgx pools
+          # (especially during rolling upgrades that briefly double pods) exceed
+          # Postgres's default max_connections=100 → "too many clients".
+          args: ["-c", "max_connections=400", "-c", "shared_buffers=256MB"]
+          env:
+            - { name: POSTGRES_USER, value: "lakerunner" }
+            - name: POSTGRES_PASSWORD
+              valueFrom: { secretKeyRef: { name: pg-credentials, key: POSTGRES_PASSWORD } }
+            - { name: POSTGRES_DB, value: "lakerunner" }
+            # Keep initdb off the volume root (lost+found on some CSIs).
+            - { name: PGDATA, value: "/var/lib/postgresql/data/pgdata" }
+          ports: [{ containerPort: 5432 }]
+          volumeMounts:
+            - { name: data, mountPath: /var/lib/postgresql/data }
+            - { name: init, mountPath: /docker-entrypoint-initdb.d }
+          readinessProbe:
+            exec: { command: ["pg_isready", "-U", "lakerunner"] }
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            exec: { command: ["pg_isready", "-U", "lakerunner"] }
+            initialDelaySeconds: 15
+            periodSeconds: 10
+      volumes:
+        - { name: data, persistentVolumeClaim: { claimName: postgres-data } }
+        - { name: init, configMap: { name: postgres-init } }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  labels: { app: postgres }
+spec:
+  selector: { app: postgres }
+  ports: [{ port: 5432, targetPort: 5432 }]

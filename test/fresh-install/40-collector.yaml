@@ -1,0 +1,135 @@
+# cardinalhq-otel-collector fixture for the conductor fresh-install test.
+#
+# A single-pod gateway collector that:
+#   - receives OTLP over grpc/http (4317/4318), no auth (in-cluster test only)
+#   - exports logs/metrics/traces to rustfs via the awss3 exporter, writing keys
+#     under otel-raw/<org>/default/... so lakerunner's pubsub parser extracts
+#     org=<org>, collector=default, signal=<filename prefix> (metrics_/logs_/traces_).
+#   - on each successful S3 upload POSTs an S3-event envelope to pubsub-http via
+#     s3uploader.notifications.endpoint, which drives ingest (process-*).
+#
+# Distilled from base-collector-manifests/gateway + conductor trial-testenv
+# intake-collector. We drop the chqauth/loadbalancing/servicegraph machinery —
+# a single pod sees all data and we attribute everything to the fixed bootstrap
+# org statically (no api-key auth), which is all the e2e test needs.
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: otel-collector-config
+  labels: { app: otel-collector }
+data:
+  collector.yaml: |
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
+
+    processors:
+      # Stamp the bucket prefix so every object lands under
+      # otel-raw/<org>/default/. lakerunner's pubsub parser reads org from
+      # path part [1] and collector from part [2].
+      resource/prefix:
+        attributes:
+          - key: "_cardinalhq.bucket_prefix"
+            action: upsert
+            value: "otel-raw/11111111-1111-1111-1111-111111111111/default"
+      batch/s3:
+        timeout: 5s
+        send_batch_size: 1
+
+    exporters:
+      awss3:
+        marshaler: otlp_proto
+        s3uploader:
+          region: "${env:AWS_REGION}"
+          s3_bucket: "${env:AWS_S3_BUCKET}"
+          endpoint: "${env:AWS_S3_ENDPOINT}"
+          s3_force_path_style: true
+          disable_ssl: true
+          compression: gzip
+          # POST an S3-event envelope to pubsub-http on each successful upload.
+          notifications:
+            endpoint: "${env:PUBSUB_HTTP_ENDPOINT}"
+        # Per-resource dynamic prefix set by resource/prefix above.
+        resource_attrs_to_s3:
+          s3_prefix: "_cardinalhq.bucket_prefix"
+
+    extensions:
+      health_check:
+        endpoint: "0.0.0.0:13133"
+        path: /healthz
+
+    service:
+      extensions: [health_check]
+      pipelines:
+        logs:
+          receivers: [otlp]
+          processors: [resource/prefix, batch/s3]
+          exporters: [awss3]
+        metrics:
+          receivers: [otlp]
+          processors: [resource/prefix, batch/s3]
+          exporters: [awss3]
+        traces:
+          receivers: [otlp]
+          processors: [resource/prefix, batch/s3]
+          exporters: [awss3]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: otel-collector
+  labels: { app: otel-collector }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: otel-collector } }
+  template:
+    metadata:
+      labels: { app: otel-collector }
+      annotations:
+        # bump to force a rollout when the config changes
+        cfg/rev: "1"
+    spec:
+      containers:
+        - name: collector
+          image: public.ecr.aws/cardinalhq.io/cardinalhq-otel-collector:v1.8.0
+          command:
+            - /app/bin/cardinalhq-otel-collector
+            - --config=/app/config/collector.yaml
+          env:
+            - { name: AWS_REGION, value: "us-east-1" }
+            - { name: AWS_S3_BUCKET, value: "lakerunner" }
+            - { name: AWS_S3_ENDPOINT, value: "http://rustfs:9000" }
+            - { name: AWS_ACCESS_KEY_ID, value: "rustfsadmin" }
+            - { name: AWS_SECRET_ACCESS_KEY, value: "rustfsadmin" }
+            - name: PUBSUB_HTTP_ENDPOINT
+              value: "http://conductor-lakerunner-pubsub-http:8080/"
+          ports:
+            - { name: otlp-grpc, containerPort: 4317 }
+            - { name: otlp-http, containerPort: 4318 }
+            - { name: healthz, containerPort: 13133 }
+          readinessProbe:
+            httpGet: { path: /healthz, port: 13133 }
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          volumeMounts:
+            - { name: config, mountPath: /app/config }
+            - { name: scratch, mountPath: /app/scratch }
+      volumes:
+        - { name: config, configMap: { name: otel-collector-config } }
+        - { name: scratch, emptyDir: {} }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: otel-collector
+  labels: { app: otel-collector }
+spec:
+  selector: { app: otel-collector }
+  ports:
+    - { name: otlp-grpc, port: 4317, targetPort: 4317 }
+    - { name: otlp-http, port: 4318, targetPort: 4318 }

@@ -1,0 +1,101 @@
+# conductor adopt-mode values — points at the SAME external postgres + rustfs
+# that the legacy split charts used. bootstrap.mode=adopt renders NO detection,
+# key-seed, anchor Secret, or MAESTRO_BOOTSTRAP_* — conductor simply attaches to
+# the existing external DB/store and provisions nothing.
+
+global:
+  resources:
+    enabled: false
+  autoscaling:
+    mode: disabled
+
+license:
+  create: false
+  secretName: "cardinal-license"
+
+database:
+  create: false
+  secretName: "pg-credentials"
+  passwordKey: "LRDB_PASSWORD"
+  lrdb:
+    host: "postgres"
+    port: 5432
+    name: "lakerunner"
+    username: "lakerunner"
+    sslMode: "disable"
+
+configdb:
+  create: false
+  secretName: "pg-credentials"
+  passwordKey: "CONFIGDB_PASSWORD"
+  lrdb:
+    host: "postgres"
+    port: 5432
+    name: "configdb"
+    username: "config"
+    sslMode: "disable"
+
+maestroDatabase:
+  create: false
+  secretName: "pg-credentials"
+  passwordKey: "MAESTRO_DB_PASSWORD"
+  host: "postgres"
+  port: 5432
+  name: "maestro"
+  username: "maestro"
+  sslMode: "disable"
+
+cloudProvider:
+  provider: "aws"
+  aws:
+    region: "us-east-1"
+    # Shared aws-credentials secret created by 05-fixtures.yaml.
+    create: false
+    secretName: "aws-credentials"
+    inject: true
+
+# Adopting: orgs/keys/profiles already exist in the external configdb. Render
+# none from the chart.
+storageProfiles:
+  source: config
+  create: true
+  yaml: []
+apiKeys:
+  source: config
+  create: true
+  yaml: []
+
+# Maestro's own object-store access (artifacts) — same rustfs bucket/creds.
+objectStore:
+  bucket: "lakerunner"
+  region: "us-east-1"
+  endpoint: "http://rustfs:9000"
+  forcePathStyle: true
+  auth:
+    existingSecret: "aws-credentials"
+    accessKeyIdKey: AWS_ACCESS_KEY_ID
+    secretAccessKeyKey: AWS_SECRET_ACCESS_KEY
+
+pubsub:
+  HTTP:
+    enabled: true
+    replicas: 1
+
+ha:
+  enabled: false
+
+maestro:
+  enabled: true
+  replicas: 1
+  baseUrl: "http://conductor-maestro-maestro.conductor-adopt.svc.cluster.local:4200"
+  tls:
+    enabled: false
+
+dex:
+  enabled: false
+
+grafana:
+  enabled: false
+
+bootstrap:
+  mode: adopt

@@ -1,0 +1,10 @@
+# Minimal values to render the unified conductor chart (both families together).
+# Mirrors the values.yaml merge: one license, lakerunner DB under .database.lrdb,
+# maestro DB namespaced under .maestroDatabase.
+aws:
+  region: us-west-2
+license:
+  data: '{"key":"test"}'
+# maestro database (namespaced to avoid colliding with lakerunner's nested database.lrdb)
+maestroDatabase:
+  host: db.example.com

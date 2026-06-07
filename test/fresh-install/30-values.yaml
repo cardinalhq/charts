@@ -1,0 +1,135 @@
+# conductor fresh-install values for the kubepi conductor-fresh test.
+#
+# Wires the unified chart to the in-namespace fixtures:
+#   - Postgres  (10-postgres.yaml): host "postgres", DBs lakerunner/configdb/maestro
+#   - rustfs    (20-rustfs.yaml):   S3 endpoint http://rustfs:9000, bucket "lakerunner"
+#
+# The shared org / storage profile / per-org API key are NOT pre-baked here.
+# bootstrap.mode=auto makes the chart:
+#   - run lakerunner + maestro migrations (pre-install hooks),
+#   - seed the admin key into configdb.admin_api_keys (post-install hook),
+#   - render MAESTRO_BOOTSTRAP_* so maestro provisions the shared org into
+#     lakerunner via admin-api at boot (writes storage profile + per-org key to
+#     configdb dynamically).
+#
+# Local Postgres is non-TLS, so every sslMode is "disable" (chart default is
+# "require"). The key-seed job reads PGSSLMODE from configdb.lrdb.sslMode.
+
+global:
+  # Tune nothing fancy; let components take what they need.
+  resources:
+    enabled: false
+  autoscaling:
+    mode: disabled
+
+# ---- License (BYOS): a michael-dev-signing-signed license pre-created in the
+#      namespace as secret "cardinal-license" (key license.json) by 00-run.sh.
+#      One secret is shared by both lakerunner and maestro families. ----
+license:
+  create: false
+  secretName: "cardinal-license"
+
+# ---- Databases (bundled postgres; one password for all three roles) ----
+database:
+  create: true
+  secretName: "pg-credentials"
+  passwordKey: "LRDB_PASSWORD"
+  lrdb:
+    host: "postgres"
+    port: 5432
+    name: "lakerunner"
+    username: "lakerunner"
+    password: "testpassword123"
+    sslMode: "disable"
+
+configdb:
+  create: true
+  secretName: "configdb-credentials"
+  passwordKey: "CONFIGDB_PASSWORD"
+  lrdb:
+    host: "postgres"
+    port: 5432
+    name: "configdb"
+    username: "config"
+    password: "testpassword123"
+    sslMode: "disable"
+
+maestroDatabase:
+  create: true
+  secretName: "maestro-pg-credentials"
+  passwordKey: "MAESTRO_DB_PASSWORD"
+  host: "postgres"
+  port: 5432
+  name: "maestro"
+  username: "maestro"
+  password: "testpassword123"
+  sslMode: "disable"
+
+# ---- Object storage (bundled rustfs; S3-compatible, path-style) ----
+cloudProvider:
+  provider: "aws"
+  aws:
+    region: "us-east-1"
+    create: true
+    secretName: "aws-credentials"
+    inject: true
+    accessKeyId: "rustfsadmin"
+    secretAccessKey: "rustfsadmin"
+
+# storageProfiles/apiKeys are provisioned dynamically by maestro into configdb
+# (POST /api/v1/provision via admin-api). No pre-baked org.
+storageProfiles:
+  source: config
+  create: true
+  yaml: []
+apiKeys:
+  source: config
+  create: true
+  yaml: []
+
+# ---- Ingest: receive S3-event notifications over HTTP from the collector ----
+pubsub:
+  HTTP:
+    enabled: true
+    replicas: 1
+
+# Single-node POC: no HA.
+ha:
+  enabled: false
+
+# ---- Maestro ----
+maestro:
+  enabled: true
+  replicas: 1
+  # In-cluster only; backend test curls the Service directly. OIDC/Dex are not
+  # needed (the proxy uses the X-CardinalHQ-API-Key per-user key path, which is
+  # independent of OIDC; maestro boots fine with "OIDC not configured").
+  baseUrl: "http://conductor-maestro-maestro.conductor-fresh.svc.cluster.local:4200"
+  tls:
+    enabled: false
+
+# Dex disabled — backend-only validation does not exercise the browser OIDC flow.
+dex:
+  enabled: false
+
+grafana:
+  enabled: false
+
+# ---- Fresh-install bootstrap ----
+bootstrap:
+  mode: auto
+  org:
+    id: "11111111-1111-1111-1111-111111111111"
+    name: "default"
+    ownerEmail: "admin@test.local"
+  adminKey:
+    existingSecret: ""
+    existingSecretKey: "admin-api-key"
+  bucket:
+    name: "lakerunner"
+    region: "us-east-1"
+    cloudProvider: "aws"
+    collectorName: "default"
+    endpoint: "http://rustfs:9000"
+    usePathStyle: true
+    insecureTls: true
