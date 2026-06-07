@@ -33,7 +33,7 @@ global:
     # Pinned explicitly here so lakerunner images do NOT default to the unified
     # Chart.appVersion (which tracks maestro). Mirrors the legacy lakerunner
     # chart's appVersion. Per-component image.tag still wins over this.
-    tag: "v1.40.4"
+    tag: "v1.41.6"
     # Default pull policy for all images
     pullPolicy: "IfNotPresent"
   # Global temporary storage (scratch / DuckDB temp / cache) configuration.
@@ -847,7 +847,7 @@ objectStore:
 # Entrypoint selects which component to run.
 image:
   repository: public.ecr.aws/cardinalhq.io/maestro
-  tag: "v1.53.0"   # pinned (mirrors legacy maestro appVersion); do not rely on Chart.appVersion
+  tag: "v1.53.1"   # pinned (mirrors legacy maestro appVersion); do not rely on Chart.appVersion
   pullPolicy: IfNotPresent
 
 # Maestro API server + UI configuration
@@ -1180,13 +1180,17 @@ ingress:
 # templates. `resources` is surfaced here so operators can tune CPU/memory
 # without chasing template internals.
 dex:
-  # Dex container image. Defaults are also defined in templates/_helpers-maestro.tpl
-  # (maestro.dexConfig) so `--set dex.enabled=true` keeps working with
-  # zero extra fields. Surfaced here so air-gapped/private-registry
-  # installs can override without chasing template internals.
+  # Dex container image. Always Cardinal's themed Dex build (dex-customization):
+  # the branded login pages are compiled into the binary as the embedded
+  # default — no init container or extra config needed. Defaults are also
+  # defined in templates/_helpers-maestro.tpl (maestro.dexConfig) so
+  # `--set dex.enabled=true` keeps working with zero extra fields.
+  # Surfaced here so air-gapped/private-registry installs can point at their
+  # own MIRROR of the themed image. Do not point this at upstream
+  # ghcr.io/dexidp/dex — that ships the generic, unbranded Dex login.
   # image:
-  #   repository: ghcr.io/dexidp/dex
-  #   tag: v2.41.1
+  #   repository: public.ecr.aws/cardinalhq.io/dex-customization
+  #   tag: v0.3.0   # embeds upstream dex v2.45.1
   #   pullPolicy: IfNotPresent
   resources:
     requests:

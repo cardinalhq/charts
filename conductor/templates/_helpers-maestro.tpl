@@ -770,8 +770,11 @@ pathPrefix: {{ dig "pathPrefix" "/dex" $d | quote }}
 clientId: {{ dig "clientId" "maestro-ui" $d | quote }}
 superadminGroup: {{ dig "superadminGroup" "maestro-superadmin" $d | quote }}
 image:
-  repository: {{ dig "repository" "ghcr.io/dexidp/dex" $img | quote }}
-  tag: {{ dig "tag" "v2.41.1" $img | quote }}
+  # Cardinal-themed Dex (drop-in for ghcr.io/dexidp/dex; theme is compiled
+  # into the binary as the embedded default — gives the branded login pages).
+  # dex-customization vX.Y.Z embeds upstream dex; v0.3.0 = dex v2.45.1.
+  repository: {{ dig "repository" "public.ecr.aws/cardinalhq.io/dex-customization" $img | quote }}
+  tag: {{ dig "tag" "v0.3.0" $img | quote }}
   pullPolicy: {{ dig "pullPolicy" "IfNotPresent" $img | quote }}
 {{- end -}}
 
