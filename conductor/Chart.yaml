@@ -1,0 +1,19 @@
+apiVersion: v2
+name: conductor
+description: Unified Helm chart for CardinalHQ LakeRunner + Maestro
+type: application
+version: "0.1.0"
+# appVersion is nominal only — component image tags are pinned per-component in values.yaml
+# (both lakerunner.* and maestro.* image helpers would otherwise default the tag to this).
+appVersion: "v1.53.0"
+keywords:
+  - lakerunner
+  - maestro
+  - logs
+  - metrics
+  - traces
+  - observability
+home: https://docs.cardinalhq.io/lakerunner
+maintainers:
+  - name: Cardinal HQ
+    email: support@cardinalhq.com
