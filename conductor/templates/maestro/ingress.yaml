@@ -1,0 +1,44 @@
+{{- if .Values.ingress.enabled -}}
+{{- $cfg := include "maestro.dexConfig" . | fromYaml -}}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "maestro.fullname" . }}
+  labels:
+    {{- include "maestro.labels" . | nindent 4 }}
+  {{- with .Values.ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- if .Values.ingress.className }}
+  ingressClassName: {{ .Values.ingress.className }}
+  {{- end }}
+  {{- if .Values.ingress.tls }}
+  tls:
+    {{- toYaml .Values.ingress.tls | nindent 4 }}
+  {{- end }}
+  rules:
+  - host: {{ .Values.ingress.host | quote }}
+    http:
+      paths:
+      {{- if $cfg.enabled }}
+      # NGINX-ingress and Traefik select by longest-prefix match, so
+      # path order here doesn't change which backend serves /dex/*.
+      # Listed first only for readability.
+      - path: {{ $cfg.pathPrefix }}
+        pathType: Prefix
+        backend:
+          service:
+            name: {{ include "maestro.dexFullname" . }}
+            port:
+              name: http
+      {{- end }}
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: {{ include "maestro.fullname" . }}-maestro
+            port:
+              name: http
+{{- end }}

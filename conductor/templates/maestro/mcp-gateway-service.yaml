@@ -1,0 +1,31 @@
+{{- if .Values.mcpGateway.service.enabled -}}
+{{/*
+ClusterIP fronting the mcp-gateway sidecar. The sidecar lives inside the
+maestro pod (chart 0.8+), so this Service uses the maestro selector and
+targets the sidecar's named port (`mcp`, default 8080). External traffic
+reaches the gateway via an operator-managed Ingress/IngressRoute pointed
+at this Service; in-cluster maestro continues to use localhost.
+
+Disabled by default to preserve the local-dev / self-hosted contract
+where the gateway is never reachable outside the pod. SaaS operators
+who terminate TLS at Traefik and gate the gateway with an API key flip
+this on.
+*/}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "maestro.fullname" . }}-mcp-gateway
+  labels:
+    {{- include "maestro.labels" . | nindent 4 }}
+    app.kubernetes.io/component: mcp-gateway
+  {{ include "maestro.annotations" . | nindent 2 }}
+spec:
+  type: ClusterIP
+  ports:
+    - port: {{ .Values.mcpGateway.port }}
+      targetPort: mcp
+      name: http
+  selector:
+    {{- include "maestro.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: maestro
+{{- end }}

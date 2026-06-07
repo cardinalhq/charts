@@ -1,0 +1,5 @@
+{{/*
+License validation — ensures a valid license configuration is provided.
+This template renders nothing but fails early if the license is misconfigured.
+*/}}
+{{- include "maestro.validateLicense" . -}}
