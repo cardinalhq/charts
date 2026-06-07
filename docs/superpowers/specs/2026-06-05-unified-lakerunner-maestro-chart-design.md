@@ -237,6 +237,30 @@ provision. Because `auto` is self-correcting against DB state, an operator may s
 `never` for a first adopt install, then **delete the line** — `auto` keeps skipping
 because state is now populated. Removing the knob can never re-trigger bootstrap.
 
+## 6.7 B implementation outcomes (live-validated on kubepi)
+Facts the fresh-install e2e test surfaced — they constrain adoption (C) and corrected
+assumptions:
+- **Pre-install-hook dependency ordering.** The bootstrap migrate/key-seed Jobs are
+  pre-install hooks, so the resources they mount — the shared SA, Role/RoleBinding, the
+  DB-credential Secrets, and the storage-profiles ConfigMap — must ALSO be
+  `pre-install,pre-upgrade` hooks (weight `-10`, delete-policy **`before-hook-creation`**
+  only, so they persist for the main release). Minor consequences: each upgrade
+  deletes+recreates them (deterministic from values, cosmetic) and `helm uninstall` may
+  leave them orphaned (cleanup note for the migration guide).
+- **Maestro DB requires `pgvector` + CREATE EXTENSION.** mcp-gateway migrations run
+  `CREATE EXTENSION vector`, needing the extension available and a role that can create
+  it (test used `pgvector/pgvector:pg18` + a SUPERUSER maestro role). Adoption: existing
+  maestro DBs already have it; a fresh external Postgres must provide pgvector.
+- **A valid license is required to start.** mcp-gateway validates the license *before*
+  `MCP_MIGRATE_ONLY` runs, so the migrate-maestro Job must mount the license volume.
+- **Maestro proxy `instanceId` = `maestro_integrations.id`** (the lakerunner-type
+  integration row), NOT `maestro_lakerunner_deployments.id`. (Corrects the B plan.)
+- **key-seed inlines the sha256 hex** into the `psql -c` string (hex-only → injection-safe)
+  because `psql -c` does not expand `-v` variables.
+- **Validated end-to-end:** collector → rustfs → pubsub-http → process-* → cooked
+  segments; data returned by BOTH `query-api` direct (org key) and the maestro proxy
+  (`X-Org-Id` + per-user key). Marker `service_name=fresh-test`.
+
 ## 7. Adoption semantics & detection state machine
 
 Detection is a **state machine**, not a coarse "DB has rows ⇒ adopt" (which Codex
