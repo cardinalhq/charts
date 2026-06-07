@@ -2,7 +2,7 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: {{ include "lakerunner.fullname" . }}-setup
+  name: {{ .Release.Name }}-migrate-lakerunner
   labels:
     {{- include "lakerunner.labelsWithComponent" (list . .Values.setup.labels) | nindent 4 }}
   annotations:
@@ -12,7 +12,8 @@ metadata:
     {{- if gt (len $merged) 0 }}
     {{- toYaml $merged | nindent 4 }}
     {{- end }}
-    helm.sh/hook: post-install,post-upgrade
+    helm.sh/hook: pre-install,pre-upgrade
+    helm.sh/hook-weight: "0"
     helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
 spec:
   template:
@@ -21,7 +22,7 @@ spec:
         {{- include "lakerunner.labelsWithComponent" (list . .Values.setup.labels) | nindent 8 }}
       {{- include "lakerunner.annotationsWithComponent" (list . .Values.setup.annotations) | nindent 6 }}
     spec:
-      serviceAccountName: {{ include "lakerunner.serviceAccountName" . }}
+      serviceAccountName: {{ include "conductor.serviceAccountName" . }}
       restartPolicy: Never
       {{- include "lakerunner.podSecurityContext" (dict "root" . "override" .Values.setup.podSecurityContext) | nindent 6 }}
       {{- include "lakerunner.imagePullSecrets" . | nindent 6 }}
@@ -34,10 +35,10 @@ spec:
         image: {{ include "lakerunner.image" (list .Values.setup.image .) }}
         imagePullPolicy: {{ .Values.setup.image.pullPolicy | default .Values.global.image.pullPolicy }}
         command: ["/app/bin/lakerunner"]
-        args: ["setup"]
+        args: ["migrate", "--databases", "lrdb,configdb"]
         env:
           - name: OTEL_SERVICE_NAME
-            value: {{ include "lakerunner.fullname" . }}-setup
+            value: {{ .Release.Name }}-migrate-lakerunner
           {{- include "lakerunner.injectEnvSetup" (list . .Values.setup) | nindent 8 }}
           {{- include "lakerunner.cardinalTelemetryEnv" . | nindent 10 }}
         {{- if .Values.global.resources.enabled }}
@@ -47,31 +48,9 @@ spec:
         volumeMounts:
         - name: scratch
           mountPath: /scratch
-        {{- if eq .Values.storageProfiles.source "config" }}
-        - name: storage-profiles
-          mountPath: /app/config/storage_profiles.yaml
-          subPath: storage_profiles.yaml
-          readOnly: true
-        {{- end }}
-        {{- if eq .Values.apiKeys.source "config" }}
-        - name: apikeys
-          mountPath: /app/config/apikeys.yaml
-          subPath: apikeys.yaml
-          readOnly: true
-        {{- end }}
         {{- include "lakerunner.licenseVolumeMount" . | nindent 8 }}
       volumes:
       {{- include "lakerunner.ephemeralVolumeBasic" (list "scratch" .) | nindent 6 }}
-      {{- if eq .Values.storageProfiles.source "config" }}
-      - name: storage-profiles
-        configMap:
-          name: {{ include "lakerunner.storageProfilesConfigmapName" . }}
-      {{- end }}
-      {{- if eq .Values.apiKeys.source "config" }}
-      - name: apikeys
-        secret:
-          secretName: {{ include "lakerunner.apiKeysSecretName" . }}
-      {{- end }}
       {{- include "lakerunner.licenseVolume" . | nindent 6 }}
   backoffLimit: 0
 {{- end }}
