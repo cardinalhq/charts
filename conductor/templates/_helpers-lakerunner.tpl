@@ -94,11 +94,7 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 Create the name of the service account to use
 */}}
 {{- define "lakerunner.serviceAccountName" -}}
-{{- if .Values.serviceAccount.create }}
-{{- default (include "lakerunner.fullname" .) .Values.serviceAccount.name | trunc 63 | trimSuffix "-" }}
-{{- else }}
-{{- .Values.serviceAccount.name }}
-{{- end }}
+{{- include "conductor.serviceAccountName" . -}}
 {{- end }}
 
 {{/*
@@ -1169,5 +1165,19 @@ Usage:
 {{- if $merged }}
 securityContext:
   {{- toYaml $merged | nindent 2 }}
+{{- end -}}
+{{- end }}
+
+{{/*
+Shared ServiceAccount name for the unified chart. Single SA by default, named
+after the release (the "named install") — the chart name is intentionally NOT
+injected. Override with .Values.serviceAccount.name. Per-component SAs
+(least-privilege) are a future opt-in; for the skeleton every workload uses this one.
+*/}}
+{{- define "conductor.serviceAccountName" -}}
+{{- if .Values.serviceAccount.create -}}
+{{- default (.Release.Name | trunc 63 | trimSuffix "-") .Values.serviceAccount.name -}}
+{{- else -}}
+{{- .Values.serviceAccount.name -}}
 {{- end -}}
 {{- end }}

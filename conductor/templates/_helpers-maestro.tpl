@@ -92,11 +92,7 @@ annotations:
 Create the name of the service account to use
 */}}
 {{- define "maestro.serviceAccountName" -}}
-{{- if .Values.serviceAccount.create }}
-{{- default (include "maestro.fullname" .) .Values.serviceAccount.name | trunc 63 | trimSuffix "-" }}
-{{- else }}
-{{- .Values.serviceAccount.name }}
-{{- end }}
+{{- include "conductor.serviceAccountName" . -}}
 {{- end }}
 
 {{/*
