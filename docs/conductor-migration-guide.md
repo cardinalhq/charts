@@ -163,12 +163,12 @@ detection Job — it just attaches to your existing data.
 ## 5. Keep `mode: adopt` set for the life of the adopted release
 
 Leave `bootstrap.mode: adopt` in your values for any release that adopted a
-legacy install. If you later switch that release back to `mode: auto`, the
-pre-install detection Job will inspect the DBs, see a legacy-shaped install
-(Maestro orgs / a legacy `maestro_integrations` row with no conductor shared
-deployment) and **deliberately abort the install** with `ADOPT_LEGACY` rather
-than risk creating a duplicate shared deployment. That abort is the safety net,
-not a bug — re-run with `mode: adopt`.
+legacy install. Under `auto`, any populated non-conductor state — lakerunner
+orgs/keys/buckets and/or a maestro org or lakerunner integration, with no
+conductor-owned shared deployment present — causes the pre-install detection Job
+to **abort the install** (`ADOPT_LEGACY`, or `ERROR` if only one side is
+populated) rather than risk creating a duplicate shared deployment. That abort is
+the safety net, not a bug — re-run with `mode: adopt`.
 
 (`mode: force` is for recovery/testing only; it bootstraps unconditionally with
 no detection safety net and can create duplicates against a populated DB. Do not

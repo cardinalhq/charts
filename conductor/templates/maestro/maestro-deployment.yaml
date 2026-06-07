@@ -164,11 +164,11 @@ spec:
           {{- end }}
           {{- if include "conductor.bootstrapEnabled" . }}
           - name: MAESTRO_BOOTSTRAP_ORG_ID
-            value: {{ required "bootstrap.org.id is required when bootstrap.mode!=never" .Values.bootstrap.org.id | quote }}
+            value: {{ required "bootstrap.org.id is required when bootstrap is active (mode != adopt)" .Values.bootstrap.org.id | quote }}
           - name: MAESTRO_BOOTSTRAP_ORG_NAME
             value: {{ .Values.bootstrap.org.name | default "default" | quote }}
           - name: MAESTRO_BOOTSTRAP_OWNER_EMAIL
-            value: {{ required "bootstrap.org.ownerEmail is required when bootstrap.mode!=never" .Values.bootstrap.org.ownerEmail | quote }}
+            value: {{ required "bootstrap.org.ownerEmail is required when bootstrap is active (mode != adopt)" .Values.bootstrap.org.ownerEmail | quote }}
           - name: MAESTRO_BOOTSTRAP_LAKERUNNER_QUERY_API_URL
             value: {{ include "conductor.queryApiUrl" . | quote }}
           - name: MAESTRO_BOOTSTRAP_LAKERUNNER_ADMIN_API_URL

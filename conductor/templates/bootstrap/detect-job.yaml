@@ -31,20 +31,21 @@ spec:
         args:
           - |
             set -eu
-            # q QUERY PASSWORD HOST PORT USER DB SSLMODE
             q() { PGPASSWORD="$2" PGSSLMODE="$7" psql -tA -v ON_ERROR_STOP=1 -h "$3" -p "$4" -U "$5" -d "$6" -c "$1"; }
-            LR_BUCKETS=$(q "SELECT count(*) FROM organization_buckets;"     "$CONFIGDB_PASSWORD" "$CONFIGDB_HOST" "$CONFIGDB_PORT" "$CONFIGDB_USER" "$CONFIGDB_NAME" "$CONFIGDB_SSLMODE")
-            LR_ORGS=$(q    "SELECT count(*) FROM organizations;"            "$CONFIGDB_PASSWORD" "$CONFIGDB_HOST" "$CONFIGDB_PORT" "$CONFIGDB_USER" "$CONFIGDB_NAME" "$CONFIGDB_SSLMODE")
-            M_ORGS=$(q     "SELECT count(*) FROM maestro_organizations;"    "$MDB_PASSWORD" "$MDB_HOST" "$MDB_PORT" "$MDB_USER" "$MDB_NAME" "$MDB_SSLMODE")
+            LR_BUCKETS=$(q "SELECT count(*) FROM organization_buckets;" "$CONFIGDB_PASSWORD" "$CONFIGDB_HOST" "$CONFIGDB_PORT" "$CONFIGDB_USER" "$CONFIGDB_NAME" "$CONFIGDB_SSLMODE")
+            LR_ORGS=$(q    "SELECT count(*) FROM organizations;"        "$CONFIGDB_PASSWORD" "$CONFIGDB_HOST" "$CONFIGDB_PORT" "$CONFIGDB_USER" "$CONFIGDB_NAME" "$CONFIGDB_SSLMODE")
+            LR_KEYS=$(q    "SELECT count(*) FROM admin_api_keys;"       "$CONFIGDB_PASSWORD" "$CONFIGDB_HOST" "$CONFIGDB_PORT" "$CONFIGDB_USER" "$CONFIGDB_NAME" "$CONFIGDB_SSLMODE")
+            M_ORGS=$(q     "SELECT count(*) FROM maestro_organizations;" "$MDB_PASSWORD" "$MDB_HOST" "$MDB_PORT" "$MDB_USER" "$MDB_NAME" "$MDB_SSLMODE")
             M_SHARED=$(q   "SELECT count(*) FROM maestro_lakerunner_deployments WHERE source='shared_cardinal' AND enabled AND is_demo=false AND auto_add_to_all_orgs AND btrim(coalesce(admin_api_url,''))<>'' AND btrim(coalesce(admin_api_key,''))<>'';" "$MDB_PASSWORD" "$MDB_HOST" "$MDB_PORT" "$MDB_USER" "$MDB_NAME" "$MDB_SSLMODE")
             M_LEGACY=$(q   "SELECT count(*) FROM maestro_integrations WHERE type='lakerunner' AND deployment_id IS NULL;" "$MDB_PASSWORD" "$MDB_HOST" "$MDB_PORT" "$MDB_USER" "$MDB_NAME" "$MDB_SSLMODE")
-            echo "signals: lr_buckets=$LR_BUCKETS lr_orgs=$LR_ORGS m_orgs=$M_ORGS m_shared=$M_SHARED m_legacy=$M_LEGACY"
-            LR_PROV=0; { [ "$LR_BUCKETS" -gt 0 ] || [ "$LR_ORGS" -gt 0 ]; } && LR_PROV=1
+            echo "signals: lr_buckets=$LR_BUCKETS lr_orgs=$LR_ORGS lr_keys=$LR_KEYS m_orgs=$M_ORGS m_shared=$M_SHARED m_legacy=$M_LEGACY"
+            LR_STATE=0; { [ "$LR_BUCKETS" -gt 0 ] || [ "$LR_ORGS" -gt 0 ] || [ "$LR_KEYS" -gt 0 ]; } && LR_STATE=1
+            M_STATE=0;  { [ "$M_ORGS" -gt 0 ] || [ "$M_LEGACY" -gt 0 ]; } && M_STATE=1
             if [ "$M_SHARED" -gt 0 ]; then echo "ADOPT_CONDUCTOR: shared deployment present — idempotent, proceeding"; exit 0; fi
-            if [ "$LR_PROV" -eq 0 ] && [ "$M_ORGS" -eq 0 ]; then echo "FRESH: proceeding with bootstrap"; exit 0; fi
-            if [ "$M_LEGACY" -gt 0 ] || [ "$M_ORGS" -gt 0 ]; then
+            if [ "$LR_STATE" -eq 0 ] && [ "$M_STATE" -eq 0 ]; then echo "FRESH: proceeding with bootstrap"; exit 0; fi
+            if [ "$LR_STATE" -eq 1 ] && [ "$M_STATE" -eq 1 ]; then
               echo "ADOPT_LEGACY: existing non-conductor install detected. Re-run with bootstrap.mode=adopt to adopt it without provisioning."; exit 1; fi
-            echo "ERROR: inconsistent state (configdb provisioned but maestro empty, or vice versa). Investigate before proceeding."; exit 1
+            echo "ERROR: inconsistent state — only one of lakerunner/configdb or maestro is populated. Investigate; use bootstrap.mode=adopt or force to override."; exit 1
         env:
           # --- configdb (lakerunner) ---
           - name: CONFIGDB_HOST
