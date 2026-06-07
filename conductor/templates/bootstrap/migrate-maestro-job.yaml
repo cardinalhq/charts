@@ -1,0 +1,43 @@
+{{- if .Values.maestro.enabled -}}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ .Release.Name }}-migrate-maestro
+  labels:
+    {{- include "maestro.labels" . | nindent 4 }}
+    app.kubernetes.io/component: migrate-maestro
+  annotations:
+    helm.sh/hook: pre-install,pre-upgrade
+    helm.sh/hook-weight: "0"
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        {{- include "maestro.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: migrate-maestro
+    spec:
+      serviceAccountName: {{ include "conductor.serviceAccountName" . }}
+      restartPolicy: Never
+      {{- include "maestro.podSecurityContext" (dict "root" . "override" (.Values.maestro.podSecurityContext | default dict)) | nindent 6 }}
+      {{- include "maestro.imagePullSecrets" . | nindent 6 }}
+      {{- include "maestro.sched.nodeSelector" (list .Values.global.nodeSelector .Values.maestro.nodeSelector) | nindent 6 }}
+      {{- include "maestro.sched.tolerations"  (list .Values.global.tolerations  .Values.maestro.tolerations)  | nindent 6 }}
+      {{- include "maestro.sched.affinity"     (list .Values.global.affinity     .Values.maestro.affinity)     | nindent 6 }}
+      containers:
+      - name: migrate-maestro
+        {{- include "maestro.containerSecurityContext" (dict "root" . "override" (.Values.maestro.containerSecurityContext | default dict)) | nindent 8 }}
+        image: {{ include "maestro.image" . }}
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        command: ["/app/entrypoint.sh"]
+        args: ["mcp-gateway"]
+        env:
+          {{ include "maestro.databaseEnv" . | nindent 10 }}
+          - name: MCP_MIGRATE_ONLY
+            value: "true"
+        {{- if .Values.global.resources.enabled }}
+        resources:
+          {{- toYaml .Values.mcpGateway.resources | nindent 10 }}
+        {{- end }}
+{{- end }}
