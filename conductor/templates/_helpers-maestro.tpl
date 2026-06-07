@@ -410,10 +410,10 @@ Emits nothing when:
 Return the secret name for the Database credentials. If we have create true, we will prefix it with the release name.
 */}}
 {{- define "maestro.databaseSecretName" -}}
-{{- if .Values.database.create }}
-{{- printf "%s-%s" (include "maestro.fullname" .) .Values.database.secretName | trunc 63 | trimSuffix "-" }}
+{{- if .Values.maestroDatabase.create }}
+{{- printf "%s-%s" (include "maestro.fullname" .) .Values.maestroDatabase.secretName | trunc 63 | trimSuffix "-" }}
 {{- else }}
-{{- .Values.database.secretName | trunc 63 | trimSuffix "-" }}
+{{- .Values.maestroDatabase.secretName | trunc 63 | trimSuffix "-" }}
 {{- end }}
 {{- end }}
 
@@ -422,20 +422,20 @@ Database environment variables shared across components.
 */}}
 {{- define "maestro.databaseEnv" -}}
 - name: MAESTRO_DB_HOST
-  value: {{ .Values.database.host | quote }}
+  value: {{ .Values.maestroDatabase.host | quote }}
 - name: MAESTRO_DB_PORT
-  value: {{ .Values.database.port | quote }}
+  value: {{ .Values.maestroDatabase.port | quote }}
 - name: MAESTRO_DB_USER
-  value: {{ .Values.database.username | quote }}
+  value: {{ .Values.maestroDatabase.username | quote }}
 - name: MAESTRO_DB_PASSWORD
   valueFrom:
     secretKeyRef:
       name: {{ include "maestro.databaseSecretName" . }}
-      key: {{ .Values.database.passwordKey }}
+      key: {{ .Values.maestroDatabase.passwordKey }}
 - name: MAESTRO_DB_NAME
-  value: {{ .Values.database.name | quote }}
+  value: {{ .Values.maestroDatabase.name | quote }}
 - name: MAESTRO_DB_SSLMODE
-  value: {{ .Values.database.sslMode | quote }}
+  value: {{ .Values.maestroDatabase.sslMode | quote }}
 - name: MAESTRO_DATABASE_URL
   value: "postgresql://$(MAESTRO_DB_USER):$(MAESTRO_DB_PASSWORD)@$(MAESTRO_DB_HOST):$(MAESTRO_DB_PORT)/$(MAESTRO_DB_NAME)?sslmode=$(MAESTRO_DB_SSLMODE)"
 {{- end }}
