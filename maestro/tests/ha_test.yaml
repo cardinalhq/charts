@@ -297,15 +297,15 @@ tests:
       - failedTemplate:
           errorMessage: "ha.enabled=true is incompatible with explicit githubCache.enabled=false (in-process github-cache holds per-pod state and a single PVC, neither of which scales). Remove the override or set ha.enabled=false."
 
-  - it: "HA with maestro.persistence.enabled=true fails template rendering"
+  - it: "HA with maestro.temporaryStorage.enabled=true fails template rendering"
     template: maestro-deployment.yaml
     set:
       ha.enabled: true
       objectStore.bucket: my-bucket
-      maestro.persistence.enabled: true
+      maestro.temporaryStorage.enabled: true
     asserts:
       - failedTemplate:
-          errorMessage: "ha.enabled=true is incompatible with maestro.persistence.enabled=true (Recreate strategy + RWO PVC deadlocks rolling updates under replicas>1). Use objectStore for artifacts; the github-cache StatefulSet already handles its own per-pod PVCs."
+          errorMessage: "ha.enabled=true is incompatible with maestro.temporaryStorage.enabled=true (Recreate strategy + RWO PVC deadlocks rolling updates under replicas>1). Use objectStore for artifacts; the github-cache StatefulSet already handles its own per-pod PVCs."
 
   - it: "HA with maestro.replicas=1 fails template rendering"
     template: maestro-deployment.yaml
@@ -393,13 +393,13 @@ tests:
       - failedTemplate:
           errorMessage: "githubCache.enabled must be a YAML boolean (true or false), got false of type string. Use `--set githubCache.enabled=true` / `=false`, not `--set-string`."
 
-  - it: "stringly maestro.persistence.enabled (--set-string) fails loud"
+  - it: "stringly maestro.temporaryStorage.enabled (--set-string) fails loud"
     template: maestro-deployment.yaml
     set:
-      maestro.persistence.enabled: "true"
+      maestro.temporaryStorage.enabled: "true"
     asserts:
       - failedTemplate:
-          errorMessage: "maestro.persistence.enabled must be a YAML boolean (true or false), got true of type string. Use `--set maestro.persistence.enabled=true` / `=false`, not `--set-string`."
+          errorMessage: "maestro.temporaryStorage.enabled must be a YAML boolean (true or false), got true of type string. Use `--set maestro.temporaryStorage.enabled=true` / `=false`, not `--set-string`."
 
   # ---- region default for S3-compat endpoint ----------------------------
   - it: "HA with endpoint defaults region to us-east-1 (AWS SDK requires one)"

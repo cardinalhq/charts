@@ -29,13 +29,29 @@ global:
     tag: ""
     # Default pull policy for all images
     pullPolicy: "IfNotPresent"
-  # Global temporary storage configuration
-  # This allows switching between emptyDir and ephemeral volume claim templates
-  # Storage sizes are configured per-service in their respective temporaryStorage.size settings
+  # Global temporary storage (scratch / DuckDB temp / cache) configuration.
+  # This allows switching between emptyDir and ephemeral volume claim templates.
+  # Storage sizes are configured per-service in their respective temporaryStorage.size settings.
+  #
+  # Scratch-disk-size behavior (LAKERUNNER_SCRATCH_DISK_SIZE_BYTES):
+  #   The scratch-using services (process-logs/metrics/traces, query-worker) tell
+  #   the app how much scratch they may use via LAKERUNNER_SCRATCH_DISK_SIZE_BYTES.
+  #   How that env var is set depends on `type` below:
+  #   - type: "ephemeral" (a dedicated PersistentVolume via volumeClaimTemplate):
+  #       LAKERUNNER_SCRATCH_DISK_SIZE_BYTES is left UNSET. The app probes the
+  #       filesystem with statfs(), which is accurate on a real PV.
+  #   - type: "emptyDir" (node-disk-backed, with a sizeLimit): the env var is set
+  #       to the per-service temporaryStorage.size converted to bytes. statfs on an
+  #       emptyDir reports the whole node disk, not the pod's slice, so the app
+  #       needs the explicit value to stay within its slice.
   temporaryStorage:
     # Type of temporary storage: "emptyDir" or "ephemeral"
-    # - emptyDir: Traditional emptyDir volumes (default)
+    # - emptyDir: Traditional emptyDir volumes (default). The pod's scratch slice
+    #   is bounded by sizeLimit, and LAKERUNNER_SCRATCH_DISK_SIZE_BYTES is set to
+    #   that size so the app stays within it.
     # - ephemeral: Uses ephemeral volume claim templates for CSI-based storage
+    #   (a real PV). LAKERUNNER_SCRATCH_DISK_SIZE_BYTES is left unset so the app
+    #   uses statfs(), which is accurate for a dedicated PV.
     type: "emptyDir"
     # Configuration for ephemeral volume claim templates (only used when type: "ephemeral")
     ephemeral:
@@ -391,6 +407,12 @@ processLogs:
       cpu: "1"
       memory: 2Gi
   temporaryStorage:
+    # Scratch/DuckDB-temp size for this service. Sizes the volume (emptyDir
+    # sizeLimit or ephemeral PVC request). When global.temporaryStorage.type is
+    # "emptyDir", this value is also exported as LAKERUNNER_SCRATCH_DISK_SIZE_BYTES
+    # (in bytes) so the app stays within its node-disk slice; when "ephemeral"
+    # (a real PV) it is left unset and the app uses statfs(). See
+    # global.temporaryStorage above.
     size: "10Gi"
   autoscaling:
     minReplicas: 1
@@ -443,6 +465,12 @@ processMetrics:
       cpu: "1"
       memory: 2Gi
   temporaryStorage:
+    # Scratch/DuckDB-temp size for this service. Sizes the volume (emptyDir
+    # sizeLimit or ephemeral PVC request). When global.temporaryStorage.type is
+    # "emptyDir", this value is also exported as LAKERUNNER_SCRATCH_DISK_SIZE_BYTES
+    # (in bytes) so the app stays within its node-disk slice; when "ephemeral"
+    # (a real PV) it is left unset and the app uses statfs(). See
+    # global.temporaryStorage above.
     size: "10Gi"
   autoscaling:
     minReplicas: 1
@@ -471,6 +499,12 @@ processTraces:
       cpu: "1"
       memory: 2Gi
   temporaryStorage:
+    # Scratch/DuckDB-temp size for this service. Sizes the volume (emptyDir
+    # sizeLimit or ephemeral PVC request). When global.temporaryStorage.type is
+    # "emptyDir", this value is also exported as LAKERUNNER_SCRATCH_DISK_SIZE_BYTES
+    # (in bytes) so the app stays within its node-disk slice; when "ephemeral"
+    # (a real PV) it is left unset and the app uses statfs(). See
+    # global.temporaryStorage above.
     size: "10Gi"
   autoscaling:
     minReplicas: 1
@@ -815,6 +849,12 @@ queryWorker:
     loadBalancerIP: ""
     loadBalancerSourceRanges: []
   temporaryStorage:
+    # Scratch/DuckDB-temp size for this service. Sizes the volume (emptyDir
+    # sizeLimit or ephemeral PVC request). When global.temporaryStorage.type is
+    # "emptyDir", this value is also exported as LAKERUNNER_SCRATCH_DISK_SIZE_BYTES
+    # (in bytes) so the app stays within its node-disk slice; when "ephemeral"
+    # (a real PV) it is left unset and the app uses statfs(). See
+    # global.temporaryStorage above.
     size: "100Gi"
   labels: {}
   annotations: {}
@@ -891,7 +931,7 @@ grafana:
     # Grafana downloads the plugin zip at startup via GF_INSTALL_PLUGINS.
     # Air-gapped deployments should either host the zip internally and point
     # this at it, or enable initContainer mode below.
-    url: "https://github.com/cardinalhq/cardinalhq-lakerunner-datasource/releases/download/v2.4.0/cardinalhq-lakerunner-datasource.zip;cardinalhq-lakerunner-datasource"
+    url: "https://github.com/cardinalhq/cardinalhq-lakerunner-datasource/releases/download/v2.5.0/cardinalhq-lakerunner-datasource.zip;cardinalhq-lakerunner-datasource"
     # Pre-install the Cardinal datasource plugin via an init container that
     # carries the plugin baked into its image, instead of relying on Grafana
     # pulling it over HTTP at startup. Recommended for air-gapped clusters

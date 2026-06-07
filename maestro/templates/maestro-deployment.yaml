@@ -10,7 +10,7 @@ metadata:
   {{ include "maestro.annotations" . | nindent 2 }}
 spec:
   replicas: {{ include "maestro.replicas" (dict "root" . "explicit" .Values.maestro.replicas) }}
-  {{- if and (include "maestro.persistenceEnabled" .) (ne .Values.maestro.persistence.accessMode "ReadWriteMany") }}
+  {{- if and (include "maestro.temporaryStorageEnabled" .) (ne .Values.maestro.temporaryStorage.accessMode "ReadWriteMany") }}
   # RWO volumes can only attach to one node at a time. Rolling update would
   # deadlock the rollout (new pod scheduled to a different node, can't mount
   # the in-use volume). Recreate forces tear-down → reattach → new pod.
@@ -37,10 +37,10 @@ spec:
         maestro.podSecurityContext to change the level or add type/role.
       */}}
       {{- $podSec := .Values.maestro.podSecurityContext | default dict -}}
-      {{- if and (include "maestro.persistenceEnabled" .) (not (hasKey $podSec "seLinuxOptions")) -}}
+      {{- if and (include "maestro.temporaryStorageEnabled" .) (not (hasKey $podSec "seLinuxOptions")) -}}
         {{- $merged := dict -}}
         {{- range $k, $v := $podSec }}{{- $_ := set $merged $k $v -}}{{- end -}}
-        {{- $_ := set $merged "seLinuxOptions" (dict "level" .Values.maestro.persistence.seLinuxLevel) -}}
+        {{- $_ := set $merged "seLinuxOptions" (dict "level" .Values.maestro.temporaryStorage.seLinuxLevel) -}}
         {{- $podSec = $merged -}}
       {{- end }}
       {{- include "maestro.podSecurityContext" (dict "root" . "override" $podSec) | nindent 6 }}
@@ -86,7 +86,7 @@ spec:
             if [ -n "${EXTRA_SANS}" ]; then SAN="${SAN},${EXTRA_SANS}"; fi
             cat >/tmp/openssl.cnf <<EOF
             [req]
-            distinguished_name=req
+            distinguished_name=req_distinguished_name
             prompt=no
             req_extensions=v3
             [req_distinguished_name]
@@ -146,11 +146,11 @@ spec:
           - name: GITHUB_CACHE_REMOTE
             value: "1"
           {{- end }}
-          {{- if (include "maestro.persistenceEnabled" .) }}
+          {{- if (include "maestro.temporaryStorageEnabled" .) }}
           - name: ONTOLOGY_WORKSPACE_DIR
-            value: {{ printf "%s/git-checkouts" (.Values.maestro.persistence.mountPath | default "/var/lib/maestro") | quote }}
+            value: {{ printf "%s/git-checkouts" (.Values.maestro.temporaryStorage.mountPath | default "/var/lib/maestro") | quote }}
           - name: ORCHESTRA_ARTIFACT_DIR
-            value: {{ printf "%s/artifacts" (.Values.maestro.persistence.mountPath | default "/var/lib/maestro") | quote }}
+            value: {{ printf "%s/artifacts" (.Values.maestro.temporaryStorage.mountPath | default "/var/lib/maestro") | quote }}
           {{- end }}
           {{- include "maestro.objectStoreEnv" . | nindent 10 }}
           {{- include "maestro.objectStoreAuthEnv" . | nindent 10 }}
@@ -193,9 +193,9 @@ spec:
           mountPath: /tmp
         - name: agent-cache
           mountPath: /var/cache/maestro
-        {{- if (include "maestro.persistenceEnabled" .) }}
-        - name: data
-          mountPath: {{ .Values.maestro.persistence.mountPath | default "/var/lib/maestro" | quote }}
+        {{- if (include "maestro.temporaryStorageEnabled" .) }}
+        - name: scratch
+          mountPath: {{ .Values.maestro.temporaryStorage.mountPath | default "/var/lib/maestro" | quote }}
         {{- end }}
         {{- include "maestro.licenseVolumeMount" . | nindent 8 }}
         {{- with .Values.maestro.extraVolumeMounts }}
@@ -245,10 +245,10 @@ spec:
         emptyDir: {}
       - name: agent-cache
         emptyDir: {}
-      {{- if (include "maestro.persistenceEnabled" .) }}
-      - name: data
+      {{- if (include "maestro.temporaryStorageEnabled" .) }}
+      - name: scratch
         persistentVolumeClaim:
-          claimName: {{ include "maestro.fullname" . }}-data
+          claimName: {{ include "maestro.fullname" . }}-scratch
       {{- end }}
       {{- include "maestro.licenseVolume" . | nindent 6 }}
       {{- if dig "tls" "enabled" false .Values.maestro }}

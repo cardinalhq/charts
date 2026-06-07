@@ -128,7 +128,7 @@ key=`) as unset, so both produce the auto-derived default.
 
 {{/*
 Strict bool reader for mode-critical toggles (ha.enabled, githubCache.enabled,
-maestro.persistence.enabled). Returns "true" (string) when the value is the
+maestro.temporaryStorage.enabled). Returns "true" (string) when the value is the
 YAML/Go bool true, "" when it's bool false or nil. Fails template rendering
 on any other type (e.g. operator typed `--set-string ha.enabled=true` and
 got a string instead of a bool — silently treating "true" as false is the
@@ -158,12 +158,12 @@ HA mode toggle — returns "true" (string) when ha.enabled is the bool true,
 Effective maestro persistence enablement. Same strict-bool semantics as
 haEnabled. Centralizes the gate so every consumer (PVC, Deployment
 strategy block, env injection, volume mount) reads the same narrowed
-value — and stringly `--set-string maestro.persistence.enabled=false`
+value — and stringly `--set-string maestro.temporaryStorage.enabled=false`
 can't accidentally render as truthy in some gates and falsy in others.
 */}}
-{{- define "maestro.persistenceEnabled" -}}
-{{- $v := dig "enabled" false (dig "persistence" dict (.Values.maestro | default dict)) -}}
-{{- include "maestro.boolOrFail" (dict "value" $v "path" "maestro.persistence.enabled") -}}
+{{- define "maestro.temporaryStorageEnabled" -}}
+{{- $v := dig "enabled" false (dig "temporaryStorage" dict (.Values.maestro | default dict)) -}}
+{{- include "maestro.boolOrFail" (dict "value" $v "path" "maestro.temporaryStorage.enabled") -}}
 {{- end -}}
 
 {{/*
@@ -277,14 +277,14 @@ file the operator looks at.
 The strict-bool narrow on mode-critical toggles runs UNCONDITIONALLY —
 even in POC mode — so a stringly `--set-string ha.enabled=true`,
 `--set-string githubCache.enabled=...`, or `--set-string
-maestro.persistence.enabled=...` fails with a clear message regardless
+maestro.temporaryStorage.enabled=...` fails with a clear message regardless
 of whether the helper is otherwise reached during this particular
 template's render path.
 */}}
 {{- define "maestro.haValidate" -}}
 {{- /* Force-narrow the mode-critical bools so stringly inputs fail loud. */ -}}
 {{- $_ := include "maestro.haEnabled" . -}}
-{{- $_ = include "maestro.persistenceEnabled" . -}}
+{{- $_ = include "maestro.temporaryStorageEnabled" . -}}
 {{- $ghExplicitNarrow := dig "enabled" nil (.Values.githubCache | default dict) -}}
 {{- if not (include "maestro.isUnset" $ghExplicitNarrow) -}}
   {{- $_ = include "maestro.boolOrFail" (dict "value" $ghExplicitNarrow "path" "githubCache.enabled") -}}
@@ -296,8 +296,8 @@ template's render path.
     {{- fail "ha.enabled=true requires objectStore.bucket to be set (artifacts must be durable across pods). See values.yaml for AWS-S3 and Rook-Ceph examples." -}}
   {{- end -}}
   {{- /* HA is incompatible with the maestro RWO PVC (Recreate strategy + replicas>1 deadlocks). */ -}}
-  {{- if include "maestro.persistenceEnabled" . -}}
-    {{- fail "ha.enabled=true is incompatible with maestro.persistence.enabled=true (Recreate strategy + RWO PVC deadlocks rolling updates under replicas>1). Use objectStore for artifacts; the github-cache StatefulSet already handles its own per-pod PVCs." -}}
+  {{- if include "maestro.temporaryStorageEnabled" . -}}
+    {{- fail "ha.enabled=true is incompatible with maestro.temporaryStorage.enabled=true (Recreate strategy + RWO PVC deadlocks rolling updates under replicas>1). Use objectStore for artifacts; the github-cache StatefulSet already handles its own per-pod PVCs." -}}
   {{- end -}}
   {{- /* HA requires the split github-cache. Explicit bool false fails. */ -}}
   {{- $ghExplicit := dig "enabled" nil (.Values.githubCache | default dict) -}}

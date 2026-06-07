@@ -14,7 +14,7 @@ fullnameOverride: ""
 #   ha.enabled=true — HA: two maestro pods + two mcp-gateway pods (operator
 #     can override higher), github-cache split into its StatefulSet +
 #     singleton provisioner, S3-compat object store REQUIRED for artifacts.
-#     Maestro `persistence.enabled` must be false (RWO PVC + Recreate
+#     Maestro `temporaryStorage.enabled` must be false (RWO PVC + Recreate
 #     strategy deadlocks rolling updates under replicas>1).
 #
 # Defaults for `maestro.replicas` and `githubCache.enabled` auto-derive
@@ -160,7 +160,7 @@ maestro:
     # Sidecar image. Overridable for air-gapped registries.
     image:
       repository: nginxinc/nginx-unprivileged
-      tag: "1.27-alpine"
+      tag: "1.31-alpine"
       pullPolicy: IfNotPresent
     # Additional resources for the sidecar.
     resources:
@@ -186,10 +186,17 @@ maestro:
       # `maestro.baseUrl`. Used only by the autoGenerate path.
       sans: []
       # Image used by the cert-init container. openssl CLI is the only
-      # requirement.
+      # requirement. Pinned to an immutable digest (SP5): the previous
+      # cgr.dev/chainguard/openssl:latest is a mutable floating tag, is not
+      # anonymously pullable, and is distroless (no /bin/sh — but the tls-init
+      # container overrides command: ["/bin/sh","-c"]). alpine/openssl is
+      # publicly pullable, Alpine-based (has /bin/sh), and ships the openssl CLI.
+      # Digest resolved via `crane digest alpine/openssl:3.5.6` (2026-06-06) and
+      # mirrors the server default in
+      # packages/maestro/src/lib/maestro-workload-config.ts.
       image:
-        repository: cgr.dev/chainguard/openssl
-        tag: latest
+        repository: alpine/openssl
+        tag: "3.5.6@sha256:87adbe7a8c904b825b9068d5a4060799b1e8280c67a64684f72cef376f627a46"
         pullPolicy: IfNotPresent
       # Inline-provided PEM certificate and private key. When both are
       # non-empty, the chart creates a kubernetes.io/tls Secret named
@@ -211,14 +218,21 @@ maestro:
     # cert.autoGenerate=true and cert.crt/cert.key.
     # secretName: ""
 
-  # Persistent storage for ephemeral working data: orchestra artifact
-  # payloads (per-run subdirs) and ontology git checkouts. Off by default
-  # — when enabled, mounts a PVC at `mountPath` and sets the env vars
-  # ORCHESTRA_ARTIFACT_DIR and ONTOLOGY_WORKSPACE_DIR so maestro routes
-  # both into the volume. Recommended for SaaS deployments where memory
-  # budgets are tight; not required for small/dev installs (orchestra
-  # falls back to its in-memory artifact store).
-  persistence:
+  # Scratch storage for rebuildable working data: orchestra artifact
+  # payloads (per-run subdirs) and ontology git checkouts. This is a
+  # throw-away cache, not durable state — contents are re-fetchable /
+  # re-clonable, so the backing PVC (<release>-maestro-scratch) carries
+  # the `scratch` token for data-classification tooling (matches the
+  # lakerunner scratch-volume convention; "definitely-no-backup").
+  # Off by default — when enabled, mounts a PVC at `mountPath` and sets
+  # the env vars ORCHESTRA_ARTIFACT_DIR and ONTOLOGY_WORKSPACE_DIR so
+  # maestro routes both into the volume. Recommended for SaaS deployments
+  # where memory budgets are tight; not required for small/dev installs
+  # (orchestra falls back to its in-memory artifact store).
+  #
+  # Renamed from `maestro.persistence` (chart 0.9.0). The old key now
+  # fails template rendering — see templates/deprecation-warnings.yaml.
+  temporaryStorage:
     enabled: false
     size: 5Gi
     accessMode: ReadWriteOnce
@@ -320,7 +334,7 @@ githubCache:
       # storageClass: ""   # leave empty to use the cluster default
       mountPath: /var/lib/github-cache
       # SELinux MCS level pinned across pod restarts so a re-attached PVC's
-      # mirror bytes stay readable (same rationale as maestro.persistence).
+      # mirror bytes stay readable (same rationale as maestro.temporaryStorage).
       seLinuxLevel: "s0:c100,c200"
     resources:
       requests:
@@ -443,6 +457,27 @@ dex:
   # maestro pod returns 404 for /<pathPrefix>/* and an Ingress is
   # required for the OIDC flow to work).
   # proxyEnabled: true
+  #
+  # Extra redirect URIs to whitelist on the maestro-ui Dex client, in
+  # addition to the canonical "<baseUrl>/" the chart always registers.
+  # Use this for non-prod origins that complete the same OIDC PKCE flow —
+  # e.g. a local Vite dev server (`ui-vite-dev`) pointed at this backend,
+  # which sends redirect_uri = http://localhost:5173/. Leave empty ([])
+  # in prod so only the real base URL is accepted.
+  # extraRedirectURIs:
+  #   - http://localhost:5173/
+  #
+  # CORS origins Dex allows on its own HTTP endpoints (discovery, token,
+  # keys). Needed when a browser SPA served from a DIFFERENT origin than
+  # the maestro backend completes OIDC against the bundled Dex — e.g. a
+  # local Vite dev server (`ui-vite-dev`) at http://localhost:5173, which
+  # fetches /dex/.well-known/openid-configuration cross-origin. maestro's
+  # CORS middleware covers /api but not the /dex reverse-proxy, so Dex must
+  # allow the origin itself. Values are origins (scheme+host[:port], no
+  # path/trailing slash) — the redirect counterpart is extraRedirectURIs.
+  # Leave empty ([]) in prod (SPA is same-origin with maestro).
+  # allowedOrigins:
+  #   - http://localhost:5173
 
 # Global settings
 global:

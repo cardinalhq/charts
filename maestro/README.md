@@ -170,14 +170,14 @@ One `maestro` pod + one `mcp-gateway` pod. The `github-cache` workloads are skip
 
 ### HA mode (`ha.enabled: true`)
 
-Two `maestro` pods + the `github-cache` `StatefulSet` (per-pod RWO PVCs for the mirror disks) and its singleton provisioner. **`mcp-gateway` runs as a native sidecar inside each maestro and github-cache pod** — there is no standalone `mcp-gateway` Deployment or Service. Artifact bytes are required to land in an S3-compatible object store. Maestro `persistence.enabled` is forbidden under HA (the RWO PVC + `Recreate` strategy combination deadlocks rolling updates at `replicas > 1`).
+Two `maestro` pods + the `github-cache` `StatefulSet` (per-pod RWO PVCs for the mirror disks) and its singleton provisioner. **`mcp-gateway` runs as a native sidecar inside each maestro and github-cache pod** — there is no standalone `mcp-gateway` Deployment or Service. Artifact bytes are required to land in an S3-compatible object store. Maestro `temporaryStorage.enabled` is forbidden under HA (the RWO PVC + `Recreate` strategy combination deadlocks rolling updates at `replicas > 1`).
 
 **Why mcp-gateway is a sidecar, not a Deployment**: most MCP drivers in the gateway (kube, lakerunner, jira, github, built-in tool servers) use stateful Streamable HTTP — a session opened on one pod can't be served by another. A standalone gateway Deployment with `replicas > 1` would round-robin and produce "session not found" errors. Co-locating one gateway per consumer pod and talking to it over loopback eliminates the cross-pod routing entirely. Sessions stay pod-local, no Service in the path. See `cardinalhq/conductor#838` for the upstream tracking issue.
 
 The chart fails template rendering — at install time, not silently at runtime — when any HA invariant is violated:
 
 * `ha.enabled=true` and `objectStore.bucket` is empty
-* `ha.enabled=true` and `maestro.persistence.enabled: true`
+* `ha.enabled=true` and `maestro.temporaryStorage.enabled: true`
 * `ha.enabled=true` and explicit `githubCache.enabled: false`
 * `ha.enabled=true` and explicit `maestro.replicas` or `mcpGateway.replicas` `< 2`
 * `objectStore.auth.existingSecret` set but a key-name field is blank
