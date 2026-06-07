@@ -27,11 +27,14 @@ spec:
           - |
             HASH=$(printf %s "$ADMIN_KEY" | sha256sum | cut -d' ' -f1)
             echo "seeding admin key hash ${HASH%${HASH#????}}… into admin_api_keys"
+            # The hash is lowercase hex (sha256) — no SQL-injection surface — so we
+            # inline it directly into the -c command string. psql does NOT expand
+            # -v variables (:'hash') inside -c, only in -f/stdin scripts, so the
+            # earlier -v approach failed with a syntax error.
             PGPASSWORD="$CONFIGDB_PASSWORD" psql \
               --set=ON_ERROR_STOP=1 \
               -h "$CONFIGDB_HOST" -p "$CONFIGDB_PORT" -U "$CONFIGDB_USER" -d "$CONFIGDB_NAME" \
-              -v hash="$HASH" \
-              -c "INSERT INTO admin_api_keys (key_hash, name, description) VALUES (:'hash', 'conductor-bootstrap', 'seeded by conductor bootstrap') ON CONFLICT (key_hash) DO NOTHING;"
+              -c "INSERT INTO admin_api_keys (key_hash, name, description) VALUES ('$HASH', 'conductor-bootstrap', 'seeded by conductor bootstrap') ON CONFLICT (key_hash) DO NOTHING;"
             echo "done"
         env:
           - name: ADMIN_KEY

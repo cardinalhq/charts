@@ -46,10 +46,25 @@ spec:
           {{- toYaml .Values.setup.resources | nindent 10 }}
         {{- end }}
         volumeMounts:
+        {{- /* migrate runs initialize-if-needed which reads STORAGE_PROFILE_FILE
+               (set by injectEnvSetup); mount the (empty) storage-profiles
+               ConfigMap so that step succeeds instead of erroring on a missing
+               file. The ConfigMap is itself a pre-install hook (weight -10). */}}
+        {{- if eq .Values.storageProfiles.source "config" }}
+        - name: storage-profiles
+          mountPath: /app/config/storage_profiles.yaml
+          subPath: storage_profiles.yaml
+          readOnly: true
+        {{- end }}
         - name: scratch
           mountPath: /scratch
         {{- include "lakerunner.licenseVolumeMount" . | nindent 8 }}
       volumes:
+      {{- if eq .Values.storageProfiles.source "config" }}
+      - name: storage-profiles
+        configMap:
+          name: {{ include "lakerunner.storageProfilesConfigmapName" . }}
+      {{- end }}
       {{- include "lakerunner.ephemeralVolumeBasic" (list "scratch" .) | nindent 6 }}
       {{- include "lakerunner.licenseVolume" . | nindent 6 }}
   backoffLimit: 3

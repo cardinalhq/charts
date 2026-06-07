@@ -1,4 +1,9 @@
-# Postgres 18 fixture for the conductor fresh-install test.
+# Postgres 18 (pgvector) fixture for the conductor fresh-install test.
+#
+# Image: pgvector/pgvector:pg18 — Postgres 18 with the pgvector ("vector")
+# extension preinstalled. The maestro/mcp-gateway migrations require the
+# vector, pgcrypto, and citext extensions; plain postgres:18-alpine lacks
+# pgvector and fails migration 000001 with `extension "vector" is not available`.
 #
 # Provides the three databases the unified chart expects, each owned by its own
 # role (matching the chart's default usernames):
@@ -39,8 +44,10 @@ data:
     CREATE DATABASE configdb OWNER config;
     GRANT ALL PRIVILEGES ON DATABASE configdb TO config;
 
-    -- maestro
-    CREATE ROLE maestro WITH LOGIN PASSWORD 'testpassword123';
+    -- maestro. SUPERUSER so the mcp-gateway migrations can run
+    -- `CREATE EXTENSION vector/pgcrypto/citext` (vector is not a trusted
+    -- extension, so a plain role cannot create it). Test-only convenience.
+    CREATE ROLE maestro WITH LOGIN SUPERUSER PASSWORD 'testpassword123';
     CREATE DATABASE maestro OWNER maestro;
     GRANT ALL PRIVILEGES ON DATABASE maestro TO maestro;
 
@@ -76,7 +83,8 @@ spec:
     spec:
       containers:
         - name: postgres
-          image: public.ecr.aws/docker/library/postgres:18-alpine
+          # pgvector-enabled Postgres 18 (maestro migrations need CREATE EXTENSION vector)
+          image: pgvector/pgvector:pg18
           env:
             - { name: POSTGRES_USER, value: "lakerunner" }
             - name: POSTGRES_PASSWORD

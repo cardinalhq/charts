@@ -40,4 +40,11 @@ spec:
         resources:
           {{- toYaml .Values.mcpGateway.resources | nindent 10 }}
         {{- end }}
+        {{- /* mcp-gateway validates the license at /app/license/license.json
+               before doing ANYTHING (including MCP_MIGRATE_ONLY), so the migrate
+               Job must mount it just like the maestro Deployment does. */}}
+        volumeMounts:
+        {{- include "maestro.licenseVolumeMount" . | nindent 8 }}
+      volumes:
+      {{- include "maestro.licenseVolume" . | nindent 6 }}
 {{- end }}
