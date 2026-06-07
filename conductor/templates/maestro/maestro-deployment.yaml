@@ -162,6 +162,41 @@ spec:
           {{- with .Values.maestro.env }}
           {{- toYaml . | nindent 10 }}
           {{- end }}
+          {{- if include "conductor.bootstrapEnabled" . }}
+          - name: MAESTRO_BOOTSTRAP_ORG_ID
+            value: {{ required "bootstrap.org.id is required when bootstrap.mode!=never" .Values.bootstrap.org.id | quote }}
+          - name: MAESTRO_BOOTSTRAP_ORG_NAME
+            value: {{ .Values.bootstrap.org.name | default "default" | quote }}
+          - name: MAESTRO_BOOTSTRAP_OWNER_EMAIL
+            value: {{ required "bootstrap.org.ownerEmail is required when bootstrap.mode!=never" .Values.bootstrap.org.ownerEmail | quote }}
+          - name: MAESTRO_BOOTSTRAP_LAKERUNNER_QUERY_API_URL
+            value: {{ include "conductor.queryApiUrl" . | quote }}
+          - name: MAESTRO_BOOTSTRAP_LAKERUNNER_ADMIN_API_URL
+            value: {{ include "conductor.adminApiUrl" . | quote }}
+          - name: MAESTRO_BOOTSTRAP_LAKERUNNER_ADMIN_API_KEY
+            valueFrom:
+              secretKeyRef:
+                name: {{ include "conductor.adminKeySecretName" . }}
+                key: {{ include "conductor.adminKeySecretKey" . }}
+          {{- if .Values.bootstrap.bucket.name }}
+          - name: MAESTRO_BOOTSTRAP_BUCKET_NAME
+            value: {{ .Values.bootstrap.bucket.name | quote }}
+          - name: MAESTRO_BOOTSTRAP_BUCKET_REGION
+            value: {{ .Values.bootstrap.bucket.region | default "us-east-1" | quote }}
+          - name: MAESTRO_BOOTSTRAP_BUCKET_CLOUD_PROVIDER
+            value: {{ .Values.bootstrap.bucket.cloudProvider | default "aws" | quote }}
+          - name: MAESTRO_BOOTSTRAP_BUCKET_COLLECTOR_NAME
+            value: {{ .Values.bootstrap.bucket.collectorName | default "default" | quote }}
+          {{- with .Values.bootstrap.bucket.endpoint }}
+          - name: MAESTRO_BOOTSTRAP_BUCKET_ENDPOINT
+            value: {{ . | quote }}
+          {{- end }}
+          - name: MAESTRO_BOOTSTRAP_BUCKET_USE_PATH_STYLE
+            value: {{ .Values.bootstrap.bucket.usePathStyle | default false | quote }}
+          - name: MAESTRO_BOOTSTRAP_BUCKET_INSECURE_TLS
+            value: {{ .Values.bootstrap.bucket.insecureTls | default false | quote }}
+          {{- end }}
+          {{- end }}
         readinessProbe:
           httpGet:
             path: /api/health
