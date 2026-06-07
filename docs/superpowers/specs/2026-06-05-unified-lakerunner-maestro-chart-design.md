@@ -113,6 +113,21 @@ chart/
 Flat, monolithic. A migration guide ships a values-mapping note for adopters
 concatenating their two override files onto the unified keys.
 
+### 5.4 Image registries
+Per the updated `lakerunner-cloudformation` reference (`cardinal-defaults.yaml`,
+`image_manifest.py`), the standard is **100% `public.ecr.aws/cardinalhq.io/*` for all
+Cardinal-owned images** (lakerunner, maestro, dex-customization, otel-collector),
+SHA-pinned, with third-party images mirrored on ecr-public
+(`public.ecr.aws/docker/library/postgres:18-alpine`, `public.ecr.aws/aws-cli/...`).
+**ecr-public is the default; ghcr.io is the documented alternate.** The unified chart
+should default Cardinal images to ecr-public for consistency.
+- **Discrepancy to resolve:** the legacy lakerunner chart defaults its image to
+  `ghcr.io/cardinalhq/lakerunner`, whereas maestro + CF use `public.ecr.aws/cardinalhq.io/*`.
+  Decision (pending user confirm): unify the default to `public.ecr.aws/cardinalhq.io/lakerunner`,
+  keeping ghcr.io as a documented override. **Deferred out of sub-project A** (which copies
+  live values verbatim to keep render-parity clean); applied as a deliberate values change
+  before/within sub-project B so the diff is intentional and reviewable.
+
 ## 6. Bootstrap — phased, not one monolithic hook
 
 Codex review rejected stuffing migrations + classification + credential minting +
