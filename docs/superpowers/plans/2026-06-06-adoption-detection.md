@@ -21,19 +21,29 @@
 - configdb (lakerunner): `SELECT count(*) FROM organizations`, `... admin_api_keys`, `... organization_buckets`.
 - maestro: `SELECT count(*) FROM maestro_organizations`; legacy lakerunner integration `SELECT count(*) FROM maestro_integrations WHERE type='lakerunner' AND deployment_id IS NULL`; conductor's shared deployment (must match maestro's `listSharedAutoAddEnabled`): `SELECT count(*) FROM maestro_lakerunner_deployments WHERE source='shared_cardinal' AND enabled AND is_demo=false AND auto_add_to_all_orgs AND btrim(coalesce(admin_api_url,''))<>'' AND btrim(coalesce(admin_api_key,''))<>''`.
 
-**Classifier (the core logic):**
+**Classifier (the core logic).** Safe rule: under `auto`, bootstrap ONLY when conductor
+already owns the shared deployment (idempotent) OR everything is truly empty (fresh);
+**abort on any other populated/partial state** (operator must choose `adopt` or `force`).
+This guarantees "never clobber/duplicate; fail loudly."
 ```
-LR_PROVISIONED   = configdb.organization_buckets > 0  OR configdb.organizations > 0
-MAESTRO_SHARED   = maestro_lakerunner_deployments(shared_cardinal eligible) > 0
-MAESTRO_LEGACY   = maestro_integrations(lakerunner, deployment_id IS NULL) > 0
-MAESTRO_ORGS     = maestro_organizations > 0
+# configdb (lakerunner)
+LR_BUCKETS   = count(organization_buckets); LR_ORGS = count(organizations); LR_KEYS = count(admin_api_keys)
+# maestro
+M_SHARED = count(maestro_lakerunner_deployments WHERE shared_cardinal eligible)   # == maestro listSharedAutoAddEnabled
+M_ORGS   = count(maestro_organizations); M_LEGACY = count(maestro_integrations WHERE type='lakerunner' AND deployment_id IS NULL)
+
+LR_STATE = (LR_BUCKETS>0 OR LR_ORGS>0 OR LR_KEYS>0)
+M_STATE  = (M_ORGS>0 OR M_LEGACY>0)
 
 classify:
-  if MAESTRO_SHARED                         -> ADOPT_CONDUCTOR   (idempotent: proceed; key-seed no-ops; maestro skips)
-  elif not LR_PROVISIONED and not MAESTRO_ORGS -> FRESH          (proceed: seed + provision)
-  elif MAESTRO_LEGACY or (MAESTRO_ORGS and not MAESTRO_SHARED)  -> ADOPT_LEGACY (ABORT under auto: "set bootstrap.mode=adopt")
-  else                                       -> ERROR            (ABORT: inconsistent — e.g. configdb provisioned but maestro empty, or vice versa)
+  if M_SHARED>0                      -> ADOPT_CONDUCTOR  (exit 0: idempotent; key-seed no-ops; maestro skips)
+  elif not LR_STATE and not M_STATE  -> FRESH            (exit 0: seed + provision)
+  elif LR_STATE and M_STATE          -> ADOPT_LEGACY     (exit 1 abort: "set bootstrap.mode=adopt")
+  else                               -> ERROR            (exit 1 abort: only one side populated — inconsistent)
 ```
+Note: `admin_api_keys` and `maestro_integrations`-alone are now part of the populated
+signals, so legacy/partial states never slip through as FRESH. The FRESH branch requires
+BOTH sides empty.
 
 ---
 
@@ -110,20 +120,23 @@ Create `conductor/templates/bootstrap/detect-job.yaml`: a `pre-install,pre-upgra
 
 ```sh
 set -eu
-q() { PGPASSWORD="$2" psql -tA -v ON_ERROR_STOP=1 -h "$3" -p "$4" -U "$5" -d "$6" -c "$1"; }
-LR_BUCKETS=$(q "SELECT count(*) FROM organization_buckets;"     "$CONFIGDB_PASSWORD" "$CONFIGDB_HOST" "$CONFIGDB_PORT" "$CONFIGDB_USER" "$CONFIGDB_NAME")
-LR_ORGS=$(q    "SELECT count(*) FROM organizations;"            "$CONFIGDB_PASSWORD" "$CONFIGDB_HOST" "$CONFIGDB_PORT" "$CONFIGDB_USER" "$CONFIGDB_NAME")
-M_ORGS=$(q     "SELECT count(*) FROM maestro_organizations;"    "$MDB_PASSWORD" "$MDB_HOST" "$MDB_PORT" "$MDB_USER" "$MDB_NAME")
-M_SHARED=$(q   "SELECT count(*) FROM maestro_lakerunner_deployments WHERE source='shared_cardinal' AND enabled AND is_demo=false AND auto_add_to_all_orgs AND btrim(coalesce(admin_api_url,''))<>'' AND btrim(coalesce(admin_api_key,''))<>'';" "$MDB_PASSWORD" "$MDB_HOST" "$MDB_PORT" "$MDB_USER" "$MDB_NAME")
-M_LEGACY=$(q   "SELECT count(*) FROM maestro_integrations WHERE type='lakerunner' AND deployment_id IS NULL;" "$MDB_PASSWORD" "$MDB_HOST" "$MDB_PORT" "$MDB_USER" "$MDB_NAME")
-echo "signals: lr_buckets=$LR_BUCKETS lr_orgs=$LR_ORGS m_orgs=$M_ORGS m_shared=$M_SHARED m_legacy=$M_LEGACY"
-LR_PROV=0; [ "$LR_BUCKETS" -gt 0 ] || [ "$LR_ORGS" -gt 0 ] && LR_PROV=1
+q() { PGPASSWORD="$2" PGSSLMODE="$7" psql -tA -v ON_ERROR_STOP=1 -h "$3" -p "$4" -U "$5" -d "$6" -c "$1"; }
+LR_BUCKETS=$(q "SELECT count(*) FROM organization_buckets;" "$CONFIGDB_PASSWORD" "$CONFIGDB_HOST" "$CONFIGDB_PORT" "$CONFIGDB_USER" "$CONFIGDB_NAME" "$CONFIGDB_SSLMODE")
+LR_ORGS=$(q    "SELECT count(*) FROM organizations;"        "$CONFIGDB_PASSWORD" "$CONFIGDB_HOST" "$CONFIGDB_PORT" "$CONFIGDB_USER" "$CONFIGDB_NAME" "$CONFIGDB_SSLMODE")
+LR_KEYS=$(q    "SELECT count(*) FROM admin_api_keys;"       "$CONFIGDB_PASSWORD" "$CONFIGDB_HOST" "$CONFIGDB_PORT" "$CONFIGDB_USER" "$CONFIGDB_NAME" "$CONFIGDB_SSLMODE")
+M_ORGS=$(q     "SELECT count(*) FROM maestro_organizations;" "$MDB_PASSWORD" "$MDB_HOST" "$MDB_PORT" "$MDB_USER" "$MDB_NAME" "$MDB_SSLMODE")
+M_SHARED=$(q   "SELECT count(*) FROM maestro_lakerunner_deployments WHERE source='shared_cardinal' AND enabled AND is_demo=false AND auto_add_to_all_orgs AND btrim(coalesce(admin_api_url,''))<>'' AND btrim(coalesce(admin_api_key,''))<>'';" "$MDB_PASSWORD" "$MDB_HOST" "$MDB_PORT" "$MDB_USER" "$MDB_NAME" "$MDB_SSLMODE")
+M_LEGACY=$(q   "SELECT count(*) FROM maestro_integrations WHERE type='lakerunner' AND deployment_id IS NULL;" "$MDB_PASSWORD" "$MDB_HOST" "$MDB_PORT" "$MDB_USER" "$MDB_NAME" "$MDB_SSLMODE")
+echo "signals: lr_buckets=$LR_BUCKETS lr_orgs=$LR_ORGS lr_keys=$LR_KEYS m_orgs=$M_ORGS m_shared=$M_SHARED m_legacy=$M_LEGACY"
+LR_STATE=0; { [ "$LR_BUCKETS" -gt 0 ] || [ "$LR_ORGS" -gt 0 ] || [ "$LR_KEYS" -gt 0 ]; } && LR_STATE=1
+M_STATE=0;  { [ "$M_ORGS" -gt 0 ] || [ "$M_LEGACY" -gt 0 ]; } && M_STATE=1
 if [ "$M_SHARED" -gt 0 ]; then echo "ADOPT_CONDUCTOR: shared deployment present — idempotent, proceeding"; exit 0; fi
-if [ "$LR_PROV" -eq 0 ] && [ "$M_ORGS" -eq 0 ]; then echo "FRESH: proceeding with bootstrap"; exit 0; fi
-if [ "$M_LEGACY" -gt 0 ] || [ "$M_ORGS" -gt 0 ]; then
+if [ "$LR_STATE" -eq 0 ] && [ "$M_STATE" -eq 0 ]; then echo "FRESH: proceeding with bootstrap"; exit 0; fi
+if [ "$LR_STATE" -eq 1 ] && [ "$M_STATE" -eq 1 ]; then
   echo "ADOPT_LEGACY: existing non-conductor install detected. Re-run with bootstrap.mode=adopt to adopt it without provisioning."; exit 1; fi
-echo "ERROR: inconsistent state (configdb provisioned but maestro empty, or vice versa). Investigate before proceeding."; exit 1
+echo "ERROR: inconsistent state — only one of lakerunner/configdb or maestro is populated. Investigate; use bootstrap.mode=adopt or force to override."; exit 1
 ```
+(Env also provides `CONFIGDB_SSLMODE`/`MDB_SSLMODE` from each DB's `.sslMode | default "require"`.)
 
 Env: `CONFIGDB_*` from `.Values.configdb` (mirror the key-seed Job's env, incl. `PGSSLMODE` from `.Values.configdb.lrdb.sslMode`); `MDB_*` from `.Values.maestroDatabase` (host/port/name/user + password via `secretKeyRef` to `include "maestro.databaseSecretName" .`, plus `PGSSLMODE` from `.Values.maestroDatabase.sslMode`). Use `serviceAccountName: {{ include "conductor.serviceAccountName" . }}`, `restartPolicy: Never`, `backoffLimit: 0` (a classification failure must abort, not retry).
 
