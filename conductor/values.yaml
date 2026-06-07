@@ -1227,3 +1227,31 @@ dex:
   # Leave empty ([]) in prod (SPA is same-origin with maestro).
   # allowedOrigins:
   #   - http://localhost:5173
+
+# Fresh-install bootstrap. On a fresh install the chart seeds a shared admin key
+# and Maestro provisions a shared LakeRunner org at boot. On adoption set
+# mode: never (sub-project C adds full auto-detection).
+bootstrap:
+  # auto = run the fresh-install bootstrap (seed key + render MAESTRO_BOOTSTRAP_*).
+  # never = skip everything (adopt: point at existing external DB/store, no provisioning).
+  # force = same as auto (reserved; C differentiates auto vs force via detection).
+  mode: auto
+  # The shared org Maestro provisions and that telemetry is attributed to.
+  org:
+    id: ""                 # UUID; REQUIRED when mode!=never. e.g. 11111111-1111-1111-1111-111111111111
+    name: "default"
+    ownerEmail: ""         # REQUIRED when mode!=never
+  # Admin key shared by admin-api (validated from configdb) and Maestro.
+  adminKey:
+    # When set, use this existing Secret instead of generating one (sealed-secrets/GitOps).
+    existingSecret: ""
+    existingSecretKey: "admin-api-key"
+  # Bucket coordinates Maestro provisions for the shared org. Mirror the object store.
+  bucket:
+    name: ""               # REQUIRED when mode!=never
+    region: "us-east-1"
+    cloudProvider: "aws"   # aws|gcp|azure
+    collectorName: "default"
+    endpoint: ""           # S3-compatible endpoint (rustfs/minio)
+    usePathStyle: false
+    insecureTls: false

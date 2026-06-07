@@ -1181,3 +1181,30 @@ injected. Override with .Values.serviceAccount.name. Per-component SAs
 {{- .Values.serviceAccount.name -}}
 {{- end -}}
 {{- end }}
+
+{{/* Whether fresh-install bootstrap is active (false when mode=never). */}}
+{{- define "conductor.bootstrapEnabled" -}}
+{{- ne (.Values.bootstrap.mode | default "auto") "never" -}}
+{{- end }}
+
+{{/* Name of the admin-key anchor Secret (operator-supplied or chart-managed). */}}
+{{- define "conductor.adminKeySecretName" -}}
+{{- if .Values.bootstrap.adminKey.existingSecret -}}
+{{- .Values.bootstrap.adminKey.existingSecret -}}
+{{- else -}}
+{{- printf "%s-admin-api-key" .Release.Name | trunc 63 | trimSuffix "-" -}}
+{{- end -}}
+{{- end }}
+
+{{/* Key name within the admin-key Secret. */}}
+{{- define "conductor.adminKeySecretKey" -}}
+{{- .Values.bootstrap.adminKey.existingSecretKey | default "admin-api-key" -}}
+{{- end }}
+
+{{/* In-cluster admin-api / query-api base URLs (release-scoped service names). */}}
+{{- define "conductor.adminApiUrl" -}}
+{{- printf "http://%s-lakerunner-admin-api:9091" .Release.Name -}}
+{{- end }}
+{{- define "conductor.queryApiUrl" -}}
+{{- printf "http://%s-lakerunner-query-api:8080" .Release.Name -}}
+{{- end }}
