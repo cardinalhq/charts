@@ -164,16 +164,23 @@ serviceAccount:
   name: ""        # empty → conductor.serviceAccountName uses the release name
   annotations: {}
 
-# License configuration
-# A valid license is required for LakeRunner to operate.
-# The license secret is always mounted to /app/license in all pods.
+# License configuration (single shared CardinalHQ suite license).
+# One license covers BOTH the lakerunner pipeline and maestro; the secret is
+# mounted to /app/license in all pods of both families. Each family prefixes the
+# secret name with its own fullname, so this renders as
+# <release>-lakerunner-cardinal-license and <release>-maestro-cardinal-license.
+# A valid license is required to operate.
+#
+# BYOS (bring your own secret): adopters with an existing license secret should
+# set license.create=false and license.secretName to that secret's name.
 license:
   # Whether to create the license secret from the data below.
   # Set to false to use an existing secret (BYOS).
   create: true
   # Name of the Kubernetes secret containing the license.
-  # Used whether create is true or false.
-  secretName: "lakerunner-license"
+  # Used whether create is true or false. Neutral suite name (not product-specific)
+  # since one license is shared by lakerunner and maestro.
+  secretName: "cardinal-license"
   # Raw license.json content (only used when create: true).
   # The content will be stored under the key "license.json" in the secret.
   data: ""
@@ -1169,11 +1176,11 @@ ingress:
 
 # Bundled Dex OIDC provider. Most fields are kept out of this file on purpose
 # so that `--set dex.enabled=true` is enough to turn it on — defaults live in
-# templates/_helpers.tpl (maestro.dexConfig) and inline `dig` in the dex
+# templates/_helpers-maestro.tpl (maestro.dexConfig) and inline `dig` in the dex
 # templates. `resources` is surfaced here so operators can tune CPU/memory
 # without chasing template internals.
 dex:
-  # Dex container image. Defaults are also defined in templates/_helpers.tpl
+  # Dex container image. Defaults are also defined in templates/_helpers-maestro.tpl
   # (maestro.dexConfig) so `--set dex.enabled=true` keeps working with
   # zero extra fields. Surfaced here so air-gapped/private-registry
   # installs can override without chasing template internals.

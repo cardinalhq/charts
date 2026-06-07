@@ -3,6 +3,11 @@
 {{- $mReplicas := include "maestro.replicas" (dict "root" . "explicit" .Values.maestro.replicas) -}}
 {{- $gReplicas := include "maestro.replicas" (dict "root" . "explicit" .Values.mcpGateway.replicas) -}}
 {{- $bucket := dig "bucket" "" (.Values.objectStore | default dict) -}}
+conductor — the unified CardinalHQ chart — is installed. It deploys BOTH:
+  - lakerunner: the log/metrics/trace pipeline (process-logs/metrics/traces,
+    query-api, query-worker, control-plane, pubsub ingest, setup job)
+  - maestro: the UI + mcp-gateway + (optional) Dex OIDC, with github-cache in HA
+
 Mode:               {{ if $ha }}HA{{ else }}POC{{ end }}
 Maestro replicas:   {{ $mReplicas }}
 MCP-gateway replicas: {{ $gReplicas }}
@@ -18,6 +23,22 @@ but artifact persistence isn't strictly required in POC mode — set ha.enabled=
 to commit to multi-pod operation.
 {{- end }}
 
-To verify:
-  kubectl -n {{ .Release.Namespace }} get pods -l app.kubernetes.io/instance={{ .Release.Name }}
+Reach the maestro UI:
+{{- if .Values.ingress.enabled }}
+  Ingress is enabled — browse to https://{{ .Values.ingress.host | default "<ingress.host>" }}/
+{{- else }}
+  No Ingress configured. Port-forward the maestro Service:
+    kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "maestro.fullname" . }}-maestro {{ .Values.maestro.port }}:{{ .Values.maestro.port }}
+  then open http://localhost:{{ .Values.maestro.port }}/
+{{- end }}
+
+Check the lakerunner pipeline:
+  kubectl -n {{ .Release.Namespace }} get pods -l app.kubernetes.io/name=lakerunner
+  kubectl -n {{ .Release.Namespace }} logs -l app.kubernetes.io/component=control-plane --tail=50
+
+Check maestro:
+  kubectl -n {{ .Release.Namespace }} get pods -l app.kubernetes.io/name=maestro
   kubectl -n {{ .Release.Namespace }} logs -l app.kubernetes.io/component=maestro --tail=50
+
+All pods for this release:
+  kubectl -n {{ .Release.Namespace }} get pods -l app.kubernetes.io/instance={{ .Release.Name }}
