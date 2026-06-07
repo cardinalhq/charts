@@ -1,0 +1,178 @@
+# Shared external Postgres 18 (pgvector) + rustfs S3 store for the adoption test.
+# These are the EXTERNAL stores that survive `helm uninstall` of the legacy
+# charts and are then adopted by conductor. Namespace-agnostic (short service
+# names only), so the same manifest works in conductor-adopt / conductor-fail.
+#
+# Mirrors test/fresh-install/10-postgres.yaml + 20-rustfs.yaml.
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: pg-credentials
+  labels: { app: postgres }
+type: Opaque
+stringData:
+  LRDB_PASSWORD: "testpassword123"
+  CONFIGDB_PASSWORD: "testpassword123"
+  MAESTRO_DB_PASSWORD: "testpassword123"
+  POSTGRES_PASSWORD: "testpassword123"
+---
+# Shared S3 credentials secret used by BOTH legacy charts (lakerunner +
+# maestro) and conductor — so maestro's objectStore.auth.existingSecret and
+# lakerunner's cloudProvider.aws.secretName both resolve to the same secret.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: aws-credentials
+  labels: { app: rustfs }
+type: Opaque
+stringData:
+  AWS_ACCESS_KEY_ID: "rustfsadmin"
+  AWS_SECRET_ACCESS_KEY: "rustfsadmin"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-init
+  labels: { app: postgres }
+data:
+  01-init.sql: |
+    CREATE ROLE config WITH LOGIN PASSWORD 'testpassword123';
+    CREATE DATABASE configdb OWNER config;
+    GRANT ALL PRIVILEGES ON DATABASE configdb TO config;
+
+    CREATE ROLE maestro WITH LOGIN SUPERUSER PASSWORD 'testpassword123';
+    CREATE DATABASE maestro OWNER maestro;
+    GRANT ALL PRIVILEGES ON DATABASE maestro TO maestro;
+
+    ALTER ROLE lakerunner CREATEDB;
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-data
+  labels: { app: postgres }
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+  labels: { app: postgres }
+spec:
+  replicas: 1
+  strategy: { type: Recreate }
+  selector: { matchLabels: { app: postgres } }
+  template:
+    metadata:
+      labels: { app: postgres }
+    spec:
+      containers:
+        - name: postgres
+          image: pgvector/pgvector:pg18
+          env:
+            - { name: POSTGRES_USER, value: "lakerunner" }
+            - name: POSTGRES_PASSWORD
+              valueFrom: { secretKeyRef: { name: pg-credentials, key: POSTGRES_PASSWORD } }
+            - { name: POSTGRES_DB, value: "lakerunner" }
+            - { name: PGDATA, value: "/var/lib/postgresql/data/pgdata" }
+          ports: [{ containerPort: 5432 }]
+          volumeMounts:
+            - { name: data, mountPath: /var/lib/postgresql/data }
+            - { name: init, mountPath: /docker-entrypoint-initdb.d }
+          readinessProbe:
+            exec: { command: ["pg_isready", "-U", "lakerunner"] }
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            exec: { command: ["pg_isready", "-U", "lakerunner"] }
+            initialDelaySeconds: 15
+            periodSeconds: 10
+      volumes:
+        - { name: data, persistentVolumeClaim: { claimName: postgres-data } }
+        - { name: init, configMap: { name: postgres-init } }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  labels: { app: postgres }
+spec:
+  selector: { app: postgres }
+  ports: [{ port: 5432, targetPort: 5432 }]
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: rustfs-data
+  labels: { app: rustfs }
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 20Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rustfs
+  labels: { app: rustfs }
+spec:
+  replicas: 1
+  strategy: { type: Recreate }
+  selector: { matchLabels: { app: rustfs } }
+  template:
+    metadata:
+      labels: { app: rustfs }
+    spec:
+      securityContext: { fsGroup: 10001 }
+      containers:
+        - name: rustfs
+          image: rustfs/rustfs:1.0.0-beta.7
+          env:
+            - { name: RUSTFS_ACCESS_KEY, value: "rustfsadmin" }
+            - { name: RUSTFS_SECRET_KEY, value: "rustfsadmin" }
+            - { name: RUSTFS_VOLUMES, value: "/data" }
+            - { name: RUSTFS_CONSOLE_ADDRESS, value: ":9001" }
+          ports: [{ containerPort: 9000 }, { containerPort: 9001 }]
+          volumeMounts: [{ name: data, mountPath: /data }]
+      volumes: [{ name: data, persistentVolumeClaim: { claimName: rustfs-data } }]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: rustfs
+  labels: { app: rustfs }
+spec:
+  selector: { app: rustfs }
+  ports:
+    - { name: api, port: 9000, targetPort: 9000 }
+    - { name: console, port: 9001, targetPort: 9001 }
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: rustfs-mkbucket
+  labels: { app: rustfs }
+spec:
+  backoffLimit: 10
+  template:
+    metadata:
+      labels: { app: rustfs-mkbucket }
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: mc
+          image: minio/mc:RELEASE.2025-04-08T15-39-49Z
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              until mc alias set m http://rustfs:9000 rustfsadmin rustfsadmin; do
+                echo "waiting for rustfs..."; sleep 3
+              done
+              mc mb --ignore-existing m/lakerunner
+              mc ls m
