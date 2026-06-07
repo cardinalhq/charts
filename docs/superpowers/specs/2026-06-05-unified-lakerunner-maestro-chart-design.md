@@ -301,6 +301,17 @@ Detection lands in **adopt** and no-ops all provisioning.
   Postgres/object-store backup beforehand, and notes github-cache **cold-starts**
   (re-clones mirrors) after adoption.
 
+## 7a. Dex / OIDC (sub-project D) — outcome
+The chart-native dex (configmap/deployment/service + issuer/jwks/redirect/proxy helpers
+and `oidcEnv`) carried over from the maestro chart intact; **no ECS-specific assumptions
+exist** (point 6 satisfied). D's substantive fix: A's subdir move broke the one cross-file
+path reference — `dex-deployment.yaml`'s `checksum/config` used
+`$.Template.BasePath "/dex-configmap.yaml"`, now `"/maestro/dex-configmap.yaml"` — which
+had made dex fail to render when `dex.enabled=true` (missed by A's parity test and B's
+install because dex defaults off). Verified: dex renders; maestro `OIDC_ISSUER_URL`
+matches dex's `issuer`; JWKS via in-cluster service; redirect URI = baseUrl; disabled by
+default. (No other `Template.BasePath` references exist, so no sibling breakage.)
+
 ## 8. Testing
 
 ### 8.1 Adoption test (kubepi cluster, dedicated namespace)
