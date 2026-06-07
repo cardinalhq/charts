@@ -419,6 +419,30 @@ processLogs:
     maxReplicas: 10
   healthProbes:
     enabled: null # null = inherit from global.healthProbes.enabled
+  # Optional in-process agent-sessions sub-processor. When enabled, the
+  # log-ingest hook scans each just-written Parquet bin for claude-code
+  # records and UPSERTs them into the agent_sessions table that powers
+  # the Outcome Observability dashboard. Off by default — turning it
+  # on requires the v1.41.1+ lakerunner image. See
+  # docs/specs/agent-sessions.md in the lakerunner repo for the design.
+  #
+  # Resource cost is small: the tap is one extra DuckDB read per bin
+  # (negligible when no claude-code rows are present, which is the
+  # common case). The consumer goroutine is bounded by lrdb write
+  # throughput, not memory.
+  #
+  # When rulesConfigMap.enabled is false (default), the sweeper falls
+  # back to the "stale-pending → unknown" path — counters/context/
+  # lifecycle still populate; only verdict classification is inactive.
+  agentSessions:
+    enabled: false
+    # Mount a ConfigMap at /etc/lakerunner/agent-sessions-rules.yaml.
+    # The operator owns the rules.yaml content; the chart only wires
+    # the volume.
+    rulesConfigMap:
+      enabled: false
+      # Defaults to "<release>-agent-sessions-rules" if empty.
+      name: ""
   labels: {}
   annotations: {}
   nodeSelector: {}
@@ -492,6 +516,7 @@ processTraces:
   nodeSelector: {}
   tolerations: []
   affinity: {}
+
 
 # Control-plane configuration.
 #
