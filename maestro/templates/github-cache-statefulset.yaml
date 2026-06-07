@@ -33,7 +33,7 @@ spec:
       serviceAccountName: {{ include "maestro.serviceAccountName" . }}
       {{- /*
         Pin SELinux MCS categories so a re-attached PVC's mirror bytes stay
-        readable across pod restarts (same rationale as maestro.persistence).
+        readable across pod restarts (same rationale as maestro.temporaryStorage).
         Operators can override seLinuxOptions in serving.podSecurityContext.
       */}}
       {{- $podSec := $serving.podSecurityContext | default dict -}}
