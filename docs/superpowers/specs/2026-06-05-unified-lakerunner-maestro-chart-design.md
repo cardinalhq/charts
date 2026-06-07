@@ -257,6 +257,14 @@ assumptions:
   integration row), NOT `maestro_lakerunner_deployments.id`. (Corrects the B plan.)
 - **key-seed inlines the sha256 hex** into the `psql -c` string (hex-only → injection-safe)
   because `psql -c` does not expand `-v` variables.
+- **Postgres connection footprint (sizing — surfaced in C testing).** The full
+  lakerunner stack's pgx pools + maestro can exhaust a modestly-sized Postgres
+  (`too many clients`, SQLSTATE 53300), especially during a rolling **upgrade** that
+  briefly runs ~2× pods. The test fixture uses `max_connections=400`. Adoption/prod
+  implication: customers pointing at an existing Postgres must size `max_connections`
+  for the full stack (or front it with pgbouncer — already part of the LR topology;
+  note migrations need a direct, non-pgbouncer connection for advisory locks). Add this
+  to the migration guide's sizing prerequisites.
 - **Validated end-to-end:** collector → rustfs → pubsub-http → process-* → cooked
   segments; data returned by BOTH `query-api` direct (org key) and the maestro proxy
   (`X-Org-Id` + per-user key). Marker `service_name=fresh-test`.
