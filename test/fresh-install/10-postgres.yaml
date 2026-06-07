@@ -85,6 +85,10 @@ spec:
         - name: postgres
           # pgvector-enabled Postgres 18 (maestro migrations need CREATE EXTENSION vector)
           image: pgvector/pgvector:pg18
+          # Raise the connection ceiling — the full lakerunner stack's pgx pools
+          # (especially during rolling upgrades that briefly double pods) exceed
+          # Postgres's default max_connections=100 → "too many clients".
+          args: ["-c", "max_connections=400", "-c", "shared_buffers=256MB"]
           env:
             - { name: POSTGRES_USER, value: "lakerunner" }
             - name: POSTGRES_PASSWORD
