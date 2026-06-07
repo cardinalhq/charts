@@ -50,6 +50,6 @@ spec:
           - name: CONFIGDB_PASSWORD
             valueFrom:
               secretKeyRef:
-                name: {{ .Values.configdb.secretName | quote }}
+                name: {{ include "lakerunner.configdbSecretName" . | quote }}
                 key: {{ .Values.configdb.passwordKey | default "CONFIGDB_PASSWORD" | quote }}
 {{- end }}
