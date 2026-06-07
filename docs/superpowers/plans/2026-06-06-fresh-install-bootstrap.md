@@ -324,7 +324,9 @@ spec:
           - name: CONFIGDB_PASSWORD
             valueFrom:
               secretKeyRef:
-                name: {{ .Values.configdb.secretName | quote }}
+                # Use the helper — the chart creates the secret release-prefixed
+                # (c-lakerunner-configdb-credentials), NOT the bare values name.
+                name: {{ include "lakerunner.configdbSecretName" . | quote }}
                 key: {{ .Values.configdb.passwordKey | default "CONFIGDB_PASSWORD" | quote }}
 {{- end }}
 ```
