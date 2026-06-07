@@ -113,6 +113,26 @@ chart/
 Flat, monolithic. A migration guide ships a values-mapping note for adopters
 concatenating their two override files onto the unified keys.
 
+### 5.4a Values-contract changes from the merge (migration-guide inputs)
+Discovered while building sub-project A; adopters' override files must account for these:
+- **maestro DB config moved `database:` → `maestroDatabase:`.** The two charts had
+  incompatible `database:` schemas (lakerunner `database.lrdb.{host,...}` nested + flat
+  `secretName/create/passwordKey`; maestro `database.{host,...}` flat with different
+  values). Resolution: lakerunner's `database:` stays canonical; maestro's DB config is
+  namespaced as `maestroDatabase:` (rendered maestro DB wiring is byte-identical to
+  legacy — only the values key moved). Adopters with maestro `database:` overrides must
+  rename them to `maestroDatabase:`.
+- **Single shared `license:` block** (one CardinalHQ suite license for both products,
+  matching the CF `cardinal-license` end-state). Default `license.secretName` =
+  `cardinal-license`. Adopters who kept separate per-product license secrets, or a
+  differently-named one, set `license.secretName` (+ `license.create:false`) to point at
+  their existing secret. **User confirm:** is one suite license correct for all existing
+  installs, or do any have genuinely distinct lakerunner vs maestro licenses?
+- **Known future-dedup debt (not defects; deferred):** duplicate `license-validation`
+  hooks (one per family validating the same block), duplicate `cardinal-api-key` secrets
+  (one per family, identical data), and large near-duplicate `_helpers-*.tpl` families.
+  Candidates for consolidation in a later sub-project once parity/adoption are proven.
+
 ### 5.4 Image registries
 Per the updated `lakerunner-cloudformation` reference (`cardinal-defaults.yaml`,
 `image_manifest.py`), the standard is **100% `public.ecr.aws/cardinalhq.io/*` for all
