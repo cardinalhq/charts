@@ -1229,18 +1229,26 @@ dex:
   #   - http://localhost:5173
 
 # Fresh-install bootstrap. On a fresh install the chart seeds a shared admin key
-# and Maestro provisions a shared LakeRunner org at boot. On adoption set
-# mode: never (sub-project C adds full auto-detection).
+# and Maestro provisions a shared LakeRunner org at boot.
 bootstrap:
-  # auto = run the fresh-install bootstrap (seed key + render MAESTRO_BOOTSTRAP_*).
-  # never = skip everything (adopt: point at existing external DB/store, no provisioning).
-  # force = same as auto (reserved; C differentiates auto vs force via detection).
+  # Bootstrap mode. One of:
+  #   auto  (default) = run a pre-install detection Job that inspects configdb +
+  #         the maestro DB and classifies the install. Fresh installs bootstrap;
+  #         a conductor-shaped install is adopted idempotently; a legacy/foreign
+  #         or inconsistent DB ABORTS the install (re-run with mode: adopt).
+  #   adopt = skip ALL bootstrap (no detection, key-seed, anchor Secret, or
+  #         MAESTRO_BOOTSTRAP_*). Point at an existing external DB/store and
+  #         provision nothing. Use this to adopt a prior split lakerunner+maestro
+  #         install; keep it set for the life of that adopted release.
+  #   force = bootstrap unconditionally with NO detection safety net
+  #         (recovery/testing only).
+  # "never" is a deprecated alias of "adopt".
   mode: auto
   # The shared org Maestro provisions and that telemetry is attributed to.
   org:
-    id: ""                 # UUID; REQUIRED when mode!=never. e.g. 11111111-1111-1111-1111-111111111111
+    id: ""                 # UUID; REQUIRED when bootstrap is active (mode != adopt). e.g. 11111111-1111-1111-1111-111111111111
     name: "default"
-    ownerEmail: ""         # REQUIRED when mode!=never
+    ownerEmail: ""         # REQUIRED when bootstrap is active (mode != adopt)
   # Admin key shared by admin-api (validated from configdb) and Maestro.
   adminKey:
     # When set, use this existing Secret instead of generating one (sealed-secrets/GitOps).

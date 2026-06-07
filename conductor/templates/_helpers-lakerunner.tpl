@@ -1182,12 +1182,24 @@ injected. Override with .Values.serviceAccount.name. Per-component SAs
 {{- end -}}
 {{- end }}
 
-{{/* Whether fresh-install bootstrap is active. Emits "true" when active and an
-     empty string when mode=never, so callers can use `include` directly in
-     `if`/`and` (a non-empty string is truthy, empty is falsy — unlike the
-     literal string "false", which is truthy). */}}
+{{/* Normalize bootstrap.mode; "never" is a deprecated alias of "adopt". */}}
+{{- define "conductor.bootstrapMode" -}}
+{{- $m := .Values.bootstrap.mode | default "auto" -}}
+{{- if eq $m "never" -}}adopt{{- else -}}{{ $m }}{{- end -}}
+{{- end }}
+
+{{/* Whether fresh-install bootstrap resources render. Emits "true" unless
+     adopting, and an empty string when mode=adopt (alias never), so callers can
+     use `include` directly in `if`/`and` (a non-empty string is truthy, empty is
+     falsy — unlike the literal string "false", which is truthy). */}}
 {{- define "conductor.bootstrapEnabled" -}}
-{{- if ne (.Values.bootstrap.mode | default "auto") "never" -}}true{{- end -}}
+{{- if ne (include "conductor.bootstrapMode" .) "adopt" -}}true{{- end -}}
+{{- end }}
+
+{{/* Whether the pre-install detection Job renders. Emits "true" only in auto
+     mode (force skips the safety net; adopt renders nothing); empty otherwise. */}}
+{{- define "conductor.detectionEnabled" -}}
+{{- if eq (include "conductor.bootstrapMode" .) "auto" -}}true{{- end -}}
 {{- end }}
 
 {{/* Name of the admin-key anchor Secret (operator-supplied or chart-managed). */}}
