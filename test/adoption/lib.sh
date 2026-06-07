@@ -19,9 +19,27 @@ kc()   { command kubectl --context "$CTX" -n "$NS" "$@"; }
 kcg()  { command kubectl --context "$CTX" "$@"; }
 helm() { command helm --kube-context "$CTX" "$@"; }
 
-# psql into the bundled postgres (read or write) as a given role/db.
+# Resolve the concrete Running postgres pod (avoids `deploy/postgres` exec races
+# during/after a rollout, and the flaky `-i` with no stdin returning empty).
+pg_pod() {
+  kc get pods -l app=postgres --field-selector=status.phase=Running \
+    -o jsonpath='{.items[0].metadata.name}' 2>/dev/null
+}
+
+# psql into the bundled postgres (read or write) as a given role/db. Targets the
+# pod by name (no `-i`) and retries so a transient empty result during a rollout
+# does not silently return "".
 psql_db() { # role db sql
-  kc exec -i deploy/postgres -- psql -U "$1" -d "$2" -tAc "$3"
+  local out pod
+  for _ in 1 2 3 4 5 6; do
+    pod="$(pg_pod)"
+    if [ -n "$pod" ]; then
+      out="$(kc exec "$pod" -- psql -U "$1" -d "$2" -tAc "$3" 2>/dev/null | tr -d '[:space:]')"
+      [ -n "$out" ] && { printf '%s\n' "$out"; return 0; }
+    fi
+    sleep 2
+  done
+  printf '%s\n' "$out"
 }
 
 _safety_check() {

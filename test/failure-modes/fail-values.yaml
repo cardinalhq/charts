@@ -1,0 +1,93 @@
+# conductor values for the failure-mode tests (ns conductor-fail). Wired to the
+# in-namespace external postgres + rustfs fixtures (test/adoption/05-fixtures.yaml).
+# bootstrap.mode=auto, fresh org — github-cache StatefulSet ENABLED so the
+# PVC cold-start case (5) has a stateful workload to exercise.
+
+global:
+  resources:
+    enabled: false
+  autoscaling:
+    mode: disabled
+
+license:
+  create: false
+  secretName: "cardinal-license"
+
+database:
+  create: false
+  secretName: "pg-credentials"
+  passwordKey: "LRDB_PASSWORD"
+  lrdb: { host: "postgres", port: 5432, name: "lakerunner", username: "lakerunner", sslMode: "disable" }
+
+configdb:
+  create: false
+  secretName: "pg-credentials"
+  passwordKey: "CONFIGDB_PASSWORD"
+  lrdb: { host: "postgres", port: 5432, name: "configdb", username: "config", sslMode: "disable" }
+
+maestroDatabase:
+  create: false
+  secretName: "pg-credentials"
+  passwordKey: "MAESTRO_DB_PASSWORD"
+  host: "postgres"
+  port: 5432
+  name: "maestro"
+  username: "maestro"
+  sslMode: "disable"
+
+cloudProvider:
+  provider: "aws"
+  aws: { region: "us-east-1", create: false, secretName: "aws-credentials", inject: true }
+
+objectStore:
+  bucket: "lakerunner"
+  region: "us-east-1"
+  endpoint: "http://rustfs:9000"
+  forcePathStyle: true
+  auth:
+    existingSecret: "aws-credentials"
+    accessKeyIdKey: AWS_ACCESS_KEY_ID
+    secretAccessKeyKey: AWS_SECRET_ACCESS_KEY
+
+storageProfiles: { source: config, create: true, yaml: [] }
+apiKeys: { source: config, create: true, yaml: [] }
+
+pubsub:
+  HTTP: { enabled: true, replicas: 1 }
+
+ha:
+  enabled: false
+
+maestro:
+  enabled: true
+  replicas: 1
+  baseUrl: "http://conductor-maestro-maestro.conductor-fail.svc.cluster.local:4200"
+  tls: { enabled: false }
+
+dex:
+  enabled: false
+
+grafana:
+  enabled: false
+
+# Enable the github-cache StatefulSet (off by default in POC) so case 5
+# (PVC cold-start) has a stateful workload with a volumeClaimTemplate.
+githubCache:
+  enabled: true
+  serving:
+    replicas: 1
+
+bootstrap:
+  mode: auto
+  org:
+    id: "11111111-1111-1111-1111-111111111111"
+    name: "default"
+    ownerEmail: "admin@test.local"
+  bucket:
+    name: "lakerunner"
+    region: "us-east-1"
+    cloudProvider: "aws"
+    collectorName: "default"
+    endpoint: "http://rustfs:9000"
+    usePathStyle: true
+    insecureTls: true

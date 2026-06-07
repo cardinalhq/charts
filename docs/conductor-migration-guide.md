@@ -38,6 +38,18 @@ and rebuildable caches change.
    `license.secretName: cardinal-license`.
 5. **Know your current external DB + object-store coordinates** (hosts, ports,
    database names, users, password secrets, bucket, endpoint).
+6. **Size Postgres `max_connections` for the full unified stack.** Under one
+   release the entire LakeRunner stack's pgx connection pools run alongside
+   Maestro against the same Postgres. A modestly-sized Postgres can hit *too many
+   clients already* (SQLSTATE `53300`) — most acutely during a rolling **upgrade**,
+   when Helm/Kubernetes briefly runs roughly 2× the pods. Our live test fixture
+   uses `max_connections=400`; size yours for the combined steady-state plus
+   upgrade headroom (or front Postgres with **pgbouncer**, which is already part of
+   the LakeRunner topology). **If you use pgbouncer, the bootstrap migration Jobs
+   still need a *direct*, non-pgbouncer connection** — they take Postgres advisory
+   locks to serialize schema changes, which transaction-pooled pgbouncer does not
+   preserve. Point the migrate Jobs' DB host at Postgres directly even if the
+   workloads go through pgbouncer.
 
 ---
 
