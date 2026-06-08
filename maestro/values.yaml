@@ -521,3 +521,12 @@ global:
         - ALL
     seccompProfile:
       type: RuntimeDefault
+
+# Maestro G.2: Prometheus alert rule for operator-managed pending workloads
+# whose license token is within 7 days of expiry. Requires the
+# prometheus-operator's PrometheusRule CRD. Disabled by default; enable
+# in clusters with prometheus-operator. The maestro PR for G.2 also
+# requires this chart change — see maestro G.2 spec §Error handling.
+prometheusRules:
+  enabled: false
+  additionalLabels: {}
