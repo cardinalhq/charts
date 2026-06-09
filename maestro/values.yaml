@@ -134,6 +134,16 @@ maestro:
   #     value: uid                          # changing on a live install is a migration event
   #   - name: OIDC_TRUST_UNVERIFIED_EMAILS  # default: false — pair carefully with a
   #     value: "true"                       # remapped OIDC_EMAIL_CLAIM (see docs)
+  #
+  #   # Agent Outcomes session summarizer (all optional; sensible defaults).
+  #   # Writes a short LLM-authored title per agent session and flags cost
+  #   # drift. Uses the org's configured LLM (prefers a Haiku-tier model).
+  #   - name: OUTCOMES_SUMMARY_MODEL              # default: prefers "haiku" in the
+  #     value: haiku                             # model catalog, else first available
+  #   - name: OUTCOMES_SUMMARY_COST_WATERMARK_USD # default: 5 — re-summarize once a
+  #     value: "5"                               # session's spend grows this much
+  #   - name: OUTCOMES_SUMMARY_COST_FLOOR_USD     # default: 0.5 — skip sessions
+  #     value: "0.5"                             # cheaper than this
   env: []
   extraVolumes: []       # additional volumes
   extraVolumeMounts: []  # additional volume mounts
