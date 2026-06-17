@@ -6,18 +6,17 @@ metadata:
     {{- include "lakerunner.labels" . | nindent 4 }}
   {{ include "lakerunner.annotations" . | nindent 2 }}
 rules:
+  # query-api / query-worker discover peer workers via Services + EndpointSlices.
   - apiGroups: [""]
-    resources: ["pods", "services"]
+    resources: ["services"]
     verbs: ["get", "list", "watch"]
-  - apiGroups: ["apps"]
-    resources: ["deployments", "deployments/scale"]
-    verbs: ["get", "list", "watch", "patch", "update"]
   - apiGroups: ["discovery.k8s.io"]
     resources: ["endpointslices"]
     verbs: ["get", "list", "watch"]
-  - apiGroups: ["coordination.k8s.io"]
-    resources: ["leases"]
-    verbs: ["get", "create", "update"]
+  # Read the process-* HorizontalPodAutoscalers in this namespace.
+  - apiGroups: ["autoscaling"]
+    resources: ["horizontalpodautoscalers"]
+    verbs: ["get", "list", "watch"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
