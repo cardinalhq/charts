@@ -13,7 +13,7 @@ global:
     # processLogs/processMetrics/processTraces.autoscaling.
     hpa:
       # Target average CPU as a percentage of the pod's cpu request.
-      targetCPUUtilizationPercentage: 90
+      targetCPUUtilizationPercentage: 80
       # HPA v2 scaling behavior. Defaults favor fast scale-up and a damped
       # 2-minute scale-down window to avoid replica flapping.
       behavior:
