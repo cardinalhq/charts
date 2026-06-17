@@ -3,26 +3,17 @@
 
 # Global settings
 global:
-  # Autoscaling mode for the process-* workers.
-  #   "hpa"      — (default) the chart renders one HorizontalPodAutoscaler per
-  #                enabled process-* worker (see hpa below), and the built-in PI
-  #                autoscaler runs in report-only mode: it still emits the
-  #                worklane depth/age metrics for observability but does not scale
-  #                any deployment.
-  #   "worklane" — the built-in delay-aware PI autoscaler owns replica decisions,
-  #                scaling the process-* deployments from work-queue depth. No HPA
-  #                is rendered. The monitoring.autoscaler.observeOnly knob still
-  #                applies in this mode.
+  # Autoscaling for the process-* workers. The chart renders one
+  # HorizontalPodAutoscaler per enabled process-* worker (see hpa below); its
+  # min/max come from that service's autoscaling.minReplicas/maxReplicas.
   autoscaling:
-    mode: hpa
-    # Settings for the HorizontalPodAutoscalers rendered in "hpa" mode. One HPA
-    # is created per enabled process-* worker; its min/max come from that
-    # service's autoscaling.minReplicas/maxReplicas. targetCPUUtilizationPercentage
-    # and behavior here are the defaults for all three and can be overridden
-    # per-service under processLogs/processMetrics/processTraces.autoscaling.
+    # Settings for the HorizontalPodAutoscalers. One HPA is created per enabled
+    # process-* worker. targetCPUUtilizationPercentage and behavior here are the
+    # defaults for all three and can be overridden per-service under
+    # processLogs/processMetrics/processTraces.autoscaling.
     hpa:
       # Target average CPU as a percentage of the pod's cpu request.
-      targetCPUUtilizationPercentage: 85
+      targetCPUUtilizationPercentage: 90
       # HPA v2 scaling behavior. Defaults favor fast scale-up and a damped
       # 2-minute scale-down window to avoid replica flapping.
       behavior:
@@ -32,10 +23,10 @@ global:
           policies:
             - type: Percent
               value: 100
-              periodSeconds: 60
+              periodSeconds: 30
             - type: Pods
-              value: 4
-              periodSeconds: 60
+              value: 8
+              periodSeconds: 30
         scaleDown:
           stabilizationWindowSeconds: 120
           selectPolicy: Max
@@ -630,14 +621,6 @@ alertEvaluator:
 
 # Monitoring service configuration (colocated in the control-plane pod; see controlPlane).
 monitoring:
-  # PI autoscaler configuration
-  # The autoscaler runs inside the monitoring container and manages worker
-  # deployment replicas. It is always enabled. To disable scaling for a specific
-  # service, set its autoscaling.minReplicas and autoscaling.maxReplicas both to 0.
-  # To pin a service at a fixed replica count, set min == max (e.g., min=5 max=5).
-  autoscaler:
-    # Set to true to log scaling decisions without actually changing replicas.
-    observeOnly: false
   env: []
 
 # Perch operator — version control and collector management

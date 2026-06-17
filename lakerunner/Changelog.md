@@ -1,5 +1,19 @@
 # Changelog
 
+## 3.16.0
+
+* **CHANGED**: the process-* workers are now always scaled by a
+  `HorizontalPodAutoscaler`. The in-product PI autoscaler has been removed from
+  LakeRunner, so the chart no longer wires it up.
+* **REMOVED**: `global.autoscaling.mode` (the `"hpa"` / `"worklane"` selector)
+  and `monitoring.autoscaler` (`observeOnly`). The chart no longer emits the
+  `LAKERUNNER_AUTOSCALER_*` env vars on the monitoring container. Per-service
+  `autoscaling.minReplicas/maxReplicas` and `global.autoscaling.hpa` are
+  unchanged; set a service's min/max both to 0 to disable its HPA.
+* **CHANGED**: HPA defaults tuned for more aggressive scale-up — CPU target
+  `global.autoscaling.hpa.targetCPUUtilizationPercentage` 85 → 90, and the
+  scale-up `behavior` now adds up to 8 pods (was 4) per 30s window (was 60s).
+
 ## 3.15.0
 
 * **NEW**: `global.autoscaling.mode` selects how the process-* workers are scaled.

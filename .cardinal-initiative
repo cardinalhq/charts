@@ -1,0 +1,5 @@
+{
+  "name": "lakerunner-hpa-only-scaling",
+  "description": "Make lakerunner worker scaling always use HorizontalPodAutoscalers and remove the now-defunct in-product PI autoscaler wiring after the product dropped its built-in scaling features.",
+  "type": "refactor"
+}

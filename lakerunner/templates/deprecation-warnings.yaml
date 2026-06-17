@@ -93,7 +93,7 @@ To fix this error:
 
   Service-specific keys are still read from their own blocks:
     adminApi.port, adminApi.service, alertEvaluator.queryApiUrl,
-    alertEvaluator.env, monitoring.autoscaler
+    alertEvaluator.env, monitoring.env
 
 ================================================================================
 ` (join ", " $cp)) }}

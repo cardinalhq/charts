@@ -1,13 +1,11 @@
 {{- /*
-HorizontalPodAutoscalers for the process-* workers, rendered only when
-global.autoscaling.mode is "hpa". Bounds come from each service's
-autoscaling.minReplicas/maxReplicas; the CPU target and behavior default from
-global.autoscaling.hpa and may be overridden per-service.
+HorizontalPodAutoscalers for the process-* workers. Bounds come from each
+service's autoscaling.minReplicas/maxReplicas; the CPU target and behavior
+default from global.autoscaling.hpa and may be overridden per-service.
 
 The process-* Deployment templates intentionally omit spec.replicas, so an HPA
 owns the replica count without fighting the rendered manifest.
 */ -}}
-{{- if eq (.Values.global.autoscaling.mode | default "hpa") "hpa" }}
 {{- $root := . }}
 {{- $hpa := .Values.global.autoscaling.hpa | default dict }}
 {{- $services := list
@@ -45,6 +43,5 @@ spec:
   behavior:
     {{- toYaml . | nindent 4 }}
   {{- end }}
-{{- end }}
 {{- end }}
 {{- end }}
