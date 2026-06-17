@@ -3,6 +3,20 @@
 
 # Global settings
 global:
+  # Autoscaling mode for the process-* workers.
+  #   "hpa"      — (default) replica decisions are owned by a Kubernetes
+  #                HorizontalPodAutoscaler (or any external scaler). The built-in
+  #                PI autoscaler runs in report-only mode: it still emits the
+  #                worklane depth/age metrics for observability but does not scale
+  #                any deployment.
+  #   "worklane" — the built-in delay-aware PI autoscaler owns replica decisions,
+  #                scaling the process-* deployments from work-queue depth. The
+  #                monitoring.autoscaler.observeOnly knob still applies in this
+  #                mode.
+  # Note: in "hpa" mode this chart does not create the HorizontalPodAutoscaler;
+  # provide one alongside the release.
+  autoscaling:
+    mode: hpa
   # Global resource configuration
   resources:
     # Whether to render resource limits and requests in deployments

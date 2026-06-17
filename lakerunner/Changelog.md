@@ -1,5 +1,21 @@
 # Changelog
 
+## 3.15.0
+
+* **NEW**: `global.autoscaling.mode` selects how the process-* workers are scaled.
+  - `"hpa"` (default): replica decisions are owned by a Kubernetes
+    HorizontalPodAutoscaler (or any external scaler). The built-in PI autoscaler
+    runs in report-only mode — it still emits the worklane depth/age metrics but
+    does not scale. Wired via `LAKERUNNER_AUTOSCALER_REPORT_ONLY=true` on the
+    monitoring container.
+  - `"worklane"`: the built-in delay-aware PI autoscaler owns replica decisions
+    (the previous behavior). `monitoring.autoscaler.observeOnly` still applies.
+  - **CHANGED**: the default is now `"hpa"`, so out of the box the PI autoscaler
+    no longer scales the process-* deployments. Set
+    `global.autoscaling.mode: worklane` to restore the previous behavior. This
+    chart does not create the HPA in `"hpa"` mode — provide one alongside the
+    release.
+
 ## 3.9.0
 
 * **CHANGED**: Rebalanced worker pod memory math (process-logs, process-metrics, process-traces)
