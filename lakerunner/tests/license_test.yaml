@@ -7,7 +7,7 @@ templates:
   - license-secret.yaml
   - license-validation.yaml
   - process-logs-deployment.yaml
-  - sweeper-deployment.yaml
+  - control-plane-deployment.yaml
   - setup-job.yaml
 tests:
   # Secret creation tests
@@ -97,10 +97,10 @@ tests:
     set:
       license.data: '{"key":"value"}'
     templates:
-      - sweeper-deployment.yaml
+      - control-plane-deployment.yaml
     asserts:
       - contains:
-          path: spec.template.spec.containers[0].volumeMounts
+          path: spec.template.spec.containers[?(@.name=="sweeper")].volumeMounts
           content:
             name: license
             mountPath: /app/license

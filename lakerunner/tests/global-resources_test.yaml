@@ -12,8 +12,7 @@ templates:
   - process-logs-deployment.yaml
   - process-metrics-deployment.yaml
   - process-traces-deployment.yaml
-  - sweeper-deployment.yaml
-  - monitoring-deployment.yaml
+  - control-plane-deployment.yaml
   - pubsub-http-deployment.yaml
   - pubsub-sqs-deployment.yaml
   - pubsub-gcp-deployment.yaml
@@ -84,12 +83,12 @@ tests:
       - template: process-logs-deployment.yaml
         exists:
           path: spec.template.spec.containers[0].resources.limits.cpu
-      - template: sweeper-deployment.yaml
+      - template: control-plane-deployment.yaml
         exists:
-          path: spec.template.spec.containers[0].resources.requests.cpu
-      - template: sweeper-deployment.yaml
+          path: spec.template.spec.containers[?(@.name=="sweeper")].resources.requests.cpu
+      - template: control-plane-deployment.yaml
         exists:
-          path: spec.template.spec.containers[0].resources.limits.cpu
+          path: spec.template.spec.containers[?(@.name=="sweeper")].resources.limits.memory
 
   - it: should render resources on pubsub components when enabled
     set:

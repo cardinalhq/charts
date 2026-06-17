@@ -8,7 +8,7 @@ templates:
   - process-logs-deployment.yaml
   - process-metrics-deployment.yaml
   - process-traces-deployment.yaml
-  - sweeper-deployment.yaml
+  - control-plane-deployment.yaml
   - query-api-deployment.yaml
   - query-worker-deployment.yaml
   - grafana-deployment.yaml
@@ -16,7 +16,6 @@ templates:
   - pubsub-sqs-deployment.yaml
   - pubsub-azure-deployment.yaml
   - pubsub-gcp-deployment.yaml
-  - monitoring-deployment.yaml
 tests:
   # Global Health Probe Configuration Tests
   - it: should not have health probes when globally disabled
@@ -25,12 +24,22 @@ tests:
     templates:
       - process-logs-deployment.yaml
       - query-api-deployment.yaml
-      - monitoring-deployment.yaml
     asserts:
       - isNull:
           path: spec.template.spec.containers[0].livenessProbe
       - isNull:
           path: spec.template.spec.containers[0].readinessProbe
+
+  - it: should not have monitoring health probes when globally disabled
+    set:
+      global.healthProbes.enabled: false
+    templates:
+      - control-plane-deployment.yaml
+    asserts:
+      - isNull:
+          path: spec.template.spec.containers[?(@.name=="monitoring")].livenessProbe
+      - isNull:
+          path: spec.template.spec.containers[?(@.name=="monitoring")].readinessProbe
 
   - it: should have health probes when globally enabled
     set:
@@ -98,20 +107,20 @@ tests:
   # Monitoring Service Special Case
   - it: should configure monitoring service health probes with custom endpoints
     set:
-      global.healthProbes.enabled: false  # monitoring uses its own config
-      monitoring.healthProbes.enabled: true
+      global.healthProbes.enabled: false
+      controlPlane.healthProbes.enabled: true
     templates:
-      - monitoring-deployment.yaml
+      - control-plane-deployment.yaml
     asserts:
       - equal:
-          path: spec.template.spec.containers[0].livenessProbe.httpGet.path
+          path: spec.template.spec.containers[?(@.name=="monitoring")].livenessProbe.httpGet.path
           value: "/livez"
       - equal:
-          path: spec.template.spec.containers[0].livenessProbe.httpGet.port
-          value: "healthcheck"
+          path: spec.template.spec.containers[?(@.name=="monitoring")].livenessProbe.httpGet.port
+          value: "hc-mon"
       - equal:
-          path: spec.template.spec.containers[0].readinessProbe.httpGet.path
+          path: spec.template.spec.containers[?(@.name=="monitoring")].readinessProbe.httpGet.path
           value: "/readyz"
       - equal:
-          path: spec.template.spec.containers[0].readinessProbe.httpGet.port
-          value: "healthcheck"
+          path: spec.template.spec.containers[?(@.name=="monitoring")].readinessProbe.httpGet.port
+          value: "hc-mon"

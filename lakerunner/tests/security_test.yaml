@@ -10,8 +10,7 @@ templates:
   - process-logs-deployment.yaml
   - process-metrics-deployment.yaml
   - process-traces-deployment.yaml
-  - sweeper-deployment.yaml
-  - monitoring-deployment.yaml
+  - control-plane-deployment.yaml
   # PubSub components
   - pubsub-http-deployment.yaml
   - pubsub-sqs-deployment.yaml
@@ -32,14 +31,7 @@ tests:
       - process-logs-deployment.yaml
       - process-metrics-deployment.yaml
       - process-traces-deployment.yaml
-      - sweeper-deployment.yaml
-      - monitoring-deployment.yaml
-    set:
-      processLogs.enabled: true
-      processMetrics.enabled: true
-      processTraces.enabled: true
-      sweeper.enabled: true
-      monitoring.enabled: true
+      - control-plane-deployment.yaml
     asserts:
       - equal:
           path: spec.template.spec.securityContext.runAsNonRoot
@@ -57,14 +49,6 @@ tests:
       - process-logs-deployment.yaml
       - process-metrics-deployment.yaml
       - process-traces-deployment.yaml
-      - sweeper-deployment.yaml
-      - monitoring-deployment.yaml
-    set:
-      processLogs.enabled: true
-      processMetrics.enabled: true
-      processTraces.enabled: true
-      sweeper.enabled: true
-      monitoring.enabled: true
     asserts:
       - equal:
           path: spec.template.spec.containers[0].securityContext.allowPrivilegeEscalation
@@ -74,6 +58,29 @@ tests:
           value: "ALL"
       - equal:
           path: spec.template.spec.containers[0].securityContext.seccompProfile.type
+          value: "RuntimeDefault"
+
+  - it: should set container security context for control-plane components
+    templates:
+      - control-plane-deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[?(@.name=="monitoring")].securityContext.allowPrivilegeEscalation
+          value: false
+      - equal:
+          path: spec.template.spec.containers[?(@.name=="monitoring")].securityContext.capabilities.drop[0]
+          value: "ALL"
+      - equal:
+          path: spec.template.spec.containers[?(@.name=="monitoring")].securityContext.seccompProfile.type
+          value: "RuntimeDefault"
+      - equal:
+          path: spec.template.spec.containers[?(@.name=="sweeper")].securityContext.allowPrivilegeEscalation
+          value: false
+      - equal:
+          path: spec.template.spec.containers[?(@.name=="sweeper")].securityContext.capabilities.drop[0]
+          value: "ALL"
+      - equal:
+          path: spec.template.spec.containers[?(@.name=="sweeper")].securityContext.seccompProfile.type
           value: "RuntimeDefault"
 
   # Test PubSub components

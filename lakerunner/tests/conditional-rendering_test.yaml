@@ -12,8 +12,7 @@ templates:
   - process-logs-deployment.yaml
   - process-metrics-deployment.yaml
   - process-traces-deployment.yaml
-  - sweeper-deployment.yaml
-  - alert-evaluator-deployment.yaml
+  - control-plane-deployment.yaml
   - deprecation-warnings.yaml
   - pubsub-http-deployment.yaml
   - pubsub-sqs-deployment.yaml
@@ -154,33 +153,37 @@ tests:
       processLogs.enabled: true
       processMetrics.enabled: true
       processTraces.enabled: true
-      sweeper.enabled: true
     templates:
       - process-logs-deployment.yaml
       - process-metrics-deployment.yaml
       - process-traces-deployment.yaml
-      - sweeper-deployment.yaml
     asserts:
       - isKind:
           of: Deployment
 
-  - it: should render alert evaluator when enabled
-    set:
-      alertEvaluator.enabled: true
+  # sweeper and alert-evaluator are colocated in the control-plane pod; their
+  # containers are always rendered as part of the control-plane Deployment.
+  - it: should render sweeper and alert-evaluator containers in the control-plane deployment
     templates:
-      - alert-evaluator-deployment.yaml
+      - control-plane-deployment.yaml
     asserts:
       - isKind:
           of: Deployment
+      - equal:
+          path: spec.template.spec.containers[?(@.name=="sweeper")].name
+          value: sweeper
+      - equal:
+          path: spec.template.spec.containers[?(@.name=="alert-evaluator")].name
+          value: alert-evaluator
 
-  - it: should not render alert evaluator when disabled
+  - it: should fail when legacy alertEvaluator.enabled is configured
     set:
       alertEvaluator.enabled: false
     templates:
-      - alert-evaluator-deployment.yaml
+      - deprecation-warnings.yaml
     asserts:
-      - hasDocuments:
-          count: 0
+      - failedTemplate:
+          errorPattern: "alertEvaluator.enabled"
 
   - it: should fail when notificationSender is still configured
     set:
