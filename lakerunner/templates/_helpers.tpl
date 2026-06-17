@@ -580,10 +580,18 @@ so the autoscaler treats it as scaled-to-zero.
 Usage: {{ include "lakerunner.autoscalerEnv" . }}
 */}}
 {{- define "lakerunner.autoscalerEnv" -}}
+{{- $mode := .Values.global.autoscaling.mode | default "hpa" -}}
+{{- if not (has $mode (list "hpa" "worklane")) -}}
+{{- fail (printf "global.autoscaling.mode must be \"hpa\" or \"worklane\", got %q" $mode) -}}
+{{- end -}}
 - name: LAKERUNNER_AUTOSCALER_ENABLED
   value: "true"
 - name: LAKERUNNER_AUTOSCALER_OBSERVE_ONLY
   value: {{ .Values.monitoring.autoscaler.observeOnly | quote }}
+# "hpa" mode runs the PI autoscaler in report-only mode (worklane metrics only,
+# no scaling); "worklane" mode lets it own replica decisions.
+- name: LAKERUNNER_AUTOSCALER_REPORT_ONLY
+  value: {{ eq $mode "hpa" | quote }}
 - name: LAKERUNNER_AUTOSCALER_SERVICES_LOGS_DEPLOYMENT
   value: {{ include "lakerunner.fullname" . }}-process-logs
 - name: LAKERUNNER_AUTOSCALER_SERVICES_LOGS_MIN_REPLICAS

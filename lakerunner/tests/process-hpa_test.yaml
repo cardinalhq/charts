@@ -1,0 +1,126 @@
+suite: test process-* HorizontalPodAutoscalers
+templates:
+  - process-hpa.yaml
+values:
+  - ../values.yaml
+set:
+  cloudProvider.aws.region: us-west-2
+  license.data: '{"key":"test"}'
+tests:
+  - it: renders one HPA per process-* worker in hpa mode
+    asserts:
+      - hasDocuments:
+          count: 3
+      - isKind:
+          of: HorizontalPodAutoscaler
+        documentIndex: 0
+      - equal:
+          path: apiVersion
+          value: autoscaling/v2
+        documentIndex: 0
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-lakerunner-process-logs
+        documentIndex: 0
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-lakerunner-process-metrics
+        documentIndex: 1
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-lakerunner-process-traces
+        documentIndex: 2
+
+  - it: logs HPA targets the deployment with bounds, cpu target, and behavior
+    asserts:
+      - equal:
+          path: spec.scaleTargetRef.name
+          value: RELEASE-NAME-lakerunner-process-logs
+        documentIndex: 0
+      - equal:
+          path: spec.minReplicas
+          value: 1
+        documentIndex: 0
+      - equal:
+          path: spec.maxReplicas
+          value: 10
+        documentIndex: 0
+      - equal:
+          path: spec.metrics[0].resource.target.averageUtilization
+          value: 85
+        documentIndex: 0
+      - equal:
+          path: spec.behavior.scaleDown.stabilizationWindowSeconds
+          value: 120
+        documentIndex: 0
+      - equal:
+          path: spec.behavior.scaleUp.stabilizationWindowSeconds
+          value: 0
+        documentIndex: 0
+
+  - it: uses per-service min/max and target overrides
+    set:
+      processLogs.autoscaling.minReplicas: 2
+      processLogs.autoscaling.maxReplicas: 25
+      processLogs.autoscaling.targetCPUUtilizationPercentage: 70
+    asserts:
+      - equal:
+          path: spec.minReplicas
+          value: 2
+        documentIndex: 0
+      - equal:
+          path: spec.maxReplicas
+          value: 25
+        documentIndex: 0
+      - equal:
+          path: spec.metrics[0].resource.target.averageUtilization
+          value: 70
+        documentIndex: 0
+
+  - it: a per-service behavior override replaces the global behavior
+    set:
+      processLogs.autoscaling.behavior:
+        scaleDown:
+          stabilizationWindowSeconds: 600
+    asserts:
+      - equal:
+          path: spec.behavior.scaleDown.stabilizationWindowSeconds
+          value: 600
+        documentIndex: 0
+      - notExists:
+          path: spec.behavior.scaleUp
+        documentIndex: 0
+
+  - it: falls back to target 85 and no behavior when global.autoscaling.hpa is unset
+    set:
+      global.autoscaling.hpa: null
+    asserts:
+      - equal:
+          path: spec.metrics[0].resource.target.averageUtilization
+          value: 85
+        documentIndex: 0
+      - notExists:
+          path: spec.behavior
+        documentIndex: 0
+
+  - it: omits the HPA for a disabled worker
+    set:
+      processTraces.enabled: false
+    asserts:
+      - hasDocuments:
+          count: 2
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-lakerunner-process-logs
+        documentIndex: 0
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-lakerunner-process-metrics
+        documentIndex: 1
+
+  - it: renders no HPA in worklane mode
+    set:
+      global.autoscaling.mode: worklane
+    asserts:
+      - hasDocuments:
+          count: 0
