@@ -12,8 +12,6 @@ tests:
   - it: should use ClusterIP by default for admin-api service
     templates:
       - admin-api-service.yaml
-    set:
-      adminApi.enabled: true
     asserts:
       - equal:
           path: spec.type
@@ -23,7 +21,6 @@ tests:
     templates:
       - admin-api-service.yaml
     set:
-      adminApi.enabled: true
       adminApi.service.type: LoadBalancer
     asserts:
       - equal:
@@ -34,7 +31,6 @@ tests:
     templates:
       - admin-api-service.yaml
     set:
-      adminApi.enabled: true
       adminApi.service.type: LoadBalancer
       adminApi.service.loadBalancerIP: "10.0.0.101"
     asserts:
@@ -46,7 +42,6 @@ tests:
     templates:
       - admin-api-service.yaml
     set:
-      adminApi.enabled: true
       adminApi.service.type: LoadBalancer
       adminApi.service.loadBalancerSourceRanges:
         - "10.0.0.0/8"
@@ -60,7 +55,6 @@ tests:
     templates:
       - admin-api-service.yaml
     set:
-      adminApi.enabled: true
       adminApi.service.type: NodePort
       adminApi.service.nodePort: 30091
     asserts:
@@ -75,7 +69,6 @@ tests:
     templates:
       - admin-api-service.yaml
     set:
-      adminApi.enabled: true
       adminApi.service.annotations:
         service.beta.kubernetes.io/aws-load-balancer-internal: "true"
     asserts:
