@@ -1,5 +1,17 @@
 # Changelog
 
+## 3.16.3
+
+* **CHANGED**: trimmed the `-scaler` Role down to what the workloads actually
+  use. Removed the `deployments`/`deployments/scale` patch/update grant (dead
+  since the in-product PI autoscaler was removed in 3.16.0 — HPA scaling is done
+  by the kube-controller-manager, not the workload ServiceAccount), plus the
+  unused `pods` read and `coordination.k8s.io` `leases` grant. Service discovery
+  (`services`, `endpointslices`) is retained. perch's Deployment access is
+  unaffected — it comes from `perch-clusterrole`, not this Role.
+* **NEW**: the Role now grants read (`get`/`list`/`watch`) on
+  `autoscaling` `horizontalpodautoscalers` in the release namespace.
+
 ## 3.16.2
 
 * **CHANGED**: HPA default CPU target

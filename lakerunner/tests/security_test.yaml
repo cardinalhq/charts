@@ -188,8 +188,22 @@ tests:
           path: rules
           content:
             apiGroups: [""]
-            resources: ["pods", "services"]
+            resources: ["services"]
             verbs: ["get", "list", "watch"]
+        documentIndex: 0
+      - contains:
+          path: rules
+          content:
+            apiGroups: ["autoscaling"]
+            resources: ["horizontalpodautoscalers"]
+            verbs: ["get", "list", "watch"]
+        documentIndex: 0
+      - notContains:
+          path: rules
+          content:
+            apiGroups: ["apps"]
+            resources: ["deployments", "deployments/scale"]
+            verbs: ["get", "list", "watch", "patch", "update"]
         documentIndex: 0
 
   - it: should use correct service account in pods
