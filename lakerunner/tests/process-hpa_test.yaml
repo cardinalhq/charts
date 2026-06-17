@@ -77,6 +77,32 @@ tests:
           value: 70
         documentIndex: 0
 
+  - it: a per-service behavior override replaces the global behavior
+    set:
+      processLogs.autoscaling.behavior:
+        scaleDown:
+          stabilizationWindowSeconds: 600
+    asserts:
+      - equal:
+          path: spec.behavior.scaleDown.stabilizationWindowSeconds
+          value: 600
+        documentIndex: 0
+      - notExists:
+          path: spec.behavior.scaleUp
+        documentIndex: 0
+
+  - it: falls back to target 85 and no behavior when global.autoscaling.hpa is unset
+    set:
+      global.autoscaling.hpa: null
+    asserts:
+      - equal:
+          path: spec.metrics[0].resource.target.averageUtilization
+          value: 85
+        documentIndex: 0
+      - notExists:
+          path: spec.behavior
+        documentIndex: 0
+
   - it: omits the HPA for a disabled worker
     set:
       processTraces.enabled: false
