@@ -1,5 +1,14 @@
 # Changelog
 
+## 3.16.2
+
+* **CHANGED**: HPA default CPU target
+  `global.autoscaling.hpa.targetCPUUtilizationPercentage` 90 → 80. The 90%
+  target left no burst headroom and, combined with the controller's default
+  10% tolerance, pushed the effective scale-up trigger to ~99% — pods ran
+  pinned near saturation before a second replica was added. 80% gives the
+  process-* workers room to scale before they saturate.
+
 ## 3.16.0
 
 * **CHANGED**: the process-* workers are now always scaled by a

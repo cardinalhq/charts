@@ -47,7 +47,7 @@ tests:
         documentIndex: 0
       - equal:
           path: spec.metrics[0].resource.target.averageUtilization
-          value: 90
+          value: 80
         documentIndex: 0
       - equal:
           path: spec.behavior.scaleDown.stabilizationWindowSeconds
