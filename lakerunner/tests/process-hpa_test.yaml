@@ -7,7 +7,7 @@ set:
   cloudProvider.aws.region: us-west-2
   license.data: '{"key":"test"}'
 tests:
-  - it: renders one HPA per process-* worker in hpa mode
+  - it: renders one HPA per process-* worker
     asserts:
       - hasDocuments:
           count: 3
@@ -47,7 +47,7 @@ tests:
         documentIndex: 0
       - equal:
           path: spec.metrics[0].resource.target.averageUtilization
-          value: 85
+          value: 90
         documentIndex: 0
       - equal:
           path: spec.behavior.scaleDown.stabilizationWindowSeconds
@@ -56,6 +56,14 @@ tests:
       - equal:
           path: spec.behavior.scaleUp.stabilizationWindowSeconds
           value: 0
+        documentIndex: 0
+      - equal:
+          path: spec.behavior.scaleUp.policies[1].type
+          value: Pods
+        documentIndex: 0
+      - equal:
+          path: spec.behavior.scaleUp.policies[1].value
+          value: 8
         documentIndex: 0
 
   - it: uses per-service min/max and target overrides
@@ -117,10 +125,3 @@ tests:
           path: metadata.name
           value: RELEASE-NAME-lakerunner-process-metrics
         documentIndex: 1
-
-  - it: renders no HPA in worklane mode
-    set:
-      global.autoscaling.mode: worklane
-    asserts:
-      - hasDocuments:
-          count: 0

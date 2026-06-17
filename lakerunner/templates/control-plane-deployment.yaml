@@ -207,7 +207,6 @@ spec:
           {{- end }}
           - name: PPROF_PORT
             value: {{ $pprofMon | quote }}
-          {{- include "lakerunner.autoscalerEnv" . | nindent 10 }}
           {{- include "lakerunner.injectEnv" (list . (dict "env" (.Values.monitoring.env | default list) "resources" .Values.controlPlane.resources.monitoring)) | nindent 8 }}
           {{- include "lakerunner.cardinalTelemetryEnv" . | nindent 10 }}
         {{- include "lakerunner.healthProbes" (list . .Values.controlPlane "hc-mon") | nindent 8 }}
