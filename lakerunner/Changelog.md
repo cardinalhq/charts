@@ -3,18 +3,24 @@
 ## 3.15.0
 
 * **NEW**: `global.autoscaling.mode` selects how the process-* workers are scaled.
-  - `"hpa"` (default): replica decisions are owned by a Kubernetes
-    HorizontalPodAutoscaler (or any external scaler). The built-in PI autoscaler
-    runs in report-only mode — it still emits the worklane depth/age metrics but
-    does not scale. Wired via `LAKERUNNER_AUTOSCALER_REPORT_ONLY=true` on the
+  - `"hpa"` (default): the chart renders one `HorizontalPodAutoscaler` per
+    enabled process-* worker (CPU-target, bounds from each service's
+    `autoscaling.minReplicas/maxReplicas`), and the built-in PI autoscaler runs
+    in report-only mode — it still emits the worklane depth/age metrics but does
+    not scale. Wired via `LAKERUNNER_AUTOSCALER_REPORT_ONLY=true` on the
     monitoring container.
   - `"worklane"`: the built-in delay-aware PI autoscaler owns replica decisions
-    (the previous behavior). `monitoring.autoscaler.observeOnly` still applies.
-  - **CHANGED**: the default is now `"hpa"`, so out of the box the PI autoscaler
-    no longer scales the process-* deployments. Set
-    `global.autoscaling.mode: worklane` to restore the previous behavior. This
-    chart does not create the HPA in `"hpa"` mode — provide one alongside the
-    release.
+    (the previous behavior) and no HPA is rendered.
+    `monitoring.autoscaler.observeOnly` still applies.
+  - **CHANGED**: the default is now `"hpa"`, so out of the box replica decisions
+    move from the built-in PI autoscaler to a Kubernetes HPA. Set
+    `global.autoscaling.mode: worklane` to restore the previous behavior.
+* **NEW**: `global.autoscaling.hpa` configures the rendered HPAs —
+  `targetCPUUtilizationPercentage` (default 85) and a `behavior` block (fast
+  scale-up, 120s scale-down stabilization to damp flapping). Both can be
+  overridden per-service under `processLogs/processMetrics/processTraces.autoscaling`.
+  The process-* Deployments omit `spec.replicas`, so the HPA owns the count
+  without fighting the rendered manifest.
 
 ## 3.9.0
 
