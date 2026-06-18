@@ -1,0 +1,46 @@
+suite: loggen mode with IRSA auth
+values:
+  - ../values.yaml
+set:
+  mode: loggen
+  s3.bucket: test-bucket
+  s3.prefix: otel-raw/00000000-0000-0000-0000-000000000000/test
+  auth.mode: irsa
+  auth.roleArn: arn:aws:iam::111122223333:role/flamethrower-flood
+tests:
+  - it: annotates the ServiceAccount with the IRSA role ARN
+    template: serviceaccount.yaml
+    asserts:
+      - isKind:
+          of: ServiceAccount
+      - equal:
+          path: metadata.annotations["eks.amazonaws.com/role-arn"]
+          value: arn:aws:iam::111122223333:role/flamethrower-flood
+
+  - it: runs the loggen subcommand against the configured s3 path
+    template: deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: loggen
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --s3-path=s3://test-bucket/otel-raw/00000000-0000-0000-0000-000000000000/test
+
+  - it: injects only the region env var, no static credentials
+    template: deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: AWS_REGION
+            value: "us-east-2"
+      - lengthEqual:
+          path: spec.template.spec.containers[0].env
+          count: 1
+
+  - it: does not render a destinations ConfigMap in loggen mode
+    template: configmap-destinations.yaml
+    asserts:
+      - hasDocuments:
+          count: 0

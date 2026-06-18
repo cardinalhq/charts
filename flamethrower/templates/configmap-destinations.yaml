@@ -1,0 +1,13 @@
+{{- if eq .Values.mode "serve" }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "flamethrower.fullname" . }}-destinations
+  labels: {{- include "flamethrower.labels" . | nindent 4 }}
+data:
+  destinations.yaml: |
+    destinations:
+    {{- if .Values.destinations }}
+    {{- toYaml .Values.destinations | nindent 4 }}
+    {{- end }}
+{{- end }}
