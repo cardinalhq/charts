@@ -1,0 +1,11 @@
+apiVersion: v2
+name: flamethrower
+description: OTLP signal flood generator for calibration tests
+type: application
+version: 0.2.0
+appVersion: "0.2.0"
+home: https://github.com/cardinalhq/flamethrower
+sources:
+  - https://github.com/cardinalhq/flamethrower
+maintainers:
+  - name: CardinalHQ

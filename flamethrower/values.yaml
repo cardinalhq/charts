@@ -1,0 +1,86 @@
+image:
+  repository: public.ecr.aws/cardinalhq.io/flamethrower
+  tag: ""           # empty -> chart appVersion
+  pullPolicy: IfNotPresent
+
+# mode selects the binary subcommand: serve (flood UI) or loggen (direct generator)
+mode: serve
+
+# --- serve mode config ---
+# List of destinations rendered into /etc/flamethrower/destinations.yaml
+# Each entry: {name, bucket, prefix}
+destinations: []
+# - name: my-dest
+#   bucket: my-bucket
+#   prefix: otel-raw/org/collector
+
+# When set, adds --scenarios-dir to the serve args.
+# The operator must mount their own scenario ConfigMap via extraVolumes/extraVolumeMounts.
+scenariosDir: ""
+
+# Maximum flood duration (serve mode)
+maxDuration: 1h
+
+# Extra volumes/mounts for operator-supplied scenario ConfigMaps, etc.
+extraVolumes: []
+extraVolumeMounts: []
+
+# --- loggen mode config ---
+# Generator config (passed as CLI args to `loggen`)
+# Starting rate; the skill drives the real load via POST /rate. Keep this
+# small but non-zero so the limiter parks after its initial burst, letting
+# /readyz flip after the first send.
+rate: 1
+style: k8s-filelog
+concurrency: 10
+maxBatch: 10000
+controlAddr: ":8080"
+
+# When set, loggen POSTs a synthetic S3 event to this URL after each successful
+# PUT — for S3-compatible stores (e.g. Ceph RGW) whose bucket notifications are
+# disabled or too slow. Empty disables (real S3 emits its own notifications).
+# e.g. http://lakerunner-pubsub-http:8080
+pubsubNotifyUrl: ""
+
+s3:
+  bucket: ""
+  prefix: ""        # e.g. "otel-raw/<orgUUID>/<collector>"
+  usePathStyle: false  # true for S3-compatible stores that need path-style
+                       # addressing instead of virtual-host DNS (e.g. Ceph RGW)
+
+auth:
+  mode: irsa        # irsa | static
+  roleArn: ""       # required when mode=irsa
+  endpointUrl: ""   # required when mode=static (e.g. ceph endpoint)
+  region: us-east-2
+  secretName: ""    # name of existing Secret with AWS_ACCESS_KEY_ID/SECRET; required when mode=static
+  # staticCreds is optional; when set the chart renders a Secret with these values
+  # (the skill uses this to seed creds without exposing them on disk).
+  # staticCreds:
+  #   accessKeyId: ""
+  #   secretAccessKey: ""
+  token: ""           # when set, rendered into a Secret as FLAMETHROWER_AUTH_TOKEN
+  existingSecret: ""  # name of existing Secret with key FLAMETHROWER_AUTH_TOKEN
+
+serviceAccount:
+  create: true
+  name: flamethrower-flood
+  annotations: {}
+
+resources:
+  requests:
+    cpu: 500m
+    memory: 256Mi
+  limits:
+    cpu: 2000m
+    memory: 1Gi
+
+service:
+  type: ClusterIP
+  port: 8080
+
+metrics:
+  serviceMonitor:
+    enabled: false
+    interval: 15s
+    labels: {}

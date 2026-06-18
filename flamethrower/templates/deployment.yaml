@@ -1,0 +1,105 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "flamethrower.fullname" . }}
+  labels: {{- include "flamethrower.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {{- include "flamethrower.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels: {{- include "flamethrower.selectorLabels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ .Values.serviceAccount.name }}
+      containers:
+        - name: flamethrower
+          image: {{ include "flamethrower.image" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args:
+            {{- if eq .Values.mode "serve" }}
+            - serve
+            - --destinations=/etc/flamethrower/destinations.yaml
+            - --max-duration={{ .Values.maxDuration }}
+            - --control-addr={{ .Values.controlAddr }}
+            {{- if .Values.scenariosDir }}
+            - --scenarios-dir={{ .Values.scenariosDir }}
+            {{- end }}
+            {{- if .Values.pubsubNotifyUrl }}
+            - --pubsub-notify-url={{ .Values.pubsubNotifyUrl }}
+            {{- end }}
+            {{- else }}
+            - loggen
+            - --style={{ .Values.style }}
+            - --rate={{ .Values.rate }}
+            - --max-batch={{ .Values.maxBatch }}
+            - --concurrency={{ .Values.concurrency }}
+            - --s3-path=s3://{{ .Values.s3.bucket }}/{{ .Values.s3.prefix }}
+            - --control-addr={{ .Values.controlAddr }}
+            {{- if .Values.pubsubNotifyUrl }}
+            - --pubsub-notify-url={{ .Values.pubsubNotifyUrl }}
+            {{- end }}
+            {{- end }}
+          env:
+            - name: AWS_REGION
+              value: {{ .Values.auth.region | quote }}
+            {{- if .Values.s3.usePathStyle }}
+            - name: S3_USE_PATH_STYLE
+              value: "true"
+            {{- end }}
+            {{- if eq .Values.auth.mode "static" }}
+            - name: AWS_ENDPOINT_URL_S3
+              value: {{ .Values.auth.endpointUrl | quote }}
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.auth.secretName }}
+                  key: AWS_ACCESS_KEY_ID
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.auth.secretName }}
+                  key: AWS_SECRET_ACCESS_KEY
+            {{- end }}
+            {{- if eq .Values.mode "serve" }}
+            {{- if or .Values.auth.token .Values.auth.existingSecret }}
+            - name: FLAMETHROWER_AUTH_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ if .Values.auth.existingSecret }}{{ .Values.auth.existingSecret }}{{ else }}{{ include "flamethrower.fullname" . }}-auth{{ end }}
+                  key: FLAMETHROWER_AUTH_TOKEN
+            {{- end }}
+            {{- end }}
+          ports:
+            - name: control
+              containerPort: 8080
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: control
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: control
+            periodSeconds: 5
+          resources: {{- toYaml .Values.resources | nindent 12 }}
+          {{- if eq .Values.mode "serve" }}
+          volumeMounts:
+            - name: destinations
+              mountPath: /etc/flamethrower
+              readOnly: true
+            {{- with .Values.extraVolumeMounts }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          {{- end }}
+      {{- if eq .Values.mode "serve" }}
+      volumes:
+        - name: destinations
+          configMap:
+            name: {{ include "flamethrower.fullname" . }}-destinations
+        {{- with .Values.extraVolumes }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- end }}

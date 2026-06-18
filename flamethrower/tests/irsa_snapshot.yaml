@@ -1,0 +1,94 @@
+---
+# Source: flamethrower/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: flamethrower-flood
+  labels:
+    app.kubernetes.io/name: flamethrower
+    app.kubernetes.io/instance: flamethrower-flood
+    app.kubernetes.io/component: load-generator
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    eks.amazonaws.com/role-arn: "arn:aws:iam::111122223333:role/flamethrower-flood"
+---
+# Source: flamethrower/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: flamethrower-flood-flamethrower
+  labels:
+    app.kubernetes.io/name: flamethrower
+    app.kubernetes.io/instance: flamethrower-flood
+    app.kubernetes.io/component: load-generator
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: flamethrower
+    app.kubernetes.io/instance: flamethrower-flood
+  ports:
+    - name: control
+      port: 8080
+      targetPort: control
+      protocol: TCP
+---
+# Source: flamethrower/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: flamethrower-flood-flamethrower
+  labels:
+    app.kubernetes.io/name: flamethrower
+    app.kubernetes.io/instance: flamethrower-flood
+    app.kubernetes.io/component: load-generator
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: flamethrower
+      app.kubernetes.io/instance: flamethrower-flood
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: flamethrower
+        app.kubernetes.io/instance: flamethrower-flood
+    spec:
+      serviceAccountName: flamethrower-flood
+      containers:
+        - name: flamethrower
+          image: public.ecr.aws/cardinalhq.io/flamethrower:0.2.0
+          imagePullPolicy: IfNotPresent
+          args:
+            - loggen
+            - --style=k8s-filelog
+            - --rate=1
+            - --max-batch=10000
+            - --concurrency=10
+            - --s3-path=s3://test-bucket/otel-raw/00000000-0000-0000-0000-000000000000/test
+            - --control-addr=:8080
+          env:
+            - name: AWS_REGION
+              value: "us-east-2"
+          ports:
+            - name: control
+              containerPort: 8080
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: control
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: control
+            periodSeconds: 5
+          resources:
+            limits:
+              cpu: 2000m
+              memory: 1Gi
+            requests:
+              cpu: 500m
+              memory: 256Mi
