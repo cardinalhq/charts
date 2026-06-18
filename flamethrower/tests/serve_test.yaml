@@ -1,0 +1,75 @@
+suite: serve mode with inline destinations and token auth
+values:
+  - ../values.yaml
+set:
+  mode: serve
+  destinations:
+    - name: prod
+      bucket: my-bucket
+      prefix: otel-raw/org/col
+  auth.token: supersecret
+tests:
+  - it: runs the serve subcommand with the destinations file and max duration
+    template: deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: serve
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --destinations=/etc/flamethrower/destinations.yaml
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --max-duration=1h
+
+  - it: wires the auth token from the rendered Secret
+    template: deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: FLAMETHROWER_AUTH_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: RELEASE-NAME-flamethrower-auth
+                key: FLAMETHROWER_AUTH_TOKEN
+
+  - it: mounts the destinations ConfigMap
+    template: deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: destinations
+            mountPath: /etc/flamethrower
+            readOnly: true
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: destinations
+            configMap:
+              name: RELEASE-NAME-flamethrower-destinations
+
+  - it: renders the inline destinations into the ConfigMap
+    template: configmap-destinations.yaml
+    asserts:
+      - isKind:
+          of: ConfigMap
+      - matchRegex:
+          path: data["destinations.yaml"]
+          pattern: "name: prod"
+      - matchRegex:
+          path: data["destinations.yaml"]
+          pattern: "bucket: my-bucket"
+
+  - it: renders the auth token Secret
+    template: secret-auth.yaml
+    asserts:
+      - isKind:
+          of: Secret
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-flamethrower-auth
+      - equal:
+          path: stringData.FLAMETHROWER_AUTH_TOKEN
+          value: supersecret

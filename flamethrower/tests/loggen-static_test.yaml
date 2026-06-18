@@ -1,0 +1,45 @@
+suite: loggen mode with static (S3-compatible) auth
+values:
+  - ../values.yaml
+set:
+  mode: loggen
+  s3.bucket: test-bucket
+  s3.prefix: otel-raw/00000000-0000-0000-0000-000000000000/test
+  auth.mode: static
+  auth.secretName: flamethrower-creds
+  auth.endpointUrl: http://ceph.kubepi:7480
+tests:
+  - it: points the SDK at the custom S3 endpoint
+    template: deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: AWS_ENDPOINT_URL_S3
+            value: http://ceph.kubepi:7480
+
+  - it: sources credentials from the named Secret
+    template: deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: AWS_ACCESS_KEY_ID
+            valueFrom:
+              secretKeyRef:
+                name: flamethrower-creds
+                key: AWS_ACCESS_KEY_ID
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: AWS_SECRET_ACCESS_KEY
+            valueFrom:
+              secretKeyRef:
+                name: flamethrower-creds
+                key: AWS_SECRET_ACCESS_KEY
+
+  - it: does not add an IRSA role annotation to the ServiceAccount
+    template: serviceaccount.yaml
+    asserts:
+      - notExists:
+          path: metadata.annotations["eks.amazonaws.com/role-arn"]
