@@ -1,0 +1,47 @@
+{{- /*
+HorizontalPodAutoscalers for the process-* workers. Bounds come from each
+service's autoscaling.minReplicas/maxReplicas; the CPU target and behavior
+default from global.autoscaling.hpa and may be overridden per-service.
+
+The process-* Deployment templates intentionally omit spec.replicas, so an HPA
+owns the replica count without fighting the rendered manifest.
+*/ -}}
+{{- $root := . }}
+{{- $hpa := .Values.global.autoscaling.hpa | default dict }}
+{{- $services := list
+    (dict "component" "process-logs" "values" .Values.processLogs)
+    (dict "component" "process-metrics" "values" .Values.processMetrics)
+    (dict "component" "process-traces" "values" .Values.processTraces) }}
+{{- range $svc := $services }}
+{{- if $svc.values.enabled }}
+{{- $as := $svc.values.autoscaling | default dict }}
+{{- $target := $as.targetCPUUtilizationPercentage | default $hpa.targetCPUUtilizationPercentage | default 85 }}
+{{- $behavior := $as.behavior | default $hpa.behavior }}
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ include "lakerunner.fullname" $root }}-{{ $svc.component }}
+  labels:
+    {{- include "lakerunner.labelsWithComponent" (list $root $svc.values.labels) | nindent 4 }}
+    app.kubernetes.io/component: {{ $svc.component }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ include "lakerunner.fullname" $root }}-{{ $svc.component }}
+  minReplicas: {{ $as.minReplicas | default 1 }}
+  maxReplicas: {{ $as.maxReplicas | default 1 }}
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: {{ $target }}
+  {{- with $behavior }}
+  behavior:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- end }}
+{{- end }}

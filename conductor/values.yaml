@@ -5,6 +5,36 @@
 
 # Global settings
 global:
+  # Settings for the HorizontalPodAutoscalers. One HPA is created per enabled
+  # process-* worker (see lakerunner/process-hpa.yaml); its min/max come from
+  # that service's autoscaling.minReplicas/maxReplicas.
+  autoscaling:
+    # targetCPUUtilizationPercentage and behavior here are the defaults for all
+    # three process-* workers and can be overridden per-service under
+    # processLogs/processMetrics/processTraces.autoscaling.
+    hpa:
+      # Target average CPU as a percentage of the pod's cpu request.
+      targetCPUUtilizationPercentage: 80
+      # HPA v2 scaling behavior. Defaults favor fast scale-up and a damped
+      # 2-minute scale-down window to avoid replica flapping.
+      behavior:
+        scaleUp:
+          stabilizationWindowSeconds: 0
+          selectPolicy: Max
+          policies:
+            - type: Percent
+              value: 100
+              periodSeconds: 30
+            - type: Pods
+              value: 8
+              periodSeconds: 30
+        scaleDown:
+          stabilizationWindowSeconds: 120
+          selectPolicy: Max
+          policies:
+            - type: Percent
+              value: 25
+              periodSeconds: 60
   # Global resource configuration
   resources:
     # Whether to render resource limits and requests in deployments
@@ -33,7 +63,7 @@ global:
     # Pinned explicitly here so lakerunner images do NOT default to the unified
     # Chart.appVersion (which tracks maestro). Mirrors the legacy lakerunner
     # chart's appVersion. Per-component image.tag still wins over this.
-    tag: "v1.41.6"
+    tag: "v1.57.1"
     # Default pull policy for all images
     pullPolicy: "IfNotPresent"
   # Global temporary storage (scratch / DuckDB temp / cache) configuration.
@@ -847,7 +877,7 @@ objectStore:
 # Entrypoint selects which component to run.
 image:
   repository: public.ecr.aws/cardinalhq.io/maestro
-  tag: "v1.53.1"   # pinned (mirrors legacy maestro appVersion); do not rely on Chart.appVersion
+  tag: "v1.64.0"   # pinned (mirrors legacy maestro appVersion); do not rely on Chart.appVersion
   pullPolicy: IfNotPresent
 
 # Maestro API server + UI configuration
