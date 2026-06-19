@@ -8,3 +8,9 @@ license:
 # maestro database (namespaced to avoid colliding with lakerunner's nested database.lrdb)
 maestroDatabase:
   host: db.example.com
+# bootstrap is active by default (mode: auto); org id + owner email are required
+# so the maestro deployment renders its MAESTRO_BOOTSTRAP_* env.
+bootstrap:
+  org:
+    id: "00000000-0000-0000-0000-000000000000"
+    ownerEmail: "test@example.com"
