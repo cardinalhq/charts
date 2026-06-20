@@ -46,9 +46,25 @@ tests:
           value: 10
         documentIndex: 0
       - equal:
-          path: spec.metrics[0].resource.target.averageUtilization
+          path: spec.metrics[0].containerResource.target.averageUtilization
           value: 80
         documentIndex: 0
+      - equal:
+          path: spec.metrics[0].type
+          value: ContainerResource
+        documentIndex: 0
+      - equal:
+          path: spec.metrics[0].containerResource.container
+          value: process-logs
+        documentIndex: 0
+      - equal:
+          path: spec.metrics[0].containerResource.container
+          value: process-metrics
+        documentIndex: 1
+      - equal:
+          path: spec.metrics[0].containerResource.container
+          value: process-traces
+        documentIndex: 2
       - equal:
           path: spec.behavior.scaleDown.stabilizationWindowSeconds
           value: 120
@@ -81,7 +97,7 @@ tests:
           value: 25
         documentIndex: 0
       - equal:
-          path: spec.metrics[0].resource.target.averageUtilization
+          path: spec.metrics[0].containerResource.target.averageUtilization
           value: 70
         documentIndex: 0
 
@@ -104,7 +120,7 @@ tests:
       global.autoscaling.hpa: null
     asserts:
       - equal:
-          path: spec.metrics[0].resource.target.averageUtilization
+          path: spec.metrics[0].containerResource.target.averageUtilization
           value: 85
         documentIndex: 0
       - notExists:

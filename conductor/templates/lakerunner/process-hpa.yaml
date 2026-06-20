@@ -33,9 +33,12 @@ spec:
   minReplicas: {{ $as.minReplicas | default 1 }}
   maxReplicas: {{ $as.maxReplicas | default 1 }}
   metrics:
-    - type: Resource
-      resource:
+    # ContainerResource scopes scaling to our own container so an injected
+    # sidecar (e.g. istio) does not skew the utilization calculation.
+    - type: ContainerResource
+      containerResource:
         name: cpu
+        container: {{ $svc.component }}
         target:
           type: Utilization
           averageUtilization: {{ $target }}
