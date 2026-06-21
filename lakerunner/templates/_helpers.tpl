@@ -262,19 +262,20 @@ Usage:
 {{- end -}}
 
 {{/*
-Inject common + component-specific env vars for DuckDB services (process-logs/metrics/traces).
-These services use DuckDB internally and need specific memory tuning.
+Inject common + component-specific env vars for the process-* workers
+(process-logs/metrics/traces). These no longer use DuckDB in-process and need
+LKRN/Go memory tuning instead.
 Takes two args:
   0: the root chart context (so we can call commonEnv with it)
   1: the component's values block (must have .env as a list)
 Usage:
-  {{ include "lakerunner.injectEnvDuckdb" (list . .Values.processLogs) | nindent 10 }}
+  {{ include "lakerunner.injectEnvLkrn" (list . .Values.processLogs) | nindent 10 }}
 */}}
-{{- define "lakerunner.injectEnvDuckdb" -}}
+{{- define "lakerunner.injectEnvLkrn" -}}
 {{- $root := index . 0 -}}
 {{- $comp := index . 1 -}}
 {{- include "lakerunner.commonEnv" $root | nindent 2 -}}
-{{- include "lakerunner.duckdbRuntimeEnv" (list $root $comp $comp.env) | nindent 2 -}}
+{{- include "lakerunner.lkrnRuntimeEnv" (list $root $comp $comp.env) | nindent 2 -}}
 {{- include "lakerunner.tracesEnv" (list $root $comp) | nindent 2 -}}
 {{- with $root.Values.global.env -}}
 {{ toYaml . | nindent 2 -}}
@@ -932,31 +933,29 @@ Usage: {{ include "lakerunner.goRuntimeEnv" (list . .Values.componentName .Value
 {{- end -}}
 
 {{/*
-Generate DuckDB-specific runtime environment variables for ingest/compact/rollup services.
-These services use DuckDB internally and need specific memory tuning.
+Generate Go + LKRN runtime environment variables for the process-* workers
+(process-logs/metrics/traces). These no longer use DuckDB in-process (logs and
+traces cannot); the heavy lifting is the `lkrn pack` subprocess, which keeps
+decoded records in an in-memory buffer (LAKERUNNER_PACK_INMEM_BUFFER_MIB) and
+spills to /scratch (via TMPDIR) only as overflow.
 
-Memory budget split (worker pods):
-  duckdb_memory_limit  ≈ 40% of container memory
-  go_runtime_budget    ≈ 20% of container memory  (clamped 256–1024 MiB)
-  reserved             ≈ 40% (cgo allocator overhead, DuckDB peak overshoot,
-                              transient allocations not tracked by DuckDB's
-                              memory_limit). Empirically RSS overshoots
-                              memory_limit ~2× under hash builds/sorts.
+Memory budget split (process-* pods):
+  GOMEMLIMIT                       ≈ 20% of container (clamped 256–1024 MiB)
+  LAKERUNNER_PACK_INMEM_BUFFER_MIB ≈ 25% of container (clamped 256–1024 MiB)
+  reserved                         ≈ rest — OS page (buffer) cache, pack spill
+                                     round-trips, and RSS overage headroom.
 
 Settings:
   - GOMEMLIMIT = clamp(20% of container, 256MiB..1024MiB)
   - GOGC = 100 (fixed)
-  - LAKERUNNER_DUCKDB_MEMORY_LIMIT = 40% of container, in MB (min 512)
-  - LAKERUNNER_DUCKDB_TEMP_DIRECTORY = /scratch
-  - MALLOC_ARENA_MAX = 2 (collapses glibc per-thread arena fragmentation
-                          for cgo-heavy DuckDB workloads)
+  - LAKERUNNER_PACK_INMEM_BUFFER_MIB = clamp(25% of container, 256..1024) MiB
 Takes three args:
   0: the root chart context
   1: the component's values block (must have .resources.limits.memory)
   2: optional component env list
-Usage: {{ include "lakerunner.duckdbRuntimeEnv" (list . .Values.componentName .Values.componentName.env) }}
+Usage: {{ include "lakerunner.lkrnRuntimeEnv" (list . .Values.componentName .Values.componentName.env) }}
 */}}
-{{- define "lakerunner.duckdbRuntimeEnv" -}}
+{{- define "lakerunner.lkrnRuntimeEnv" -}}
 {{- $root := index . 0 -}}
 {{- $comp := index . 1 -}}
 {{- $compEnv := index . 2 | default list -}}
@@ -971,9 +970,7 @@ Usage: {{ include "lakerunner.duckdbRuntimeEnv" (list . .Values.componentName .V
   {{- $totalMiB := divf $bytes $oneMiB | int64 -}}
   {{- $hasGomemlimit := or (eq (include "lakerunner.hasEnvVar" (list $globalEnv "GOMEMLIMIT")) "true") (eq (include "lakerunner.hasEnvVar" (list $compEnv "GOMEMLIMIT")) "true") -}}
   {{- $hasGogc := or (eq (include "lakerunner.hasEnvVar" (list $globalEnv "GOGC")) "true") (eq (include "lakerunner.hasEnvVar" (list $compEnv "GOGC")) "true") -}}
-  {{- $hasDuckdbMemLimit := or (eq (include "lakerunner.hasEnvVar" (list $globalEnv "LAKERUNNER_DUCKDB_MEMORY_LIMIT")) "true") (eq (include "lakerunner.hasEnvVar" (list $compEnv "LAKERUNNER_DUCKDB_MEMORY_LIMIT")) "true") -}}
-  {{- $hasDuckdbTempDir := or (eq (include "lakerunner.hasEnvVar" (list $globalEnv "LAKERUNNER_DUCKDB_TEMP_DIRECTORY")) "true") (eq (include "lakerunner.hasEnvVar" (list $compEnv "LAKERUNNER_DUCKDB_TEMP_DIRECTORY")) "true") -}}
-  {{- $hasMallocArenaMax := or (eq (include "lakerunner.hasEnvVar" (list $globalEnv "MALLOC_ARENA_MAX")) "true") (eq (include "lakerunner.hasEnvVar" (list $compEnv "MALLOC_ARENA_MAX")) "true") -}}
+  {{- $hasLkrnBuffer := or (eq (include "lakerunner.hasEnvVar" (list $globalEnv "LAKERUNNER_PACK_INMEM_BUFFER_MIB")) "true") (eq (include "lakerunner.hasEnvVar" (list $compEnv "LAKERUNNER_PACK_INMEM_BUFFER_MIB")) "true") -}}
 {{- if not $hasGomemlimit }}
 {{- /* GOMEMLIMIT = 20% of container, clamped to [256, 1024] MiB */}}
 {{- $gomemlimitMiB := mulf $totalMiB 0.20 | int64 -}}
@@ -986,20 +983,13 @@ Usage: {{ include "lakerunner.duckdbRuntimeEnv" (list . .Values.componentName .V
 - name: GOGC
   value: "100"
 {{- end }}
-{{- if not $hasDuckdbMemLimit }}
-{{- /* DuckDB target = 40% of container, in MB; floor 512 MB */}}
-{{- $duckdbMB := mulf $totalMiB 0.40 | int64 -}}
-{{- if lt $duckdbMB 512 -}}{{- $duckdbMB = 512 -}}{{- end }}
-- name: LAKERUNNER_DUCKDB_MEMORY_LIMIT
-  value: {{ $duckdbMB | quote }}
-{{- end }}
-{{- if not $hasDuckdbTempDir }}
-- name: LAKERUNNER_DUCKDB_TEMP_DIRECTORY
-  value: "/scratch"
-{{- end }}
-{{- if not $hasMallocArenaMax }}
-- name: MALLOC_ARENA_MAX
-  value: "2"
+{{- if not $hasLkrnBuffer }}
+{{- /* LKRN pack in-memory buffer = 25% of container, clamped [256, 1024] MiB */}}
+{{- $lkrnMiB := mulf $totalMiB 0.25 | int64 -}}
+{{- if lt $lkrnMiB 256 -}}{{- $lkrnMiB = 256 -}}{{- end -}}
+{{- if gt $lkrnMiB 1024 -}}{{- $lkrnMiB = 1024 -}}{{- end }}
+- name: LAKERUNNER_PACK_INMEM_BUFFER_MIB
+  value: {{ $lkrnMiB | quote }}
 {{- end }}
 {{- end -}}
 {{- include "lakerunner.scratchDiskSizeEnv" (list $root $comp) }}
