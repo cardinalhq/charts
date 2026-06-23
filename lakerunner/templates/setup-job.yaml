@@ -38,6 +38,8 @@ spec:
         env:
           - name: OTEL_SERVICE_NAME
             value: {{ include "lakerunner.fullname" . }}-setup
+          - name: TMPDIR
+            value: /scratch
           {{- include "lakerunner.injectEnvSetup" (list . .Values.setup) | nindent 8 }}
           {{- include "lakerunner.cardinalTelemetryEnv" . | nindent 10 }}
         {{- if .Values.global.resources.enabled }}

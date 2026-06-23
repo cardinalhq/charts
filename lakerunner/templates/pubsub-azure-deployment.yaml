@@ -58,6 +58,8 @@ spec:
                 fieldPath: status.podIP
           - name: OTEL_SERVICE_NAME
             value: {{ include "lakerunner.fullname" . }}-pubsub-azure
+          - name: TMPDIR
+            value: /scratch
           - name: AZURE_STORAGE_ACCOUNT
             value: {{ .Values.pubsub.Azure.storageAccount | quote }}
           - name: AZURE_QUEUE_NAME

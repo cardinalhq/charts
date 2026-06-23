@@ -56,6 +56,8 @@ spec:
                 fieldPath: status.podIP
           - name: OTEL_SERVICE_NAME
             value: {{ include "lakerunner.fullname" . }}-pubsub-sqs
+          - name: TMPDIR
+            value: /scratch
           - name: SQS_QUEUE_URL
             value: {{ .Values.pubsub.SQS.queueURL | quote }}
           - name: SQS_REGION
