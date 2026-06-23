@@ -51,6 +51,8 @@ spec:
                 fieldPath: status.podIP
           - name: OTEL_SERVICE_NAME
             value: {{ include "lakerunner.fullname" . }}-pubsub-http
+          - name: TMPDIR
+            value: /scratch
           {{- include "lakerunner.injectEnv" (list . .Values.pubsub.HTTP) | nindent 8 }}
           {{- include "lakerunner.cardinalTelemetryEnv" . | nindent 10 }}
         {{- include "lakerunner.healthProbes" (list . .Values.pubsub.HTTP) | nindent 8 }}

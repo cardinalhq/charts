@@ -42,6 +42,8 @@ spec:
         env:
           - name: OTEL_SERVICE_NAME
             value: {{ include "lakerunner.fullname" . }}-query-api
+          - name: TMPDIR
+            value: /scratch
           - name: EXECUTION_ENVIRONMENT
             value: "kubernetes"
           - name: POD_NAMESPACE
