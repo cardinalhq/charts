@@ -1,5 +1,12 @@
 # Changelog
 
+## 3.16.22
+
+* **REMOVED**: the Perch operator. Deleted the `perch` deployment, configmap,
+  ClusterRole, and collectors Role/ClusterRole templates along with the
+  `perch.*` values block. The OpenShift "Perch needs elevated RBAC" note is
+  gone too.
+
 ## 3.16.3
 
 * **CHANGED**: trimmed the `-scaler` Role down to what the workloads actually
