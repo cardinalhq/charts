@@ -317,10 +317,6 @@ for an OpenShift-compatible image that supports random UIDs and also null
 `grafana.podSecurityContext.runAsUser`/`runAsGroup`/`fsGroup` the same way as
 section 1.
 
-### 3. Perch needs elevated RBAC
-
-The Perch component already ships with a `ClusterRole` that includes `patch` on `apps/deployments` cluster-wide — this is its legitimate function (cross-namespace deployment management), but it counts as a privileged grant. On clusters with strict RBAC review you may need admin approval or an `oc adm policy add-role-to-user edit` against the chart's ServiceAccount.
-
-### 4. Ingress / Routes
+### 3. Ingress / Routes
 
 The chart uses standard `networking.k8s.io/v1` `Ingress` resources. They work with the OpenShift HAProxy router out of the box; no nginx-specific annotations are emitted.
