@@ -253,6 +253,12 @@ Usage (inside a pod template's initContainers list):
         secretKeyRef:
           name: {{ .root.Values.mcpGateway.apiKeySecret.name | quote }}
           key: {{ .root.Values.mcpGateway.apiKeySecret.key | default "MCP_API_KEY" | quote }}
+    {{- else }}
+    # No API key configured: the sidecar is pod-local (reached over loopback),
+    # so it runs unauthenticated by design. The gateway fails closed on a
+    # missing MCP_API_KEY unless this opt-out is set.
+    - name: MCP_ALLOW_NO_AUTH
+      value: "true"
     {{- end }}
     {{- include "maestro.cardinalTelemetryEnv" .root | nindent 4 }}
     {{- with .root.Values.global.env }}
