@@ -83,3 +83,34 @@ tests:
           content:
             name: MCP_API_KEY
           any: true
+
+  - it: emits MCP_ALLOW_NO_AUTH=true when no key is configured (gateway fails closed otherwise)
+    template: maestro-deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.initContainers[?(@.name == "mcp-gateway")].env
+          content:
+            name: MCP_ALLOW_NO_AUTH
+            value: "true"
+
+  - it: does not emit MCP_ALLOW_NO_AUTH when a plaintext apiKey is configured
+    set:
+      mcpGateway.apiKey: "some-key"
+    template: maestro-deployment.yaml
+    asserts:
+      - notContains:
+          path: spec.template.spec.initContainers[?(@.name == "mcp-gateway")].env
+          content:
+            name: MCP_ALLOW_NO_AUTH
+            value: "true"
+
+  - it: does not emit MCP_ALLOW_NO_AUTH when apiKeySecret.name is configured
+    set:
+      mcpGateway.apiKeySecret.name: mcp-gateway-creds
+    template: maestro-deployment.yaml
+    asserts:
+      - notContains:
+          path: spec.template.spec.initContainers[?(@.name == "mcp-gateway")].env
+          content:
+            name: MCP_ALLOW_NO_AUTH
+            value: "true"

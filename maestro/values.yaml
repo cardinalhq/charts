@@ -281,7 +281,9 @@ mcpGateway:
     enabled: false
   # Alternative to plaintext `apiKey`: source MCP_API_KEY from an
   # existing Secret. When `apiKey` is set it wins; otherwise the sidecar
-  # emits a secretKeyRef. Leave both empty for unauthenticated local dev.
+  # emits a secretKeyRef. Leave both empty for unauthenticated local dev —
+  # the sidecar then renders MCP_ALLOW_NO_AUTH=true so the gateway (which
+  # fails closed on a missing key) starts in its pod-local unauthenticated mode.
   apiKeySecret:
     name: ""
     key: "MCP_API_KEY"
