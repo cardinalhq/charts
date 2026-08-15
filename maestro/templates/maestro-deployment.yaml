@@ -139,16 +139,7 @@ spec:
           # readOnlyRootFilesystem=true.
           - name: WORKING_DIRECTORY
             value: "/var/cache/maestro"
-          {{- if include "maestro.githubCacheEnabled" . }}
-          # Split mode: maestro holds no repo bytes. The in-process git client +
-          # ontology poller are disabled and git tool calls route to the
-          # github-cache serving replicas via the placement directory.
-          - name: GITHUB_CACHE_REMOTE
-            value: "1"
-          {{- end }}
           {{- if (include "maestro.temporaryStorageEnabled" .) }}
-          - name: ONTOLOGY_WORKSPACE_DIR
-            value: {{ printf "%s/git-checkouts" (.Values.maestro.temporaryStorage.mountPath | default "/var/lib/maestro") | quote }}
           - name: ORCHESTRA_ARTIFACT_DIR
             value: {{ printf "%s/artifacts" (.Values.maestro.temporaryStorage.mountPath | default "/var/lib/maestro") | quote }}
           {{- end }}

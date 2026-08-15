@@ -127,7 +127,7 @@ key=`) as unset, so both produce the auto-derived default.
 {{- end -}}
 
 {{/*
-Strict bool reader for mode-critical toggles (ha.enabled, githubCache.enabled,
+Strict bool reader for mode-critical toggles (ha.enabled,
 maestro.temporaryStorage.enabled). Returns "true" (string) when the value is the
 YAML/Go bool true, "" when it's bool false or nil. Fails template rendering
 on any other type (e.g. operator typed `--set-string ha.enabled=true` and
@@ -167,23 +167,6 @@ can't accidentally render as truthy in some gates and falsy in others.
 {{- end -}}
 
 {{/*
-Effective github-cache enablement after auto-derivation from ha.enabled.
-  - Explicit operator value (bool true/false) wins.
-  - Unset (null or "") → true when HA, false in POC.
-Returns "true" (string) when enabled, "" otherwise. Pair with the
-maestro.haValidate gate so explicit conflicts surface as failures.
-Strictly bool-only (see maestro.haEnabled rationale).
-*/}}
-{{- define "maestro.githubCacheEnabled" -}}
-{{- $explicit := dig "enabled" nil (.Values.githubCache | default dict) -}}
-{{- if include "maestro.isUnset" $explicit -}}
-  {{- if include "maestro.haEnabled" . -}}true{{- end -}}
-{{- else -}}
-  {{- include "maestro.boolOrFail" (dict "value" $explicit "path" "githubCache.enabled") -}}
-{{- end -}}
-{{- end -}}
-
-{{/*
 Effective replica count for a workload after auto-derivation from ha.enabled.
   - Explicit operator value (integer) wins.
   - Unset (null or "") → `haDefault` when HA, `pocDefault` in POC.
@@ -211,8 +194,7 @@ Usage:
 
 {{/*
 mcp-gateway as a native sidecar (initContainer with restartPolicy: Always,
-GA in k8s 1.29). Used by maestro, github-cache (serving), and
-github-cache-provisioner pod templates so each consumer talks to its
+GA in k8s 1.29). Used by the maestro pod template so each consumer talks to its
 own pod-local gateway over loopback. No Service or cross-pod routing
 involved — sidesteps the "session not found" issue (cardinalhq/conductor#838)
 that affects stateful MCP drivers under round-robin load balancing.
@@ -282,8 +264,7 @@ file the operator looks at.
 
 The strict-bool narrow on mode-critical toggles runs UNCONDITIONALLY —
 even in POC mode — so a stringly `--set-string ha.enabled=true`,
-`--set-string githubCache.enabled=...`, or `--set-string
-maestro.temporaryStorage.enabled=...` fails with a clear message regardless
+or `--set-string maestro.temporaryStorage.enabled=...` fails with a clear message regardless
 of whether the helper is otherwise reached during this particular
 template's render path.
 */}}
@@ -291,10 +272,6 @@ template's render path.
 {{- /* Force-narrow the mode-critical bools so stringly inputs fail loud. */ -}}
 {{- $_ := include "maestro.haEnabled" . -}}
 {{- $_ = include "maestro.temporaryStorageEnabled" . -}}
-{{- $ghExplicitNarrow := dig "enabled" nil (.Values.githubCache | default dict) -}}
-{{- if not (include "maestro.isUnset" $ghExplicitNarrow) -}}
-  {{- $_ = include "maestro.boolOrFail" (dict "value" $ghExplicitNarrow "path" "githubCache.enabled") -}}
-{{- end -}}
 {{- if include "maestro.haEnabled" . -}}
   {{- /* HA requires object storage. */ -}}
   {{- $bucket := dig "bucket" "" (.Values.objectStore | default dict) -}}
@@ -303,12 +280,7 @@ template's render path.
   {{- end -}}
   {{- /* HA is incompatible with the maestro RWO PVC (Recreate strategy + replicas>1 deadlocks). */ -}}
   {{- if include "maestro.temporaryStorageEnabled" . -}}
-    {{- fail "ha.enabled=true is incompatible with maestro.temporaryStorage.enabled=true (Recreate strategy + RWO PVC deadlocks rolling updates under replicas>1). Use objectStore for artifacts; the github-cache StatefulSet already handles its own per-pod PVCs." -}}
-  {{- end -}}
-  {{- /* HA requires the split github-cache. Explicit bool false fails. */ -}}
-  {{- $ghExplicit := dig "enabled" nil (.Values.githubCache | default dict) -}}
-  {{- if and (not (include "maestro.isUnset" $ghExplicit)) (not (include "maestro.boolOrFail" (dict "value" $ghExplicit "path" "githubCache.enabled"))) -}}
-    {{- fail "ha.enabled=true is incompatible with explicit githubCache.enabled=false (in-process github-cache holds per-pod state and a single PVC, neither of which scales). Remove the override or set ha.enabled=false." -}}
+    {{- fail "ha.enabled=true is incompatible with maestro.temporaryStorage.enabled=true (Recreate strategy + RWO PVC deadlocks rolling updates under replicas>1). Use objectStore for artifacts." -}}
   {{- end -}}
   {{- /* HA replica counts must be ≥ 2. */ -}}
   {{- $mReplicas := dig "replicas" nil (.Values.maestro | default dict) -}}
@@ -321,10 +293,6 @@ template's render path.
        we DO honor an explicit override so the operator can opt in if they
        know they only exercise the collector-editor driver (the one HA-safe
        path). */ -}}
-  {{- $ghServingReplicas := dig "serving" "replicas" nil (.Values.githubCache | default dict) -}}
-  {{- if and (not (include "maestro.isUnset" $ghServingReplicas)) (lt (int $ghServingReplicas) 2) -}}
-    {{- fail (printf "ha.enabled=true requires githubCache.serving.replicas >= 2 (got %v). The serving StatefulSet must be redundant in HA mode." $ghServingReplicas) -}}
-  {{- end -}}
 {{- end -}}
 {{- /* These checks are independent of HA mode — wrong auth keys with an
     existingSecret will break at runtime in either mode, so fail at template
@@ -449,29 +417,6 @@ Database environment variables shared across components.
 - name: MAESTRO_DATABASE_URL
   value: "postgresql://$(MAESTRO_DB_USER):$(MAESTRO_DB_PASSWORD)@$(MAESTRO_DB_HOST):$(MAESTRO_DB_PORT)/$(MAESTRO_DB_NAME)?sslmode=$(MAESTRO_DB_SSLMODE)"
 {{- end }}
-
-{{/*
-github-cache: fully qualified names for the serving StatefulSet + headless
-Service and the provisioner Deployment.
-*/}}
-{{- define "maestro.githubCacheFullname" -}}
-{{- printf "%s-github-cache" (include "maestro.fullname" .) | trunc 63 | trimSuffix "-" -}}
-{{- end -}}
-
-{{- define "maestro.githubCacheProvisionerFullname" -}}
-{{- printf "%s-github-cache-provisioner" (include "maestro.fullname" .) | trunc 63 | trimSuffix "-" -}}
-{{- end -}}
-
-{{/*
-github-cache reads its Postgres DSN from DATABASE_URL (not maestro's
-MAESTRO_DATABASE_URL). Emit it as an alias composed from the same
-MAESTRO_DB_* vars that maestro.databaseEnv defines, so it must follow that
-helper in the env list (the $(VAR) refs resolve against the earlier entries).
-*/}}
-{{- define "maestro.databaseUrlAlias" -}}
-- name: DATABASE_URL
-  value: "postgresql://$(MAESTRO_DB_USER):$(MAESTRO_DB_PASSWORD)@$(MAESTRO_DB_HOST):$(MAESTRO_DB_PORT)/$(MAESTRO_DB_NAME)?sslmode=$(MAESTRO_DB_SSLMODE)"
-{{- end -}}
 
 {{/*
 Return the secret name for the Cardinal API key.

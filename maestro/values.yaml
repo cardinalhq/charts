@@ -8,17 +8,14 @@ fullnameOverride: ""
 #
 # Two modes:
 #   ha.enabled=false (default) — POC: one maestro pod + one mcp-gateway pod,
-#     github-cache rolled into maestro (in-process), no object store required.
-#     Artifacts kept in-memory; ontology git checkouts on the pod's /tmp
-#     emptyDir (re-cloned on restart).
+#     no object store required. Artifacts kept in-memory.
 #   ha.enabled=true — HA: two maestro pods + two mcp-gateway pods (operator
-#     can override higher), github-cache split into its StatefulSet +
-#     singleton provisioner, S3-compat object store REQUIRED for artifacts.
+#     can override higher), S3-compat object store REQUIRED for artifacts.
 #     Maestro `temporaryStorage.enabled` must be false (RWO PVC + Recreate
 #     strategy deadlocks rolling updates under replicas>1).
 #
-# Defaults for `maestro.replicas` and `githubCache.enabled` auto-derive
-# from this flag when left unset (null). Explicit operator values are
+# Defaults for `maestro.replicas` auto-derive from this flag when left
+# unset (null). Explicit operator values are
 # honored; conflicting explicit values fail template rendering with a
 # clear message. mcp-gateway is no longer a standalone Deployment — it
 # runs as a native sidecar in every maestro stack pod, so there's no
@@ -235,8 +232,8 @@ maestro:
   # the `scratch` token for data-classification tooling (matches the
   # lakerunner scratch-volume convention; "definitely-no-backup").
   # Off by default — when enabled, mounts a PVC at `mountPath` and sets
-  # the env vars ORCHESTRA_ARTIFACT_DIR and ONTOLOGY_WORKSPACE_DIR so
-  # maestro routes both into the volume. Recommended for SaaS deployments
+  # the env var ORCHESTRA_ARTIFACT_DIR so maestro routes artifacts into
+  # the volume. Recommended for SaaS deployments
   # where memory budgets are tight; not required for small/dev installs
   # (orchestra falls back to its in-memory artifact store).
   #
@@ -259,8 +256,7 @@ maestro:
 # MCP Gateway configuration.
 #
 # mcp-gateway runs as a native sidecar (initContainer with restartPolicy:
-# Always, GA in k8s 1.29+) in every maestro stack pod — maestro itself,
-# the github-cache StatefulSet pods, and the github-cache-provisioner.
+# Always, GA in k8s 1.29+) in every maestro pod.
 # Each pod's main container talks to the gateway over loopback, so every
 # MCP session lives entirely within one pod. This sidesteps the
 # "session not found" error stateful MCP drivers would otherwise hit
@@ -300,89 +296,6 @@ mcpGateway:
       cpu: 1
       memory: 512Mi
   # Additional env vars applied to every mcp-gateway sidecar.
-  env: []
-
-# GitHub Cache Service (split mode).
-#
-# When enabled, the per-tenant VCS repo mirror cache + git code-search/read
-# tools and the ontology poller/provisioner run as their own pods instead of
-# in-process inside maestro. Maestro then runs as a pure client
-# (GITHUB_CACHE_REMOTE=1): it holds no repo bytes and routes every git tool call
-# to a serving replica via the Postgres placement directory, with failover.
-#
-# Default enablement is auto-derived from ha.enabled (see `enabled:` below).
-#
-# Two roles, both off the unified image:
-#   - serving (`github-cache`): a StatefulSet; each pod owns a stable RWO PVC
-#     holding its bare mirrors and answers MCP-over-HTTP. A headless Service
-#     gives each pod stable per-pod DNS so the directory can address it directly.
-#   - provisioner (`github-cache-provisioner`): a singleton Deployment that runs
-#     the ontology poller + dead-row sweeper (guarded by a persisted lease).
-#     Required whenever split mode is on — in remote mode maestro disables its
-#     in-process poller, so without this pod ontology refresh stops.
-#
-# Leave `enabled` unset (null) to auto-derive from ha.enabled — split mode
-# is the right shape for HA (it's the only multi-pod-safe topology), and
-# in-process is the right shape for POC. Explicitly setting `true` or
-# `false` is honored; pairing `ha.enabled=true` with explicit
-# `githubCache.enabled=false` fails template rendering.
-#
-# NOTE: split mode provisions one RWO PVC per serving replica. The cluster
-# therefore needs a default StorageClass (or serving.persistence.storageClass
-# set) — without dynamic provisioning the serving pods stay Pending.
-githubCache:
-  enabled: ~
-
-  # Serving replicas — the mirror cache + git tool hosts.
-  serving:
-    replicas: 2
-    port: 4300
-    # Per-pod mirror storage. Each StatefulSet pod is the sole writer to its
-    # own RWO volume (volumeClaimTemplate), so a restart re-attaches a warm
-    # disk → delta-fetch instead of a full re-clone.
-    persistence:
-      size: 10Gi
-      accessMode: ReadWriteOnce
-      # storageClass: ""   # leave empty to use the cluster default
-      mountPath: /var/lib/github-cache
-      # SELinux MCS level pinned across pod restarts so a re-attached PVC's
-      # mirror bytes stay readable (same rationale as maestro.temporaryStorage).
-      seLinuxLevel: "s0:c100,c200"
-    resources:
-      requests:
-        cpu: 500m
-        memory: 512Mi
-      limits:
-        cpu: 1
-        memory: 1Gi
-    labels: {}
-    annotations: {}
-    nodeSelector: {}
-    tolerations: []
-    affinity: {}
-
-  # Ontology poller + sweeper singleton. Holds no mirror PVC.
-  provisioner:
-    replicas: 1
-    resources:
-      requests:
-        cpu: 250m
-        memory: 256Mi
-      limits:
-        cpu: 500m
-        memory: 512Mi
-    labels: {}
-    annotations: {}
-    nodeSelector: {}
-    tolerations: []
-    affinity: {}
-
-  # Optional override of the per-replica disk-budget LRU ceiling (bytes).
-  # Leave empty to use the service default (10 GiB), which matches the
-  # serving PVC size above.
-  diskBudgetBytes: ""
-
-  # Additional env vars applied to both the serving and provisioner containers.
   env: []
 
 # License configuration
