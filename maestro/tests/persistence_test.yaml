@@ -21,10 +21,6 @@ tests:
           path: spec.template.spec.containers[0].env
           content:
             name: ORCHESTRA_ARTIFACT_DIR
-      - notContains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: ONTOLOGY_WORKSPACE_DIR
 
   - it: renders PVC, mount, and env vars when temporaryStorage enabled
     set:
@@ -57,11 +53,6 @@ tests:
           content:
             name: ORCHESTRA_ARTIFACT_DIR
             value: "/var/lib/maestro/artifacts"
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: ONTOLOGY_WORKSPACE_DIR
-            value: "/var/lib/maestro/git-checkouts"
       - contains:
           path: spec.template.spec.containers[0].volumeMounts
           content:
