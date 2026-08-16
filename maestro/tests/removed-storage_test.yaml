@@ -1,0 +1,57 @@
+suite: removed storage keys fail loudly
+templates:
+  - maestro-deployment.yaml
+  - deprecation-warnings.yaml
+tests:
+  # ---- the scratch volume is gone ---------------------------------------
+  - it: renders no scratch volume, mount, or artifact env
+    template: maestro-deployment.yaml
+    asserts:
+      - notContains:
+          path: spec.template.spec.volumes
+          content:
+            name: scratch
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: ORCHESTRA_ARTIFACT_DIR
+          any: true
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: MAESTRO_ARTIFACT_STORE
+          any: true
+
+  - it: uses the default rolling-update strategy (no RWO PVC to deadlock on)
+    template: maestro-deployment.yaml
+    asserts:
+      - isNull:
+          path: spec.strategy
+
+  # ---- removed values keys are rejected, not silently ignored ------------
+  - it: fails when the removed maestro.temporaryStorage key is set
+    template: deprecation-warnings.yaml
+    set:
+      maestro.temporaryStorage.enabled: true
+    asserts:
+      - failedTemplate:
+          errorPattern: "REMOVED: maestro.persistence / maestro.temporaryStorage"
+
+  - it: fails on the legacy maestro.persistence key too
+    template: deprecation-warnings.yaml
+    set:
+      maestro.persistence.size: 5Gi
+    asserts:
+      - failedTemplate: {}
+
+  - it: fails when the removed objectStore key is set
+    template: deprecation-warnings.yaml
+    set:
+      objectStore.bucket: my-bucket
+    asserts:
+      - failedTemplate: {}
+
+  - it: renders clean with none of the removed keys set
+    template: deprecation-warnings.yaml
+    asserts:
+      - notFailedTemplate: {}

@@ -123,8 +123,8 @@ key=`) as unset, so both produce the auto-derived default.
 {{- end -}}
 
 {{/*
-Strict bool reader for mode-critical toggles (ha.enabled, githubCache.enabled,
-maestro.persistence.enabled). Returns "true" (string) when the value is the
+Strict bool reader for mode-critical toggles (ha.enabled,
+githubCache.enabled). Returns "true" (string) when the value is the
 YAML/Go bool true, "" when it's bool false or nil. Fails template rendering
 on any other type (e.g. operator typed `--set-string ha.enabled=true` and
 got a string instead of a bool — silently treating "true" as false is the
@@ -148,18 +148,6 @@ HA mode toggle — returns "true" (string) when ha.enabled is the bool true,
 */}}
 {{- define "maestro.haEnabled" -}}
 {{- include "maestro.boolOrFail" (dict "value" (dig "enabled" false (.Values.ha | default dict)) "path" "ha.enabled") -}}
-{{- end -}}
-
-{{/*
-Effective maestro persistence enablement. Same strict-bool semantics as
-haEnabled. Centralizes the gate so every consumer (PVC, Deployment
-strategy block, env injection, volume mount) reads the same narrowed
-value — and stringly `--set-string maestro.persistence.enabled=false`
-can't accidentally render as truthy in some gates and falsy in others.
-*/}}
-{{- define "maestro.persistenceEnabled" -}}
-{{- $v := dig "enabled" false (dig "persistence" dict (.Values.maestro | default dict)) -}}
-{{- include "maestro.boolOrFail" (dict "value" $v "path" "maestro.persistence.enabled") -}}
 {{- end -}}
 
 {{/*
@@ -271,30 +259,19 @@ invalid combination fails rendering with a clear message no matter which
 file the operator looks at.
 
 The strict-bool narrow on mode-critical toggles runs UNCONDITIONALLY —
-even in POC mode — so a stringly `--set-string ha.enabled=true`,
-`--set-string githubCache.enabled=...`, or `--set-string
-maestro.persistence.enabled=...` fails with a clear message regardless
-of whether the helper is otherwise reached during this particular
-template's render path.
+even in POC mode — so a stringly `--set-string ha.enabled=true` or
+`--set-string githubCache.enabled=...` fails with a clear message
+regardless of whether the helper is otherwise reached during this
+particular template's render path.
 */}}
 {{- define "maestro.haValidate" -}}
-{{- /* Force-narrow the mode-critical bools so stringly inputs fail loud. */ -}}
+{{- /* Force-narrow the mode-critical bool so stringly inputs fail loud. */ -}}
 {{- $_ := include "maestro.haEnabled" . -}}
-{{- $_ = include "maestro.persistenceEnabled" . -}}
 {{- $ghExplicitNarrow := dig "enabled" nil (.Values.githubCache | default dict) -}}
 {{- if not (include "maestro.isUnset" $ghExplicitNarrow) -}}
   {{- $_ = include "maestro.boolOrFail" (dict "value" $ghExplicitNarrow "path" "githubCache.enabled") -}}
 {{- end -}}
 {{- if include "maestro.haEnabled" . -}}
-  {{- /* HA requires object storage. */ -}}
-  {{- $bucket := dig "bucket" "" (.Values.objectStore | default dict) -}}
-  {{- if not $bucket -}}
-    {{- fail "ha.enabled=true requires objectStore.bucket to be set (artifacts must be durable across pods). See values.yaml for AWS-S3 and Rook-Ceph examples." -}}
-  {{- end -}}
-  {{- /* HA is incompatible with the maestro RWO PVC (Recreate strategy + replicas>1 deadlocks). */ -}}
-  {{- if include "maestro.persistenceEnabled" . -}}
-    {{- fail "ha.enabled=true is incompatible with maestro.persistence.enabled=true (Recreate strategy + RWO PVC deadlocks rolling updates under replicas>1). Use objectStore for artifacts; the github-cache StatefulSet already handles its own per-pod PVCs." -}}
-  {{- end -}}
   {{- /* HA requires the split github-cache. Explicit bool false fails. */ -}}
   {{- $ghExplicit := dig "enabled" nil (.Values.githubCache | default dict) -}}
   {{- if and (not (include "maestro.isUnset" $ghExplicit)) (not (include "maestro.boolOrFail" (dict "value" $ghExplicit "path" "githubCache.enabled"))) -}}
@@ -315,94 +292,6 @@ template's render path.
   {{- if and (not (include "maestro.isUnset" $ghServingReplicas)) (lt (int $ghServingReplicas) 2) -}}
     {{- fail (printf "ha.enabled=true requires githubCache.serving.replicas >= 2 (got %v). The serving StatefulSet must be redundant in HA mode." $ghServingReplicas) -}}
   {{- end -}}
-{{- end -}}
-{{- /* These checks are independent of HA mode — wrong auth keys with an
-    existingSecret will break at runtime in either mode, so fail at template
-    time regardless. */ -}}
-{{- $auth := dig "auth" dict (.Values.objectStore | default dict) -}}
-{{- $existing := dig "existingSecret" "" $auth -}}
-{{- if $existing -}}
-  {{- if not (dig "accessKeyIdKey" "" $auth) -}}
-    {{- fail "objectStore.auth.existingSecret is set but objectStore.auth.accessKeyIdKey is empty. Set the key name the secret uses (commonly AWS_ACCESS_KEY_ID)." -}}
-  {{- end -}}
-  {{- if not (dig "secretAccessKeyKey" "" $auth) -}}
-    {{- fail "objectStore.auth.existingSecret is set but objectStore.auth.secretAccessKeyKey is empty. Set the key name the secret uses (commonly AWS_SECRET_ACCESS_KEY)." -}}
-  {{- end -}}
-{{- end -}}
-{{- end -}}
-
-{{/*
-Object-store env vars injected into the maestro container when a bucket
-is configured. Emits MAESTRO_ARTIFACT_STORE=object + bucket/region/
-endpoint/forcePathStyle. Credential env (AWS_*) is emitted separately by
-maestro.objectStoreAuthEnv so the SDK default credential chain still
-works when no existingSecret is configured.
-
-Region defaulting: AWS SDK v3 requires a region. For AWS S3 the operator
-sets `objectStore.region` explicitly. For S3-compatible stores reached
-via a custom `endpoint` (Ceph RGW, MinIO, Rook OBC) the region is
-typically irrelevant but still mandatory at the SDK layer — fall back
-to "us-east-1" so the SDK is satisfied. AWS S3 without an explicit
-region uses no fallback (any wrong default would fail later anyway).
-*/}}
-{{- define "maestro.objectStoreEnv" -}}
-{{- $os := .Values.objectStore | default dict -}}
-{{- $bucket := dig "bucket" "" $os -}}
-{{- if $bucket }}
-{{- $endpoint := dig "endpoint" "" $os -}}
-{{- $region := dig "region" "" $os -}}
-{{- if and (not $region) $endpoint -}}{{- $region = "us-east-1" -}}{{- end }}
-- name: MAESTRO_ARTIFACT_STORE
-  value: "object"
-- name: MAESTRO_ARTIFACT_S3_BUCKET
-  value: {{ $bucket | quote }}
-{{- if $region }}
-- name: MAESTRO_ARTIFACT_S3_REGION
-  value: {{ $region | quote }}
-{{- end }}
-{{- if $endpoint }}
-- name: MAESTRO_ARTIFACT_S3_ENDPOINT
-  value: {{ $endpoint | quote }}
-{{- end }}
-{{- if eq (dig "forcePathStyle" false $os) true }}
-- name: MAESTRO_ARTIFACT_S3_FORCE_PATH_STYLE
-  value: "1"
-{{- end }}
-{{- end -}}
-{{- end -}}
-
-{{/*
-Object-store auth env vars sourced from an existing Kubernetes Secret.
-Emits nothing when:
-  - objectStore.bucket is empty (no S3 backend in use → don't inject
-    creds the app won't use, and don't make the pod depend on a secret
-    that may not exist), or
-  - objectStore.auth.existingSecret is empty (rely on the SDK default
-    credential chain — IRSA, instance profile, workload identity).
-*/}}
-{{- define "maestro.objectStoreAuthEnv" -}}
-{{- $os := .Values.objectStore | default dict -}}
-{{- $bucket := dig "bucket" "" $os -}}
-{{- $auth := dig "auth" dict $os -}}
-{{- $secret := dig "existingSecret" "" $auth -}}
-{{- if and $bucket $secret -}}
-- name: AWS_ACCESS_KEY_ID
-  valueFrom:
-    secretKeyRef:
-      name: {{ $secret | quote }}
-      key: {{ dig "accessKeyIdKey" "AWS_ACCESS_KEY_ID" $auth | quote }}
-- name: AWS_SECRET_ACCESS_KEY
-  valueFrom:
-    secretKeyRef:
-      name: {{ $secret | quote }}
-      key: {{ dig "secretAccessKeyKey" "AWS_SECRET_ACCESS_KEY" $auth | quote }}
-{{- with dig "sessionTokenKey" "" $auth }}
-- name: AWS_SESSION_TOKEN
-  valueFrom:
-    secretKeyRef:
-      name: {{ $secret | quote }}
-      key: {{ . | quote }}
-{{- end }}
 {{- end -}}
 {{- end -}}
 

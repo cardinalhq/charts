@@ -10,13 +10,6 @@ metadata:
   {{ include "maestro.annotations" . | nindent 2 }}
 spec:
   replicas: {{ include "maestro.replicas" (dict "root" . "explicit" .Values.maestro.replicas) }}
-  {{- if and (include "maestro.temporaryStorageEnabled" .) (ne .Values.maestro.temporaryStorage.accessMode "ReadWriteMany") }}
-  # RWO volumes can only attach to one node at a time. Rolling update would
-  # deadlock the rollout (new pod scheduled to a different node, can't mount
-  # the in-use volume). Recreate forces tear-down → reattach → new pod.
-  strategy:
-    type: Recreate
-  {{- end }}
   selector:
     matchLabels:
       {{- include "maestro.selectorLabels" . | nindent 6 }}
@@ -29,21 +22,7 @@ spec:
       {{- include "maestro.annotations" . | nindent 6 }}
     spec:
       serviceAccountName: {{ include "maestro.serviceAccountName" . }}
-      {{- /*
-        When persistence is enabled, pin SELinux MCS categories so the volume
-        is accessible across pod restarts. Default per-pod MCS rotation makes
-        ext4 PVC contents from a previous pod inaccessible to a new one
-        (EACCES on read/write). The user can override seLinuxOptions in
-        maestro.podSecurityContext to change the level or add type/role.
-      */}}
-      {{- $podSec := .Values.maestro.podSecurityContext | default dict -}}
-      {{- if and (include "maestro.temporaryStorageEnabled" .) (not (hasKey $podSec "seLinuxOptions")) -}}
-        {{- $merged := dict -}}
-        {{- range $k, $v := $podSec }}{{- $_ := set $merged $k $v -}}{{- end -}}
-        {{- $_ := set $merged "seLinuxOptions" (dict "level" .Values.maestro.temporaryStorage.seLinuxLevel) -}}
-        {{- $podSec = $merged -}}
-      {{- end }}
-      {{- include "maestro.podSecurityContext" (dict "root" . "override" $podSec) | nindent 6 }}
+      {{- include "maestro.podSecurityContext" (dict "root" . "override" (.Values.maestro.podSecurityContext | default dict)) | nindent 6 }}
       {{- include "maestro.imagePullSecrets" . | nindent 6 }}
       {{- /*
         With the in-pod TLS sidecar, several paths nginx-unprivileged needs
@@ -139,12 +118,6 @@ spec:
           # readOnlyRootFilesystem=true.
           - name: WORKING_DIRECTORY
             value: "/var/cache/maestro"
-          {{- if (include "maestro.temporaryStorageEnabled" .) }}
-          - name: ORCHESTRA_ARTIFACT_DIR
-            value: {{ printf "%s/artifacts" (.Values.maestro.temporaryStorage.mountPath | default "/var/lib/maestro") | quote }}
-          {{- end }}
-          {{- include "maestro.objectStoreEnv" . | nindent 10 }}
-          {{- include "maestro.objectStoreAuthEnv" . | nindent 10 }}
           {{- include "maestro.oidcEnv" . | nindent 10 }}
           {{- include "maestro.cardinalTelemetryEnv" . | nindent 10 }}
           {{- with .Values.global.env }}
@@ -184,10 +157,6 @@ spec:
           mountPath: /tmp
         - name: agent-cache
           mountPath: /var/cache/maestro
-        {{- if (include "maestro.temporaryStorageEnabled" .) }}
-        - name: scratch
-          mountPath: {{ .Values.maestro.temporaryStorage.mountPath | default "/var/lib/maestro" | quote }}
-        {{- end }}
         {{- include "maestro.licenseVolumeMount" . | nindent 8 }}
         {{- with .Values.maestro.extraVolumeMounts }}
         {{- toYaml . | nindent 8 }}
@@ -236,11 +205,6 @@ spec:
         emptyDir: {}
       - name: agent-cache
         emptyDir: {}
-      {{- if (include "maestro.temporaryStorageEnabled" .) }}
-      - name: scratch
-        persistentVolumeClaim:
-          claimName: {{ include "maestro.fullname" . }}-scratch
-      {{- end }}
       {{- include "maestro.licenseVolume" . | nindent 6 }}
       {{- if dig "tls" "enabled" false .Values.maestro }}
       - name: tls
