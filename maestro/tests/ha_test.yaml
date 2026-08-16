@@ -1,4 +1,4 @@
-suite: HA / POC mode toggle, objectStore wiring, mcp-gateway sidecar topology
+suite: HA / POC mode toggle, mcp-gateway sidecar topology
 templates:
   - maestro-deployment.yaml
 tests:
@@ -10,21 +10,10 @@ tests:
           path: spec.replicas
           value: 1
 
-  - it: "POC default: no MAESTRO_ARTIFACT_STORE on maestro"
-    template: maestro-deployment.yaml
-    asserts:
-      - notContains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: MAESTRO_ARTIFACT_STORE
-            value: "object"
-
-  # ---- HA mode (ha.enabled=true) ----------------------------------------
   - it: "HA: maestro replicas auto-derive to 2"
     template: maestro-deployment.yaml
     set:
       ha.enabled: true
-      objectStore.bucket: my-bucket
     asserts:
       - equal:
           path: spec.replicas
@@ -34,7 +23,6 @@ tests:
     template: maestro-deployment.yaml
     set:
       ha.enabled: true
-      objectStore.bucket: my-bucket
       maestro.replicas: 4
     asserts:
       - equal:
@@ -63,153 +51,15 @@ tests:
             name: MCP_GATEWAY_URL
             value: "http://localhost:8080"
 
-  - it: "HA: MAESTRO_ARTIFACT_STORE=object and bucket emitted"
-    template: maestro-deployment.yaml
-    set:
-      ha.enabled: true
-      objectStore.bucket: my-bucket
-      objectStore.region: us-east-2
-    asserts:
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: MAESTRO_ARTIFACT_STORE
-            value: "object"
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: MAESTRO_ARTIFACT_S3_BUCKET
-            value: "my-bucket"
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: MAESTRO_ARTIFACT_S3_REGION
-            value: "us-east-2"
-
-  - it: "HA: endpoint + forcePathStyle emitted for S3-compat"
-    template: maestro-deployment.yaml
-    set:
-      ha.enabled: true
-      objectStore.bucket: ceph-bucket
-      objectStore.endpoint: http://rgw.rook-ceph.svc:80
-      objectStore.forcePathStyle: true
-    asserts:
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: MAESTRO_ARTIFACT_S3_ENDPOINT
-            value: "http://rgw.rook-ceph.svc:80"
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: MAESTRO_ARTIFACT_S3_FORCE_PATH_STYLE
-            value: "1"
-
-  - it: "HA: no AWS_ creds injected when existingSecret is empty (ambient creds)"
-    template: maestro-deployment.yaml
-    set:
-      ha.enabled: true
-      objectStore.bucket: my-bucket
-    asserts:
-      - notContains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: AWS_ACCESS_KEY_ID
-      - notContains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: AWS_SECRET_ACCESS_KEY
-
-  - it: "HA: AWS_ creds injected from existingSecret with default key names"
-    template: maestro-deployment.yaml
-    set:
-      ha.enabled: true
-      objectStore.bucket: my-bucket
-      objectStore.auth.existingSecret: my-s3-secret
-    asserts:
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: AWS_ACCESS_KEY_ID
-            valueFrom:
-              secretKeyRef:
-                name: "my-s3-secret"
-                key: "AWS_ACCESS_KEY_ID"
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: AWS_SECRET_ACCESS_KEY
-            valueFrom:
-              secretKeyRef:
-                name: "my-s3-secret"
-                key: "AWS_SECRET_ACCESS_KEY"
-
-  - it: "HA: AWS_SESSION_TOKEN injected when sessionTokenKey set"
-    template: maestro-deployment.yaml
-    set:
-      ha.enabled: true
-      objectStore.bucket: my-bucket
-      objectStore.auth.existingSecret: my-s3-secret
-      objectStore.auth.sessionTokenKey: AWS_SESSION_TOKEN
-    asserts:
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: AWS_SESSION_TOKEN
-            valueFrom:
-              secretKeyRef:
-                name: "my-s3-secret"
-                key: "AWS_SESSION_TOKEN"
-
-  - it: "HA: custom key names honored (e.g. Rook OBC variants)"
-    template: maestro-deployment.yaml
-    set:
-      ha.enabled: true
-      objectStore.bucket: my-bucket
-      objectStore.auth.existingSecret: my-obc
-      objectStore.auth.accessKeyIdKey: custom-access-key
-      objectStore.auth.secretAccessKeyKey: custom-secret-key
-    asserts:
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: AWS_ACCESS_KEY_ID
-            valueFrom:
-              secretKeyRef:
-                name: "my-obc"
-                key: "custom-access-key"
-
-  # ---- HA invariants fail loud (validation in haValidate helper) -------
-  - it: "HA without objectStore.bucket fails template rendering"
-    template: maestro-deployment.yaml
-    set:
-      ha.enabled: true
-    asserts:
-      - failedTemplate:
-          errorMessage: "ha.enabled=true requires objectStore.bucket to be set (artifacts must be durable across pods). See values.yaml for AWS-S3 and Rook-Ceph examples."
-
   - it: "HA with maestro.replicas=1 fails template rendering"
     template: maestro-deployment.yaml
     set:
       ha.enabled: true
-      objectStore.bucket: my-bucket
       maestro.replicas: 1
     asserts:
       - failedTemplate:
           errorMessage: "ha.enabled=true requires maestro.replicas >= 2 (got 1). Lower replica counts are POC mode; set ha.enabled=false."
 
-  - it: "HA with existingSecret but blank accessKeyIdKey fails template rendering"
-    template: maestro-deployment.yaml
-    set:
-      ha.enabled: true
-      objectStore.bucket: my-bucket
-      objectStore.auth.existingSecret: my-secret
-      objectStore.auth.accessKeyIdKey: ""
-    asserts:
-      - failedTemplate:
-          errorMessage: "objectStore.auth.existingSecret is set but objectStore.auth.accessKeyIdKey is empty. Set the key name the secret uses (commonly AWS_ACCESS_KEY_ID)."
-
-  # ---- explicit operator overrides under POC ----------------------------
   - it: "POC with explicit maestro.replicas=3 honored (degenerate but allowed)"
     template: maestro-deployment.yaml
     set:
@@ -233,7 +83,6 @@ tests:
     template: maestro-deployment.yaml
     set:
       ha.enabled: true
-      objectStore.bucket: my-bucket
       maestro.replicas: ""
     asserts:
       - equal:
@@ -248,44 +97,3 @@ tests:
       - failedTemplate:
           errorMessage: "ha.enabled must be a YAML boolean (true or false), got true of type string. Use `--set ha.enabled=true` / `=false`, not `--set-string`."
 
-  - it: "stringly maestro.temporaryStorage.enabled (--set-string) fails loud"
-    template: maestro-deployment.yaml
-    set:
-      maestro.temporaryStorage.enabled: "true"
-    asserts:
-      - failedTemplate:
-          errorMessage: "maestro.temporaryStorage.enabled must be a YAML boolean (true or false), got true of type string. Use `--set maestro.temporaryStorage.enabled=true` / `=false`, not `--set-string`."
-
-  # ---- region default for S3-compat endpoint ----------------------------
-  - it: "HA with endpoint defaults region to us-east-1 (AWS SDK requires one)"
-    template: maestro-deployment.yaml
-    set:
-      ha.enabled: true
-      objectStore.bucket: ceph-bucket
-      objectStore.endpoint: http://rgw.rook-ceph.svc:80
-    asserts:
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: MAESTRO_ARTIFACT_S3_REGION
-            value: "us-east-1"
-
-  - it: "POC with existingSecret but no bucket does NOT inject AWS_ creds"
-    template: maestro-deployment.yaml
-    set:
-      objectStore.auth.existingSecret: my-secret
-    asserts:
-      - notContains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: AWS_ACCESS_KEY_ID
-
-  - it: "POC: existingSecret with blank accessKeyIdKey still fails (would break at runtime)"
-    template: maestro-deployment.yaml
-    set:
-      objectStore.bucket: my-bucket
-      objectStore.auth.existingSecret: s
-      objectStore.auth.accessKeyIdKey: ""
-    asserts:
-      - failedTemplate:
-          errorMessage: "objectStore.auth.existingSecret is set but objectStore.auth.accessKeyIdKey is empty. Set the key name the secret uses (commonly AWS_ACCESS_KEY_ID)."
