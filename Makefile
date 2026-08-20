@@ -81,7 +81,7 @@ template:  ## Test template rendering for all charts
 			fi; \
 		else \
 			echo "$(YELLOW)No Makefile found for $$chart, running basic template test$(RESET)"; \
-			if ! helm template $(TEST_RELEASE_NAME) $$chart --dry-run > /dev/null 2>&1; then \
+			if ! helm template $(TEST_RELEASE_NAME) $$chart --dry-run > /dev/null; then \
 				echo "$(RED)Basic template rendering failed for $$chart$(RESET)"; \
 				failed_charts="$$failed_charts $$chart"; \
 			else \
@@ -141,7 +141,7 @@ endif
 	else \
 		echo "$(YELLOW)No Makefile found for $(CHART), running basic tests$(RESET)"; \
 		helm lint $(CHART); \
-		helm template $(TEST_RELEASE_NAME) $(CHART) --dry-run > /dev/null 2>&1; \
+		helm template $(TEST_RELEASE_NAME) $(CHART) --dry-run > /dev/null; \
 		if [ -d "$(CHART)/tests" ]; then helm unittest $(CHART); fi; \
 	fi
 	@echo "$(GREEN)Tests completed for $(CHART)$(RESET)"
@@ -206,39 +206,7 @@ endif
 	fi
 
 # CI/CD integration
-ci:  ## Run tests suitable for CI/CD (no colors, structured output)
-	@echo "Running CI tests for all charts..."
-	@failed_charts=""; \
-	total_charts=0; \
-	passed_charts=0; \
-	for chart in $(CHARTS); do \
-		total_charts=$$((total_charts + 1)); \
-		echo "Testing chart: $$chart"; \
-		if [ -f "$$chart/Makefile" ]; then \
-			if $(MAKE) -C $$chart test > /dev/null 2>&1; then \
-				echo "  PASS: $$chart"; \
-				passed_charts=$$((passed_charts + 1)); \
-			else \
-				echo "  FAIL: $$chart"; \
-				failed_charts="$$failed_charts $$chart"; \
-			fi; \
-		else \
-			if helm lint $$chart > /dev/null 2>&1 && \
-			   helm template $(TEST_RELEASE_NAME) $$chart --dry-run > /dev/null 2>&1 && \
-			   ([ ! -d "$$chart/tests" ] || helm unittest $$chart > /dev/null 2>&1); then \
-				echo "  PASS: $$chart"; \
-				passed_charts=$$((passed_charts + 1)); \
-			else \
-				echo "  FAIL: $$chart"; \
-				failed_charts="$$failed_charts $$chart"; \
-			fi; \
-		fi; \
-	done; \
-	echo "Results: $$passed_charts/$$total_charts charts passed"; \
-	if [ -n "$$failed_charts" ]; then \
-		echo "Failed charts:$$failed_charts"; \
-		exit 1; \
-	fi
+ci: test  ## Alias for test - what CI runs (see .github/workflows/ci.yaml)
 
 # Development helpers
 watch:  ## Watch for changes and run tests (requires entr)
