@@ -90,8 +90,7 @@ spec:
                 fieldPath: status.podIP
           - name: OTEL_SERVICE_NAME
             value: {{ include "lakerunner.fullname" . }}-admin-api
-          - name: TMPDIR
-            value: /scratch
+          {{- include "lakerunner.scratchEnv" . | nindent 10 }}
           - name: HEALTH_CHECK_PORT
             value: {{ $hcAdmin | quote }}
           {{- if .Values.controlPlane.pprof.enabled }}
@@ -137,8 +136,7 @@ spec:
                 fieldPath: status.podIP
           - name: OTEL_SERVICE_NAME
             value: {{ include "lakerunner.fullname" . }}-alert-evaluator
-          - name: TMPDIR
-            value: /scratch
+          {{- include "lakerunner.scratchEnv" . | nindent 10 }}
           - name: HEALTH_CHECK_PORT
             value: {{ $hcAlert | quote }}
           {{- if .Values.controlPlane.pprof.enabled }}
@@ -197,8 +195,7 @@ spec:
                 fieldPath: status.podIP
           - name: OTEL_SERVICE_NAME
             value: {{ include "lakerunner.fullname" . }}-monitoring
-          - name: TMPDIR
-            value: /scratch
+          {{- include "lakerunner.scratchEnv" . | nindent 10 }}
           - name: HEALTH_CHECK_PORT
             value: {{ $hcMon | quote }}
           {{- if .Values.controlPlane.pprof.enabled }}
@@ -244,8 +241,7 @@ spec:
                 fieldPath: status.podIP
           - name: OTEL_SERVICE_NAME
             value: {{ include "lakerunner.fullname" . }}-sweeper
-          - name: TMPDIR
-            value: /scratch
+          {{- include "lakerunner.scratchEnv" . | nindent 10 }}
           - name: HEALTH_CHECK_PORT
             value: {{ $hcSweep | quote }}
           {{- if .Values.controlPlane.pprof.enabled }}

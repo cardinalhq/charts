@@ -51,8 +51,7 @@ spec:
                 fieldPath: status.podIP
           - name: OTEL_SERVICE_NAME
             value: {{ include "lakerunner.fullname" . }}-process-traces
-          - name: TMPDIR
-            value: /scratch
+          {{- include "lakerunner.scratchEnv" . | nindent 10 }}
           {{- if eq .Values.cloudProvider.provider "azure" }}
           - name: AZURE_AUTH_TYPE
             value: {{ .Values.cloudProvider.azure.authType | quote }}

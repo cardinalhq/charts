@@ -1191,3 +1191,19 @@ injected. Override with .Values.serviceAccount.name. Per-component SAs
 {{- define "conductor.queryApiUrl" -}}
 {{- printf "http://%s-lakerunner-query-api:8080" .Release.Name -}}
 {{- end }}
+
+{{/*
+Scratch temp dir env. EVERY lakerunner container runs with
+readOnlyRootFilesystem: true and mounts an emptyDir at /scratch, so Go's
+os.TempDir() must be redirected there — otherwise anything that spools to disk
+fails with "read-only file system". This was hardcoded per-template and got
+dropped from query-api and all four pubsub backends when the templates were
+ported into conductor, which broke every logs query:
+  lkrnreduce: create spool parent: mkdir /tmp/lakerunner-lkrn-reduce: read-only file system
+Emitted from one place so a new component template cannot silently omit it.
+Usage: {{ include "lakerunner.scratchEnv" . }}
+*/}}
+{{- define "lakerunner.scratchEnv" -}}
+- name: TMPDIR
+  value: /scratch
+{{- end }}
