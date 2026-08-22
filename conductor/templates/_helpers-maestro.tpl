@@ -228,6 +228,17 @@ Usage (inside a pod template's initContainers list):
       value: {{ .root.Values.mcpGateway.port | quote }}
     - name: MCP_DEBUG_PORT
       value: {{ .root.Values.mcpGateway.debugPort | quote }}
+    {{- /* The gateway runs as an INIT container and exits 1 without a key
+           ("no API key configured: set --api-key or MCP_API_KEY, or set
+           MCP_ALLOW_NO_AUTH=true"), which takes the whole maestro pod down.
+           Fail at template time rather than shipping a guaranteed crash-loop.
+           Explicitly setting MCP_ALLOW_NO_AUTH in mcpGateway.env or global.env
+           is the supported opt-out for local dev. */}}
+    {{- $hasKey := or .root.Values.mcpGateway.apiKey (and .root.Values.mcpGateway.apiKeySecret .root.Values.mcpGateway.apiKeySecret.name) }}
+    {{- $allowNoAuth := or (eq (include "lakerunner.hasEnvVar" (list (.root.Values.mcpGateway.env | default list) "MCP_ALLOW_NO_AUTH")) "true") (eq (include "lakerunner.hasEnvVar" (list (.root.Values.global.env | default list) "MCP_ALLOW_NO_AUTH")) "true") }}
+    {{- if and (not $hasKey) (not $allowNoAuth) }}
+    {{- fail "mcpGateway: an API key is required. Set mcpGateway.apiKey, or mcpGateway.apiKeySecret.name to an existing Secret. The mcp-gateway sidecar is an init container and will exit 1 without one, preventing the maestro pod from starting. For local dev without auth, set MCP_ALLOW_NO_AUTH=true in mcpGateway.env instead." }}
+    {{- end }}
     {{- if .root.Values.mcpGateway.apiKey }}
     - name: MCP_API_KEY
       value: {{ .root.Values.mcpGateway.apiKey | quote }}

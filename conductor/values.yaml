@@ -988,7 +988,11 @@ mcpGateway:
     enabled: false
   # Alternative to plaintext `apiKey`: source MCP_API_KEY from an
   # existing Secret. When `apiKey` is set it wins; otherwise the sidecar
-  # emits a secretKeyRef. Leave both empty for unauthenticated local dev.
+  # emits a secretKeyRef. One of the two is REQUIRED — the sidecar is an init
+  # container and exits 1 without a key, so leaving both empty does NOT give
+  # you unauthenticated local dev, it gives you a maestro pod that never
+  # starts. Rendering fails with a message if neither is set. For local dev
+  # without auth, set MCP_ALLOW_NO_AUTH=true in mcpGateway.env.
   apiKeySecret:
     name: ""
     key: "MCP_API_KEY"

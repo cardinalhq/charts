@@ -14,3 +14,8 @@ bootstrap:
   org:
     id: "00000000-0000-0000-0000-000000000000"
     ownerEmail: "test@example.com"
+# The mcp-gateway sidecar is an init container that exits 1 without a key, so
+# the chart now refuses to render one that would crash-loop. Tests must supply
+# a valid configuration.
+mcpGateway:
+  apiKey: "test-mcp-key"
