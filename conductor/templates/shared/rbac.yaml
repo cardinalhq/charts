@@ -21,6 +21,15 @@ rules:
   - apiGroups: ["discovery.k8s.io"]
     resources: ["endpointslices"]
     verbs: ["get", "list", "watch"]
+  # The monitoring container lists HPAs to report autoscaling state; the chart
+  # ships process-hpa.yaml, so this is its own resource. Present in the
+  # standalone lakerunner chart's role.yaml and lost in the port to conductor:
+  #   horizontalpodautoscalers.autoscaling is forbidden:
+  #   User "system:serviceaccount:<ns>:<sa>" cannot list resource
+  #   "horizontalpodautoscalers" in API group "autoscaling"
+  - apiGroups: ["autoscaling"]
+    resources: ["horizontalpodautoscalers"]
+    verbs: ["get", "list", "watch"]
   - apiGroups: ["coordination.k8s.io"]
     resources: ["leases"]
     verbs: ["get", "create", "update"]
