@@ -14,11 +14,14 @@ global:
     hpa:
       # Target average CPU as a percentage of the pod's cpu request.
       targetCPUUtilizationPercentage: 80
-      # HPA v2 scaling behavior. Defaults favor fast scale-up and a damped
-      # 2-minute scale-down window to avoid replica flapping.
+      # HPA v2 scaling behavior. Scale-up waits out short CPU bursts (e.g. a
+      # periodic CloudWatch metric dump every 5 minutes) — the HPA uses the
+      # lowest recommendation over the window, so load must be sustained for
+      # the full 3 minutes before pods are added. Scale-down keeps a damped
+      # 2-minute window to avoid replica flapping.
       behavior:
         scaleUp:
-          stabilizationWindowSeconds: 0
+          stabilizationWindowSeconds: 180
           selectPolicy: Max
           policies:
             - type: Percent
