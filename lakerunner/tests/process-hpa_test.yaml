@@ -71,7 +71,7 @@ tests:
         documentIndex: 0
       - equal:
           path: spec.behavior.scaleUp.stabilizationWindowSeconds
-          value: 0
+          value: 180
         documentIndex: 0
       - equal:
           path: spec.behavior.scaleUp.policies[1].type
