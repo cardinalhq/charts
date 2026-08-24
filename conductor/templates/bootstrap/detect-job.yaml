@@ -21,7 +21,7 @@ spec:
       labels:
         {{- include "lakerunner.selectorLabels" . | nindent 8 }}
     spec:
-      serviceAccountName: {{ include "conductor.serviceAccountName" . }}
+      serviceAccountName: {{ include "conductor.bootstrapServiceAccountName" . }}
       restartPolicy: Never
       {{- include "lakerunner.imagePullSecrets" . | nindent 6 }}
       containers:

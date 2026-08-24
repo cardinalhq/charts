@@ -1150,6 +1150,21 @@ injected. Override with .Values.serviceAccount.name. Per-component SAs
 {{- end -}}
 {{- end }}
 
+{{/*
+ServiceAccount mounted by the bootstrap hook Jobs. When the chart creates the
+SA, the Jobs get a dedicated hook SA ("<sa>-bootstrap") so the runtime SA can
+be a plain (never-deleted) resource — see shared/serviceaccount.yaml. When
+serviceAccount.create=false the external SA already exists before hooks run,
+so the Jobs mount it directly.
+*/}}
+{{- define "conductor.bootstrapServiceAccountName" -}}
+{{- if .Values.serviceAccount.create -}}
+{{- printf "%s-bootstrap" (include "conductor.serviceAccountName" .) | trunc 63 | trimSuffix "-" -}}
+{{- else -}}
+{{- include "conductor.serviceAccountName" . -}}
+{{- end -}}
+{{- end }}
+
 {{/* Normalize bootstrap.mode; "never" is a deprecated alias of "adopt". */}}
 {{- define "conductor.bootstrapMode" -}}
 {{- $m := .Values.bootstrap.mode | default "auto" -}}

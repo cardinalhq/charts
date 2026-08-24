@@ -18,7 +18,7 @@ spec:
         {{- include "maestro.selectorLabels" . | nindent 8 }}
         app.kubernetes.io/component: migrate-maestro
     spec:
-      serviceAccountName: {{ include "conductor.serviceAccountName" . }}
+      serviceAccountName: {{ include "conductor.bootstrapServiceAccountName" . }}
       restartPolicy: Never
       {{- include "maestro.podSecurityContext" (dict "root" . "override" (.Values.maestro.podSecurityContext | default dict)) | nindent 6 }}
       {{- include "maestro.imagePullSecrets" . | nindent 6 }}
