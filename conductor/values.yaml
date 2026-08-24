@@ -15,11 +15,14 @@ global:
     hpa:
       # Target average CPU as a percentage of the pod's cpu request.
       targetCPUUtilizationPercentage: 80
-      # HPA v2 scaling behavior. Defaults favor fast scale-up and a damped
-      # 2-minute scale-down window to avoid replica flapping.
+      # HPA v2 scaling behavior. Scale-up waits out short CPU bursts (e.g. a
+      # periodic CloudWatch metric dump every 5 minutes) — the HPA uses the
+      # lowest recommendation over the window, so load must be sustained for
+      # the full 3 minutes before pods are added. Scale-down keeps a damped
+      # 2-minute window to avoid replica flapping.
       behavior:
         scaleUp:
-          stabilizationWindowSeconds: 0
+          stabilizationWindowSeconds: 180
           selectPolicy: Max
           policies:
             - type: Percent
@@ -63,7 +66,7 @@ global:
     # Pinned explicitly here so lakerunner images do NOT default to the unified
     # Chart.appVersion (which tracks maestro). Mirrors the legacy lakerunner
     # chart's appVersion. Per-component image.tag still wins over this.
-    tag: "v1.79.0"
+    tag: "v1.82.0"
     # Default pull policy for all images
     pullPolicy: "IfNotPresent"
   # Global temporary storage (scratch / DuckDB temp / cache) configuration.
@@ -825,7 +828,7 @@ ha:
 # Entrypoint selects which component to run.
 image:
   repository: public.ecr.aws/cardinalhq.io/maestro
-  tag: "v1.94.19"  # pinned (mirrors legacy maestro appVersion); do not rely on Chart.appVersion
+  tag: "v1.94.21"  # pinned (mirrors legacy maestro appVersion); do not rely on Chart.appVersion
   pullPolicy: IfNotPresent
 
 # Maestro API server + UI configuration
