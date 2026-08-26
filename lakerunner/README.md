@@ -19,6 +19,48 @@ helm install lakerunner oci://public.ecr.aws/cardinalhq.io/lakerunner \
    --namespace lakerunner --create-namespace
 ```
 
+## Distributed generation shadow workloads
+
+Chart 3.17.0 includes two opt-in shadow workloads. They build and validate
+distributed generation artifacts, but do not publish them or change query
+routing. Both are disabled by default, so an upgrade renders no generation
+resources unless explicitly enabled.
+
+Enable the fixed one-replica coordinator and shard builder only with an image
+that contains both `/app/bin/lakerunner` and `/app/bin/lkrn-gen-shard`, pinned
+by its lowercase OCI digest:
+
+```yaml
+generation:
+  image:
+    repository: public.ecr.aws/cardinalhq.io/lakerunner
+    digest: sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+  coordinator:
+    enabled: true
+  shardBuilder:
+    enabled: true
+    serviceAccount:
+      annotations: {} # add only the builder's cloud workload identity here
+```
+
+The chart creates a distinct no-RBAC ServiceAccount for each workload and
+disables Kubernetes API token automount. Cloud credentials are wired only to
+the shard builder; the coordinator receives database, configuration database,
+storage-profile, license, and telemetry settings but no automatic cloud
+credential injection. The builder is held to concurrency 1, a 2 GiB maximum
+memory limit, a 16 GiB per-attempt scratch budget, a 17 GiB `emptyDir`, and an
+18 GiB ephemeral-storage request and limit. Its scratch path is fixed at
+`/scratch/generation`. Within the 2 GiB pod limit, the Go supervisor is pinned
+to `GOMEMLIMIT=512MiB` and `GOGC=50`, leaving room for the separately budgeted
+1 GiB Rust child and native/process overhead.
+
+These safety settings are render-time contracts. Unsafe digest, identity,
+resource, concurrency, or shutdown/lease overrides cause Helm rendering to
+fail. The application termination grace is 30 seconds, the pod grace is 45
+seconds, and the database lease is 300 seconds. This shadow slice intentionally
+contains no finalizer, cleanup task, publication path, HorizontalPodAutoscaler,
+Role, or RoleBinding.
+
 ## `value-local.yaml`
 
 The [default `values.yaml`](https://github.com/cardinalhq/charts/blob/main/lakerunner/values.yaml) file has several settings you will need to provide.
@@ -225,6 +267,8 @@ The following table summarizes the default resource requirements for each LakeRu
 | ingestMetrics | 1200m | 1Gi | 10Gi |
 | ingestTraces | 1200m | 1Gi | 10Gi |
 | **Data Processing** ||||
+| generationCoordinator (disabled) | 100m | 256Mi | - |
+| generationShardBuilder (disabled) | 250m | 1Gi | 18Gi |
 | boxerRollupMetrics | 500m | 128Mi | - |
 | boxerCompactMetrics | 500m | 128Mi | - |
 | boxerCompactLogs | 500m | 128Mi | - |
