@@ -1,36 +1,5 @@
 # Changelog
 
-## 3.17.2
-
-* **SAFETY**: enabling embedded generation coordination now requires at least
-  two process-logs replicas, preventing configuration of a new coordination
-  single point of failure.
-
-## 3.17.1
-
-* **CHANGED**: removed the singleton generation coordinator Deployment and
-  ServiceAccount. Default-off coordination is now a separate one-slot consumer
-  embedded in every process-logs replica; database claims and partition locks
-  select the owner for each trigger.
-* **SAFETY**: coordination alone renders no new Kubernetes resource. The shard
-  builder remains separately disabled, digest-pinned, bounded, and unable to
-  publish or route an index.
-
-## 3.17.0
-
-* **NEW**: added default-off `generation-coordinator` and
-  `generation-shard-builder` shadow Deployments. Enabling either workload
-  requires an untagged repository plus a lowercase `sha256` image digest. Both
-  use a one-replica `Recreate` rollout on ServiceAccounts distinct from each
-  other and the general LakeRunner account, with no chart RBAC. Reserved
-  generation/helper environment variables cannot be overridden. The shard
-  builder has fixed concurrency, memory, scratch, ephemeral-storage, and
-  shutdown/lease safety bounds. Its Go supervisor is capped at 512 MiB so its
-  1 GiB Rust child fits inside the 2 GiB pod limit with process overhead.
-* **SAFETY**: this release has no generation finalizer, publication, cleanup,
-  or HPA surface. With both generation flags left at their defaults, the chart
-  renders no generation resources.
-
 ## 3.16.22
 
 * **REMOVED**: the Perch operator. Deleted the `perch` deployment, configmap,
