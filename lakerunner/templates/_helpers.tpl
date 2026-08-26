@@ -202,6 +202,9 @@ Args:
   {{- if not .Values.processLogs.enabled -}}
     {{- fail "generation coordination requires processLogs.enabled=true" -}}
   {{- end -}}
+  {{- if lt (int .Values.processLogs.autoscaling.minReplicas) 2 -}}
+    {{- fail "generation coordination requires processLogs.autoscaling.minReplicas >= 2" -}}
+  {{- end -}}
   {{- include "lakerunner.validateGenerationEnv" (list (.Values.processLogs.env | default list) "processLogs.env") -}}
   {{- if or (ne (int $coordination.terminationGraceSeconds) 30) (ne (int $coordination.podTerminationGraceSeconds) 45) (ne (int $coordination.leaseDurationSeconds) 300) -}}
     {{- fail "generation coordination timing must remain terminationGraceSeconds=30, podTerminationGraceSeconds=45, leaseDurationSeconds=300 during shadow rollout" -}}
