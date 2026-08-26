@@ -1,5 +1,15 @@
 # Changelog
 
+## 3.17.1
+
+* **CHANGED**: removed the singleton generation coordinator Deployment and
+  ServiceAccount. Default-off coordination is now a separate one-slot consumer
+  embedded in every process-logs replica; database claims and partition locks
+  select the owner for each trigger.
+* **SAFETY**: coordination alone renders no new Kubernetes resource. The shard
+  builder remains separately disabled, digest-pinned, bounded, and unable to
+  publish or route an index.
+
 ## 3.17.0
 
 * **NEW**: added default-off `generation-coordinator` and
