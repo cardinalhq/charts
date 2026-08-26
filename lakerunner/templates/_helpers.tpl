@@ -101,11 +101,7 @@ Create the name of the service account to use
 {{- end }}
 {{- end }}
 
-{{/* Dedicated service accounts for the default-off generation shadow lane. */}}
-{{- define "lakerunner.generationCoordinatorServiceAccountName" -}}
-{{- default (printf "%s-generation-coordinator" (include "lakerunner.fullname" .)) .Values.generation.coordinator.serviceAccount.name | trunc 63 | trimSuffix "-" -}}
-{{- end -}}
-
+{{/* Dedicated service account for the default-off generation shard lane. */}}
 {{- define "lakerunner.generationShardBuilderServiceAccountName" -}}
 {{- default (printf "%s-generation-shard-builder" (include "lakerunner.fullname" .)) .Values.generation.shardBuilder.serviceAccount.name | trunc 63 | trimSuffix "-" -}}
 {{- end -}}
@@ -181,9 +177,12 @@ Args:
 
 {{/* Fail rendering rather than admitting an unsafe generation shadow pod. */}}
 {{- define "lakerunner.validateGenerationShadow" -}}
-{{- $coordinator := .Values.generation.coordinator -}}
+{{- $coordination := .Values.generation.coordination -}}
 {{- $builder := .Values.generation.shardBuilder -}}
-{{- if or $coordinator.enabled $builder.enabled -}}
+{{- if or $coordination.enabled $builder.enabled -}}
+  {{- include "lakerunner.validateGenerationEnv" (list (.Values.global.env | default list) "global.env") -}}
+{{- end -}}
+{{- if $builder.enabled -}}
   {{- if not .Values.generation.image.repository -}}
     {{- fail "generation.image.repository is required when a generation workload is enabled" -}}
   {{- end -}}
@@ -193,27 +192,22 @@ Args:
   {{- if not (regexMatch "^sha256:[0-9a-f]{64}$" (.Values.generation.image.digest | toString)) -}}
     {{- fail "generation.image.digest must be sha256: followed by exactly 64 lowercase hexadecimal characters" -}}
   {{- end -}}
-  {{- include "lakerunner.validateGenerationEnv" (list (.Values.global.env | default list) "global.env") -}}
-  {{- $coordinatorSA := include "lakerunner.generationCoordinatorServiceAccountName" . -}}
   {{- $builderSA := include "lakerunner.generationShardBuilderServiceAccountName" . -}}
   {{- $generalSA := include "lakerunner.serviceAccountName" . -}}
-  {{- if and $coordinator.enabled (eq $coordinatorSA $generalSA) -}}
-    {{- fail "generation coordinator service account must be distinct from the general lakerunner service account" -}}
-  {{- end -}}
-  {{- if and $builder.enabled (eq $builderSA $generalSA) -}}
+  {{- if eq $builderSA $generalSA -}}
     {{- fail "generation shard builder service account must be distinct from the general lakerunner service account" -}}
   {{- end -}}
-  {{- if and $coordinator.enabled $builder.enabled (eq $coordinatorSA $builderSA) -}}
-    {{- fail "generation coordinator and shard builder service accounts must be distinct" -}}
-  {{- end -}}
 {{- end -}}
-{{- if $coordinator.enabled -}}
-  {{- include "lakerunner.validateGenerationEnv" (list ($coordinator.env | default list) "generation.coordinator.env") -}}
-  {{- if or (ne (int $coordinator.terminationGraceSeconds) 30) (ne (int $coordinator.podTerminationGraceSeconds) 45) (ne (int $coordinator.leaseDurationSeconds) 300) -}}
-    {{- fail "generation coordinator timing must remain terminationGraceSeconds=30, podTerminationGraceSeconds=45, leaseDurationSeconds=300 during shadow rollout" -}}
+{{- if $coordination.enabled -}}
+  {{- if not .Values.processLogs.enabled -}}
+    {{- fail "generation coordination requires processLogs.enabled=true" -}}
   {{- end -}}
-  {{- if not (and (lt (int $coordinator.terminationGraceSeconds) (int $coordinator.podTerminationGraceSeconds)) (lt (int $coordinator.podTerminationGraceSeconds) (int $coordinator.leaseDurationSeconds))) -}}
-    {{- fail "generation coordinator grace periods must satisfy terminationGraceSeconds < podTerminationGraceSeconds < leaseDurationSeconds" -}}
+  {{- include "lakerunner.validateGenerationEnv" (list (.Values.processLogs.env | default list) "processLogs.env") -}}
+  {{- if or (ne (int $coordination.terminationGraceSeconds) 30) (ne (int $coordination.podTerminationGraceSeconds) 45) (ne (int $coordination.leaseDurationSeconds) 300) -}}
+    {{- fail "generation coordination timing must remain terminationGraceSeconds=30, podTerminationGraceSeconds=45, leaseDurationSeconds=300 during shadow rollout" -}}
+  {{- end -}}
+  {{- if not (and (lt (int $coordination.terminationGraceSeconds) (int $coordination.podTerminationGraceSeconds)) (lt (int $coordination.podTerminationGraceSeconds) (int $coordination.leaseDurationSeconds))) -}}
+    {{- fail "generation coordination grace periods must satisfy terminationGraceSeconds < podTerminationGraceSeconds < leaseDurationSeconds" -}}
   {{- end -}}
 {{- end -}}
 {{- if $builder.enabled -}}

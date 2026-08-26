@@ -425,45 +425,26 @@ setup:
       username: ""
       sslMode: ""
 
-# Distributed generation shadow workloads. These workloads are deliberately
-# disabled by default and do not publish or serve generated indexes. When
-# either workload is enabled, generation.image.digest must pin the LakeRunner
-# image by a lowercase sha256 digest; tags are never accepted for this lane.
+# Distributed generation shadow capabilities. They are deliberately disabled
+# by default and do not publish or serve generated indexes. The shard-builder
+# image must be pinned by lowercase sha256 digest; tags are never accepted.
 generation:
   image:
     repository: ghcr.io/cardinalhq/lakerunner
     digest: ""
     pullPolicy: IfNotPresent
 
-  coordinator:
+  # Every process-logs replica embeds a separately bounded one-slot consumer.
+  # Database claims and partition locks elect the owner; no coordinator
+  # Deployment or ServiceAccount is created.
+  coordination:
     enabled: false
-    # A dedicated, no-RBAC ServiceAccount is always created when enabled.
-    serviceAccount:
-      name: ""
     leaseDurationSeconds: 300
     terminationGraceSeconds: 30
     podTerminationGraceSeconds: 45
-    healthProbes:
-      enabled: true
-    resources:
-      requests:
-        cpu: 100m
-        memory: 256Mi
-      limits:
-        cpu: 500m
-        memory: 512Mi
-    labels: {}
-    annotations: {}
-    podSecurityContext: {}
-    containerSecurityContext: {}
-    nodeSelector: {}
-    tolerations: []
-    affinity: {}
-    env: []
 
   shardBuilder:
     enabled: false
-    # This is intentionally distinct from the coordinator ServiceAccount.
     # Cloud workload-identity annotations belong only on this account.
     serviceAccount:
       name: ""
