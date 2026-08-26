@@ -22,6 +22,7 @@ tests:
     template: process-logs-deployment.yaml
     set:
       generation.coordination.enabled: true
+      processLogs.autoscaling.minReplicas: 2
     asserts:
       - equal:
           path: metadata.name
@@ -53,6 +54,7 @@ tests:
     set:
       generation.coordination.enabled: true
       generation.image.digest: ""
+      processLogs.autoscaling.minReplicas: 2
     asserts:
       - isKind:
           of: Deployment
@@ -62,6 +64,7 @@ tests:
     set:
       processLogs.enabled: false
       generation.coordination.enabled: true
+      processLogs.autoscaling.minReplicas: 2
     asserts:
       - failedTemplate:
           errorPattern: generation coordination requires processLogs.enabled=true
@@ -70,6 +73,7 @@ tests:
     template: generation-shadow-validation.yaml
     set:
       generation.coordination.enabled: true
+      processLogs.autoscaling.minReplicas: 2
       global.env:
         - name: LAKERUNNER_GENERATION_COORDINATOR_ENABLED
           value: "false"
@@ -81,6 +85,7 @@ tests:
     template: generation-shadow-validation.yaml
     set:
       generation.coordination.enabled: true
+      processLogs.autoscaling.minReplicas: 2
       processLogs.env:
         - name: LAKERUNNER_GENERATION_COORDINATOR_ENABLED
           value: "false"
@@ -92,7 +97,17 @@ tests:
     template: generation-shadow-validation.yaml
     set:
       generation.coordination.enabled: true
+      processLogs.autoscaling.minReplicas: 2
       generation.coordination.podTerminationGraceSeconds: 300
     asserts:
       - failedTemplate:
           errorPattern: generation coordination timing must remain
+
+  - it: rejects a single process-logs replica when coordination is enabled
+    template: generation-shadow-validation.yaml
+    set:
+      generation.coordination.enabled: true
+      processLogs.autoscaling.minReplicas: 1
+    asserts:
+      - failedTemplate:
+          errorPattern: generation coordination requires processLogs.autoscaling.minReplicas >= 2

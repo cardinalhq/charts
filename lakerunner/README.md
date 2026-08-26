@@ -21,7 +21,7 @@ helm install lakerunner oci://public.ecr.aws/cardinalhq.io/lakerunner \
 
 ## Distributed generation shadow workloads
 
-Chart 3.17.1 includes an opt-in shard-builder workload and an opt-in
+Chart 3.17.2 includes an opt-in shard-builder workload and an opt-in
 coordination capability embedded in every existing process-logs replica. They
 build and validate distributed generation artifacts, but do not publish them
 or change query routing. Both are disabled by default.
@@ -45,6 +45,10 @@ generation:
     serviceAccount:
       annotations: {} # add only the builder's cloud workload identity here
 ```
+
+Coordination requires `processLogs.autoscaling.minReplicas` of at least 2 so
+the enabled capability always has a second eligible pod during failure or
+replacement.
 
 The chart creates one no-RBAC ServiceAccount for the shard builder and
 disables Kubernetes API token automount. Coordination reuses the established

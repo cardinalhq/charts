@@ -1,5 +1,11 @@
 # Changelog
 
+## 3.17.2
+
+* **SAFETY**: enabling embedded generation coordination now requires at least
+  two process-logs replicas, preventing configuration of a new coordination
+  single point of failure.
+
 ## 3.17.1
 
 * **CHANGED**: removed the singleton generation coordinator Deployment and
