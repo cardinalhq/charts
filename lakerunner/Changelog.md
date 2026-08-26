@@ -4,11 +4,13 @@
 
 * **NEW**: added default-off `generation-coordinator` and
   `generation-shard-builder` shadow Deployments. Enabling either workload
-  requires a lowercase `sha256` image digest. Both run at one replica on
-  distinct ServiceAccounts with no chart RBAC; the shard builder has fixed
-  concurrency, memory, scratch, ephemeral-storage, and shutdown/lease safety
-  bounds. The shard builder's Go supervisor is capped at 512 MiB so its 1 GiB
-  Rust child fits inside the 2 GiB pod limit with process overhead.
+  requires an untagged repository plus a lowercase `sha256` image digest. Both
+  use a one-replica `Recreate` rollout on ServiceAccounts distinct from each
+  other and the general LakeRunner account, with no chart RBAC. Reserved
+  generation/helper environment variables cannot be overridden. The shard
+  builder has fixed concurrency, memory, scratch, ephemeral-storage, and
+  shutdown/lease safety bounds. Its Go supervisor is capped at 512 MiB so its
+  1 GiB Rust child fits inside the 2 GiB pod limit with process overhead.
 * **SAFETY**: this release has no generation finalizer, publication, cleanup,
   or HPA surface. With both generation flags left at their defaults, the chart
   renders no generation resources.

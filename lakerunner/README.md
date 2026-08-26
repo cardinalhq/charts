@@ -28,7 +28,8 @@ resources unless explicitly enabled.
 
 Enable the fixed one-replica coordinator and shard builder only with an image
 that contains both `/app/bin/lakerunner` and `/app/bin/lkrn-gen-shard`, pinned
-by its lowercase OCI digest:
+by its lowercase OCI digest. The repository field itself must be untagged and
+must not contain a digest:
 
 ```yaml
 generation:
@@ -55,11 +56,14 @@ to `GOMEMLIMIT=512MiB` and `GOGC=50`, leaving room for the separately budgeted
 1 GiB Rust child and native/process overhead.
 
 These safety settings are render-time contracts. Unsafe digest, identity,
-resource, concurrency, or shutdown/lease overrides cause Helm rendering to
-fail. The application termination grace is 30 seconds, the pod grace is 45
-seconds, and the database lease is 300 seconds. This shadow slice intentionally
-contains no finalizer, cleanup task, publication path, HorizontalPodAutoscaler,
-Role, or RoleBinding.
+resource, concurrency, environment, or shutdown/lease overrides cause Helm
+rendering to fail. Chart-owned generation and helper environment variables
+cannot be duplicated in `global.env` or either generation component's `env`.
+Both Deployments use the `Recreate` strategy so a rollout never runs more than
+the fixed single replica. The application termination grace is 30 seconds, the
+pod grace is 45 seconds, and the database lease is 300 seconds. This shadow
+slice intentionally contains no finalizer, cleanup task, publication path,
+HorizontalPodAutoscaler, Role, or RoleBinding.
 
 ## `value-local.yaml`
 
