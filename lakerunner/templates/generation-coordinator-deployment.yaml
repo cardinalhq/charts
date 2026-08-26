@@ -1,0 +1,74 @@
+{{- include "lakerunner.validateGenerationShadow" . -}}
+{{- if .Values.generation.coordinator.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "lakerunner.fullname" . }}-generation-coordinator
+  labels:
+    {{- include "lakerunner.labelsWithComponent" (list . .Values.generation.coordinator.labels) | nindent 4 }}
+    app.kubernetes.io/component: generation-coordinator
+  {{- include "lakerunner.annotationsWithComponent" (list . .Values.generation.coordinator.annotations) | nindent 2 }}
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "lakerunner.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: generation-coordinator
+  template:
+    metadata:
+      labels:
+        {{- include "lakerunner.labelsWithComponent" (list . .Values.generation.coordinator.labels) | nindent 8 }}
+        app.kubernetes.io/component: generation-coordinator
+      {{- include "lakerunner.annotationsWithComponent" (list . .Values.generation.coordinator.annotations) | nindent 6 }}
+    spec:
+      serviceAccountName: {{ include "lakerunner.generationCoordinatorServiceAccountName" . }}
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: {{ .Values.generation.coordinator.podTerminationGraceSeconds }}
+      {{- include "lakerunner.podSecurityContext" (dict "root" . "override" .Values.generation.coordinator.podSecurityContext) | nindent 6 }}
+      {{- include "lakerunner.imagePullSecrets" . | nindent 6 }}
+      containers:
+        - name: generation-coordinator
+          {{- include "lakerunner.containerSecurityContext" (dict "root" . "override" .Values.generation.coordinator.containerSecurityContext) | nindent 10 }}
+          image: {{ include "lakerunner.generationImage" . | quote }}
+          imagePullPolicy: {{ .Values.generation.image.pullPolicy }}
+          command: ["/app/bin/lakerunner"]
+          args: ["generation-coordinator"]
+          ports:
+            - name: healthcheck
+              containerPort: {{ .Values.global.healthProbes.healthcheckPort }}
+              protocol: TCP
+          env:
+            - name: OTEL_SERVICE_NAME
+              value: {{ printf "%s-generation-coordinator" (include "lakerunner.fullname" .) | quote }}
+            - name: LAKERUNNER_GENERATION_COORDINATOR_ENABLED
+              value: "true"
+            - name: LAKERUNNER_GENERATION_COORDINATOR_LEASE_DURATION
+              value: {{ printf "%ds" (int .Values.generation.coordinator.leaseDurationSeconds) | quote }}
+            - name: LAKERUNNER_GENERATION_COORDINATOR_TERMINATION_GRACE
+              value: {{ printf "%ds" (int .Values.generation.coordinator.terminationGraceSeconds) | quote }}
+            {{- include "lakerunner.injectEnv" (list . .Values.generation.coordinator) | nindent 10 }}
+            {{- include "lakerunner.cardinalTelemetryEnv" . | nindent 12 }}
+          {{- include "lakerunner.healthProbes" (list . .Values.generation.coordinator) | nindent 10 }}
+          resources:
+            {{- toYaml .Values.generation.coordinator.resources | nindent 12 }}
+          volumeMounts:
+            {{- if eq .Values.storageProfiles.source "config" }}
+            - name: storage-profiles
+              mountPath: /app/config/storage_profiles.yaml
+              subPath: storage_profiles.yaml
+              readOnly: true
+            {{- end }}
+            {{- include "lakerunner.licenseVolumeMount" . | nindent 12 }}
+      {{- include "lakerunner.sched.nodeSelector" (list .Values.global.nodeSelector .Values.generation.coordinator.nodeSelector) | nindent 6 }}
+      {{- include "lakerunner.sched.tolerations" (list .Values.global.tolerations .Values.generation.coordinator.tolerations) | nindent 6 }}
+      {{- include "lakerunner.sched.affinity" (list .Values.global.affinity .Values.generation.coordinator.affinity) | nindent 6 }}
+      volumes:
+        {{- if eq .Values.storageProfiles.source "config" }}
+        - name: storage-profiles
+          configMap:
+            name: {{ include "lakerunner.storageProfilesConfigmapName" . }}
+        {{- end }}
+        {{- include "lakerunner.licenseVolume" . | nindent 8 }}
+{{- end }}

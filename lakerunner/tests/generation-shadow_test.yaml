@@ -1,0 +1,407 @@
+suite: generation shadow workloads
+values:
+  - ../values.yaml
+set:
+  license.data: '{"key":"test"}'
+templates:
+  - generation-shadow-validation.yaml
+  - generation-serviceaccounts.yaml
+  - generation-coordinator-deployment.yaml
+  - generation-shard-builder-deployment.yaml
+tests:
+  - it: renders no generation resources by default
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: renders the fixed coordinator shadow deployment with no cloud credential injection
+    template: generation-coordinator-deployment.yaml
+    set:
+      generation.coordinator.enabled: true
+      generation.image.digest: sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+      cloudProvider.provider: aws
+      cloudProvider.aws.inject: true
+    asserts:
+      - isKind:
+          of: Deployment
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-lakerunner-generation-coordinator
+      - equal:
+          path: spec.replicas
+          value: 1
+      - equal:
+          path: spec.strategy.type
+          value: Recreate
+      - notExists:
+          path: spec.strategy.rollingUpdate
+      - equal:
+          path: spec.template.spec.serviceAccountName
+          value: RELEASE-NAME-lakerunner-generation-coordinator
+      - equal:
+          path: spec.template.spec.automountServiceAccountToken
+          value: false
+      - equal:
+          path: spec.template.spec.terminationGracePeriodSeconds
+          value: 45
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: ghcr.io/cardinalhq/lakerunner@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+      - equal:
+          path: spec.template.spec.containers[0].command[0]
+          value: /app/bin/lakerunner
+      - equal:
+          path: spec.template.spec.containers[0].args[0]
+          value: generation-coordinator
+      - notExists:
+          path: spec.template.spec.containers[0].envFrom
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: LAKERUNNER_GENERATION_COORDINATOR_ENABLED
+            value: "true"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: LAKERUNNER_GENERATION_COORDINATOR_LEASE_DURATION
+            value: 300s
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: LAKERUNNER_GENERATION_COORDINATOR_TERMINATION_GRACE
+            value: 30s
+
+  - it: renders the bounded shard builder and packaged shard binary contract
+    template: generation-shard-builder-deployment.yaml
+    set:
+      generation.shardBuilder.enabled: true
+      generation.image.digest: sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+    asserts:
+      - isKind:
+          of: Deployment
+      - equal:
+          path: spec.replicas
+          value: 1
+      - equal:
+          path: spec.strategy.type
+          value: Recreate
+      - notExists:
+          path: spec.strategy.rollingUpdate
+      - equal:
+          path: spec.template.spec.serviceAccountName
+          value: RELEASE-NAME-lakerunner-generation-shard-builder
+      - equal:
+          path: spec.template.spec.automountServiceAccountToken
+          value: false
+      - equal:
+          path: spec.template.spec.terminationGracePeriodSeconds
+          value: 45
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: ghcr.io/cardinalhq/lakerunner@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+      - equal:
+          path: spec.template.spec.containers[0].args[0]
+          value: generation-shard-builder
+      - equal:
+          path: spec.template.spec.containers[0].resources.requests.memory
+          value: 1Gi
+      - equal:
+          path: spec.template.spec.containers[0].resources.limits.memory
+          value: 2Gi
+      - equal:
+          path: spec.template.spec.containers[0].resources.requests.ephemeral-storage
+          value: 18Gi
+      - equal:
+          path: spec.template.spec.containers[0].resources.limits.ephemeral-storage
+          value: 18Gi
+      - equal:
+          path: spec.template.spec.containers[0].volumeMounts[?(@.name=="generation-scratch")].mountPath
+          value: /scratch/generation
+      - equal:
+          path: spec.template.spec.volumes[?(@.name=="generation-scratch")].emptyDir.sizeLimit
+          value: 17Gi
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: LAKERUNNER_GENERATION_SHARD_BUILDER_CONCURRENCY
+            value: "1"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: LAKERUNNER_GENERATION_SHARD_BUILDER_SCRATCH_LIMIT_BYTES
+            value: "17179869184"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: LAKERUNNER_GENERATION_SHARD_BUILDER_TERMINATION_GRACE
+            value: 30s
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: LAKERUNNER_LKRN_GEN_SHARD
+            value: /app/bin/lkrn-gen-shard
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GOMEMLIMIT
+            value: 512MiB
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GOGC
+            value: "50"
+
+  - it: creates two distinct no-RBAC service accounts with token automount disabled
+    template: generation-serviceaccounts.yaml
+    set:
+      generation.coordinator.enabled: true
+      generation.shardBuilder.enabled: true
+      generation.image.digest: sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+    asserts:
+      - hasDocuments:
+          count: 2
+      - isKind:
+          of: ServiceAccount
+        documentIndex: 0
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-lakerunner-generation-coordinator
+        documentIndex: 0
+      - equal:
+          path: automountServiceAccountToken
+          value: false
+        documentIndex: 0
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-lakerunner-generation-shard-builder
+        documentIndex: 1
+      - equal:
+          path: automountServiceAccountToken
+          value: false
+        documentIndex: 1
+
+  - it: rejects an absent digest when enabled
+    template: generation-shard-builder-deployment.yaml
+    set:
+      generation.coordinator.enabled: true
+    asserts:
+      - failedTemplate:
+          errorPattern: generation.image.digest must be sha256
+
+  - it: rejects a malformed or uppercase digest
+    template: generation-shard-builder-deployment.yaml
+    set:
+      generation.shardBuilder.enabled: true
+      generation.image.digest: sha256:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+    asserts:
+      - failedTemplate:
+          errorPattern: generation.image.digest must be sha256
+
+  - it: rejects a tag in the generation image repository
+    template: generation-shard-builder-deployment.yaml
+    set:
+      generation.coordinator.enabled: true
+      generation.image.repository: "ghcr.io/cardinalhq/lakerunner:latest"
+      generation.image.digest: sha256:abababababababababababababababababababababababababababababababab
+    asserts:
+      - failedTemplate:
+          errorPattern: generation.image.repository must not contain a tag or digest
+
+  - it: rejects a digest in the generation image repository
+    template: generation-shard-builder-deployment.yaml
+    set:
+      generation.coordinator.enabled: true
+      generation.image.repository: "ghcr.io/cardinalhq/lakerunner@sha256:abababababababababababababababababababababababababababababababab"
+      generation.image.digest: sha256:abababababababababababababababababababababababababababababababab
+    asserts:
+      - failedTemplate:
+          errorPattern: generation.image.repository must not contain a tag or digest
+
+  - it: accepts a registry port in an untagged generation image repository
+    template: generation-coordinator-deployment.yaml
+    set:
+      generation.coordinator.enabled: true
+      generation.image.repository: registry.example.com:5000/cardinalhq/lakerunner
+      generation.image.digest: sha256:abababababababababababababababababababababababababababababababab
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: registry.example.com:5000/cardinalhq/lakerunner@sha256:abababababababababababababababababababababababababababababababab
+
+  - it: rejects shared service account identity
+    template: generation-shard-builder-deployment.yaml
+    set:
+      generation.coordinator.enabled: true
+      generation.shardBuilder.enabled: true
+      generation.image.digest: sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd
+      generation.coordinator.serviceAccount.name: unsafe-shared
+      generation.shardBuilder.serviceAccount.name: unsafe-shared
+    asserts:
+      - failedTemplate:
+          errorPattern: service accounts must be distinct
+
+  - it: rejects coordinator identity shared with the general service account
+    template: generation-shard-builder-deployment.yaml
+    set:
+      serviceAccount.create: true
+      serviceAccount.name: unsafe-general
+      generation.coordinator.enabled: true
+      generation.coordinator.serviceAccount.name: unsafe-general
+      generation.image.digest: sha256:cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd
+    asserts:
+      - failedTemplate:
+          errorPattern: coordinator service account must be distinct from the general
+
+  - it: rejects shard builder identity shared with the general service account
+    template: generation-shard-builder-deployment.yaml
+    set:
+      serviceAccount.create: true
+      serviceAccount.name: unsafe-general
+      generation.shardBuilder.enabled: true
+      generation.shardBuilder.serviceAccount.name: unsafe-general
+      generation.image.digest: sha256:dededededededededededededededededededededededededededededededede
+    asserts:
+      - failedTemplate:
+          errorPattern: shard builder service account must be distinct from the general
+
+  - it: rejects builder concurrency above one
+    template: generation-shard-builder-deployment.yaml
+    set:
+      generation.shardBuilder.enabled: true
+      generation.image.digest: sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee
+      generation.shardBuilder.concurrency: 2
+    asserts:
+      - failedTemplate:
+          errorPattern: concurrency must be exactly 1
+
+  - it: rejects a builder memory limit above two GiB
+    template: generation-shard-builder-deployment.yaml
+    set:
+      generation.shardBuilder.enabled: true
+      generation.image.digest: sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+      generation.shardBuilder.resources.limits.memory: 3Gi
+    asserts:
+      - failedTemplate:
+          errorPattern: limit <= 2Gi
+
+  - it: rejects a reserved builder helper variable in component env
+    template: generation-shard-builder-deployment.yaml
+    set:
+      generation.shardBuilder.enabled: true
+      generation.image.digest: sha256:5555555555555555555555555555555555555555555555555555555555555555
+      generation.shardBuilder.env:
+        - name: GOMEMLIMIT
+          value: 1GiB
+    asserts:
+      - failedTemplate:
+          errorPattern: generation.shardBuilder.env must not set reserved generation environment variable GOMEMLIMIT
+
+  - it: rejects a reserved builder helper variable in global env
+    template: generation-shard-builder-deployment.yaml
+    set:
+      generation.shardBuilder.enabled: true
+      generation.image.digest: sha256:6666666666666666666666666666666666666666666666666666666666666666
+      global.env:
+        - name: OTEL_EXPORTER_OTLP_ENDPOINT
+          value: https://unsafe.example
+    asserts:
+      - failedTemplate:
+          errorPattern: global.env must not set reserved generation environment variable OTEL_EXPORTER_OTLP_ENDPOINT
+
+  - it: rejects a reserved coordinator variable in global env
+    template: generation-shard-builder-deployment.yaml
+    set:
+      generation.coordinator.enabled: true
+      generation.image.digest: sha256:6767676767676767676767676767676767676767676767676767676767676767
+      global.env:
+        - name: LAKERUNNER_GENERATION_COORDINATOR_ENABLED
+          value: "false"
+    asserts:
+      - failedTemplate:
+          errorPattern: global.env must not set reserved generation environment variable LAKERUNNER_GENERATION_COORDINATOR_ENABLED
+
+  - it: rejects a reserved coordinator helper variable in component env
+    template: generation-shard-builder-deployment.yaml
+    set:
+      generation.coordinator.enabled: true
+      generation.image.digest: sha256:6868686868686868686868686868686868686868686868686868686868686868
+      generation.coordinator.env:
+        - name: LRDB_HOST
+          value: unsafe.example
+    asserts:
+      - failedTemplate:
+          errorPattern: generation.coordinator.env must not set reserved generation environment variable LRDB_HOST
+
+  - it: rejects a reserved shard executable variable in component env
+    template: generation-shard-builder-deployment.yaml
+    set:
+      generation.shardBuilder.enabled: true
+      generation.image.digest: sha256:6969696969696969696969696969696969696969696969696969696969696969
+      generation.shardBuilder.env:
+        - name: LAKERUNNER_LKRN_GEN_SHARD
+          value: /tmp/unsafe
+    asserts:
+      - failedTemplate:
+          errorPattern: generation.shardBuilder.env must not set reserved generation environment variable LAKERUNNER_LKRN_GEN_SHARD
+
+  - it: rejects a reserved conditional cloud helper variable in global env
+    template: generation-shard-builder-deployment.yaml
+    set:
+      generation.shardBuilder.enabled: true
+      generation.image.digest: sha256:7070707070707070707070707070707070707070707070707070707070707070
+      global.env:
+        - name: AZURE_AUTH_TYPE
+          value: client_secret
+    asserts:
+      - failedTemplate:
+          errorPattern: global.env must not set reserved generation environment variable AZURE_AUTH_TYPE
+
+  - it: rejects insufficient scratch volume headroom
+    template: generation-shard-builder-deployment.yaml
+    set:
+      generation.shardBuilder.enabled: true
+      generation.image.digest: sha256:1111111111111111111111111111111111111111111111111111111111111111
+      generation.shardBuilder.scratchSizeLimit: 16Gi
+    asserts:
+      - failedTemplate:
+          errorPattern: scratchSizeLimit must be at least 17Gi
+
+  - it: rejects insufficient pod ephemeral storage
+    template: generation-shard-builder-deployment.yaml
+    set:
+      generation.shardBuilder.enabled: true
+      generation.image.digest: sha256:2222222222222222222222222222222222222222222222222222222222222222
+      generation.shardBuilder.resources.limits.ephemeral-storage: 17Gi
+    asserts:
+      - failedTemplate:
+          errorPattern: ephemeral-storage request and limit must be at least 18Gi
+
+  - it: rejects contradictory coordinator grace periods
+    template: generation-shard-builder-deployment.yaml
+    set:
+      generation.coordinator.enabled: true
+      generation.image.digest: sha256:3333333333333333333333333333333333333333333333333333333333333333
+      generation.coordinator.podTerminationGraceSeconds: 300
+    asserts:
+      - failedTemplate:
+          errorPattern: coordinator timing must remain
+
+  - it: rejects contradictory builder grace periods
+    template: generation-shard-builder-deployment.yaml
+    set:
+      generation.shardBuilder.enabled: true
+      generation.image.digest: sha256:4444444444444444444444444444444444444444444444444444444444444444
+      generation.shardBuilder.terminationGraceSeconds: 45
+    asserts:
+      - failedTemplate:
+          errorPattern: builder timing must remain
+
+  - it: rejects an ordered but noncanonical builder timing override
+    template: generation-shard-builder-deployment.yaml
+    set:
+      generation.shardBuilder.enabled: true
+      generation.image.digest: sha256:7777777777777777777777777777777777777777777777777777777777777777
+      generation.shardBuilder.terminationGraceSeconds: 29
+    asserts:
+      - failedTemplate:
+          errorPattern: builder timing must remain

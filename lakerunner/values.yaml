@@ -425,6 +425,86 @@ setup:
       username: ""
       sslMode: ""
 
+# Distributed generation shadow workloads. These workloads are deliberately
+# disabled by default and do not publish or serve generated indexes. When
+# either workload is enabled, generation.image.digest must pin the LakeRunner
+# image by a lowercase sha256 digest; tags are never accepted for this lane.
+generation:
+  image:
+    repository: ghcr.io/cardinalhq/lakerunner
+    digest: ""
+    pullPolicy: IfNotPresent
+
+  coordinator:
+    enabled: false
+    # A dedicated, no-RBAC ServiceAccount is always created when enabled.
+    serviceAccount:
+      name: ""
+    leaseDurationSeconds: 300
+    terminationGraceSeconds: 30
+    podTerminationGraceSeconds: 45
+    healthProbes:
+      enabled: true
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
+    labels: {}
+    annotations: {}
+    podSecurityContext: {}
+    containerSecurityContext: {}
+    nodeSelector: {}
+    tolerations: []
+    affinity: {}
+    env: []
+
+  shardBuilder:
+    enabled: false
+    # This is intentionally distinct from the coordinator ServiceAccount.
+    # Cloud workload-identity annotations belong only on this account.
+    serviceAccount:
+      name: ""
+      annotations: {}
+    leaseDurationSeconds: 300
+    terminationGraceSeconds: 30
+    podTerminationGraceSeconds: 45
+    concurrency: 1
+    scratchDirectory: /scratch/generation
+    scratchLimitBytes: 17179869184 # 16 GiB per attempt
+    scratchSizeLimit: 17Gi
+    residentMemoryLimitBytes: 1073741824 # 1 GiB
+    spillFailThresholdBytes: 536870912 # 512 MiB
+    pollInterval: 100ms
+    noWorkBackoffInitial: 1s
+    noWorkBackoffMax: 30s
+    errorBackoffInitial: 1s
+    errorBackoffMax: 30s
+    backoffJitter: 250ms
+    healthProbes:
+      enabled: true
+    # These limits are always rendered for this workload, independently of
+    # global.resources.enabled, because they are part of its safety contract.
+    resources:
+      requests:
+        cpu: 250m
+        memory: 1Gi
+        ephemeral-storage: 18Gi
+      limits:
+        cpu: "1"
+        memory: 2Gi
+        ephemeral-storage: 18Gi
+    labels: {}
+    annotations: {}
+    podSecurityContext: {}
+    containerSecurityContext: {}
+    nodeSelector: {}
+    tolerations: []
+    affinity: {}
+    env: []
+
 # Process Logs configuration (handles both ingest and compact for logs)
 processLogs:
   enabled: true

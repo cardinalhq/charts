@@ -101,6 +101,185 @@ Create the name of the service account to use
 {{- end }}
 {{- end }}
 
+{{/* Dedicated service accounts for the default-off generation shadow lane. */}}
+{{- define "lakerunner.generationCoordinatorServiceAccountName" -}}
+{{- default (printf "%s-generation-coordinator" (include "lakerunner.fullname" .)) .Values.generation.coordinator.serviceAccount.name | trunc 63 | trimSuffix "-" -}}
+{{- end -}}
+
+{{- define "lakerunner.generationShardBuilderServiceAccountName" -}}
+{{- default (printf "%s-generation-shard-builder" (include "lakerunner.fullname" .)) .Values.generation.shardBuilder.serviceAccount.name | trunc 63 | trimSuffix "-" -}}
+{{- end -}}
+
+{{/*
+Generation workloads are intentionally pinned by digest and do not inherit the
+tag-oriented global image settings used by established workloads.
+*/}}
+{{- define "lakerunner.generationImage" -}}
+{{- printf "%s@%s" .Values.generation.image.repository .Values.generation.image.digest -}}
+{{- end -}}
+
+{{/*
+Reject user env entries that would duplicate or override environment owned by
+the generation Deployments and their shared helpers.
+Args:
+  0: env list
+  1: values path used in the error
+*/}}
+{{- define "lakerunner.validateGenerationEnv" -}}
+{{- $envList := index . 0 | default list -}}
+{{- $path := index . 1 -}}
+{{- $reserved := list
+  "OTEL_SERVICE_NAME"
+  "LAKERUNNER_GENERATION_COORDINATOR_ENABLED"
+  "LAKERUNNER_GENERATION_COORDINATOR_LEASE_DURATION"
+  "LAKERUNNER_GENERATION_COORDINATOR_TERMINATION_GRACE"
+  "LAKERUNNER_GENERATION_SHARD_BUILDER_ENABLED"
+  "LAKERUNNER_GENERATION_SHARD_BUILDER_LEASE_DURATION"
+  "LAKERUNNER_GENERATION_SHARD_BUILDER_POLL_INTERVAL"
+  "LAKERUNNER_GENERATION_SHARD_BUILDER_NO_WORK_BACKOFF_INITIAL"
+  "LAKERUNNER_GENERATION_SHARD_BUILDER_NO_WORK_BACKOFF_MAX"
+  "LAKERUNNER_GENERATION_SHARD_BUILDER_ERROR_BACKOFF_INITIAL"
+  "LAKERUNNER_GENERATION_SHARD_BUILDER_ERROR_BACKOFF_MAX"
+  "LAKERUNNER_GENERATION_SHARD_BUILDER_BACKOFF_JITTER"
+  "LAKERUNNER_GENERATION_SHARD_BUILDER_CONCURRENCY"
+  "LAKERUNNER_GENERATION_SHARD_BUILDER_SCRATCH_DIRECTORY"
+  "LAKERUNNER_GENERATION_SHARD_BUILDER_SCRATCH_LIMIT_BYTES"
+  "LAKERUNNER_GENERATION_SHARD_BUILDER_RESIDENT_MEMORY_LIMIT_BYTES"
+  "LAKERUNNER_GENERATION_SHARD_BUILDER_SPILL_FAIL_THRESHOLD_BYTES"
+  "LAKERUNNER_GENERATION_SHARD_BUILDER_TERMINATION_GRACE"
+  "LAKERUNNER_LKRN_GEN_SHARD"
+  "AZURE_AUTH_TYPE"
+  "LRDB_HOST"
+  "LRDB_PORT"
+  "LRDB_DBNAME"
+  "LRDB_USER"
+  "LRDB_PASSWORD"
+  "LRDB_SSLMODE"
+  "CONFIGDB_HOST"
+  "CONFIGDB_PORT"
+  "CONFIGDB_DBNAME"
+  "CONFIGDB_USER"
+  "CONFIGDB_PASSWORD"
+  "CONFIGDB_SSLMODE"
+  "STORAGE_PROFILE_FILE"
+  "GOMEMLIMIT"
+  "GOGC"
+  "OTEL_TRACES_SAMPLER"
+  "OTEL_TRACES_SAMPLER_ARG"
+  "cardinalhq-api-key"
+  "OTEL_EXPORTER_OTLP_ENDPOINT"
+  "ENABLE_OTLP_TELEMETRY"
+  "OTEL_EXPORTER_OTLP_HEADERS"
+-}}
+{{- range $entry := $envList -}}
+  {{- $name := $entry.name | default "" | toString -}}
+  {{- if has $name $reserved -}}
+    {{- fail (printf "%s must not set reserved generation environment variable %s" $path $name) -}}
+  {{- end -}}
+{{- end -}}
+{{- end -}}
+
+{{/* Fail rendering rather than admitting an unsafe generation shadow pod. */}}
+{{- define "lakerunner.validateGenerationShadow" -}}
+{{- $coordinator := .Values.generation.coordinator -}}
+{{- $builder := .Values.generation.shardBuilder -}}
+{{- if or $coordinator.enabled $builder.enabled -}}
+  {{- if not .Values.generation.image.repository -}}
+    {{- fail "generation.image.repository is required when a generation workload is enabled" -}}
+  {{- end -}}
+  {{- if or (contains "@" (.Values.generation.image.repository | toString)) (regexMatch ":[^/]+$" (.Values.generation.image.repository | toString)) -}}
+    {{- fail "generation.image.repository must not contain a tag or digest; set the lowercase sha256 digest only in generation.image.digest" -}}
+  {{- end -}}
+  {{- if not (regexMatch "^sha256:[0-9a-f]{64}$" (.Values.generation.image.digest | toString)) -}}
+    {{- fail "generation.image.digest must be sha256: followed by exactly 64 lowercase hexadecimal characters" -}}
+  {{- end -}}
+  {{- include "lakerunner.validateGenerationEnv" (list (.Values.global.env | default list) "global.env") -}}
+  {{- $coordinatorSA := include "lakerunner.generationCoordinatorServiceAccountName" . -}}
+  {{- $builderSA := include "lakerunner.generationShardBuilderServiceAccountName" . -}}
+  {{- $generalSA := include "lakerunner.serviceAccountName" . -}}
+  {{- if and $coordinator.enabled (eq $coordinatorSA $generalSA) -}}
+    {{- fail "generation coordinator service account must be distinct from the general lakerunner service account" -}}
+  {{- end -}}
+  {{- if and $builder.enabled (eq $builderSA $generalSA) -}}
+    {{- fail "generation shard builder service account must be distinct from the general lakerunner service account" -}}
+  {{- end -}}
+  {{- if and $coordinator.enabled $builder.enabled (eq $coordinatorSA $builderSA) -}}
+    {{- fail "generation coordinator and shard builder service accounts must be distinct" -}}
+  {{- end -}}
+{{- end -}}
+{{- if $coordinator.enabled -}}
+  {{- include "lakerunner.validateGenerationEnv" (list ($coordinator.env | default list) "generation.coordinator.env") -}}
+  {{- if or (ne (int $coordinator.terminationGraceSeconds) 30) (ne (int $coordinator.podTerminationGraceSeconds) 45) (ne (int $coordinator.leaseDurationSeconds) 300) -}}
+    {{- fail "generation coordinator timing must remain terminationGraceSeconds=30, podTerminationGraceSeconds=45, leaseDurationSeconds=300 during shadow rollout" -}}
+  {{- end -}}
+  {{- if not (and (lt (int $coordinator.terminationGraceSeconds) (int $coordinator.podTerminationGraceSeconds)) (lt (int $coordinator.podTerminationGraceSeconds) (int $coordinator.leaseDurationSeconds))) -}}
+    {{- fail "generation coordinator grace periods must satisfy terminationGraceSeconds < podTerminationGraceSeconds < leaseDurationSeconds" -}}
+  {{- end -}}
+{{- end -}}
+{{- if $builder.enabled -}}
+  {{- include "lakerunner.validateGenerationEnv" (list ($builder.env | default list) "generation.shardBuilder.env") -}}
+  {{- if or (ne (int $builder.terminationGraceSeconds) 30) (ne (int $builder.podTerminationGraceSeconds) 45) (ne (int $builder.leaseDurationSeconds) 300) -}}
+    {{- fail "generation shard builder timing must remain terminationGraceSeconds=30, podTerminationGraceSeconds=45, leaseDurationSeconds=300 during shadow rollout" -}}
+  {{- end -}}
+  {{- if ne (int $builder.concurrency) 1 -}}
+    {{- fail "generation.shardBuilder.concurrency must be exactly 1 during shadow rollout" -}}
+  {{- end -}}
+  {{- if ne (int64 $builder.scratchLimitBytes) 17179869184 -}}
+    {{- fail "generation.shardBuilder.scratchLimitBytes must be exactly 17179869184 (16Gi) during shadow rollout" -}}
+  {{- end -}}
+  {{- if ne ($builder.scratchDirectory | toString) "/scratch/generation" -}}
+    {{- fail "generation.shardBuilder.scratchDirectory must be /scratch/generation" -}}
+  {{- end -}}
+  {{- $scratchSize := include "lakerunner.parseMemoryToBytes" $builder.scratchSizeLimit | int64 -}}
+  {{- if lt $scratchSize 18253611008 -}}
+    {{- fail "generation.shardBuilder.scratchSizeLimit must be at least 17Gi" -}}
+  {{- end -}}
+  {{- $memoryRequest := include "lakerunner.parseMemoryToBytes" $builder.resources.requests.memory | int64 -}}
+  {{- $memoryLimit := include "lakerunner.parseMemoryToBytes" $builder.resources.limits.memory | int64 -}}
+  {{- if or (le $memoryRequest 0) (le $memoryLimit 0) (gt $memoryRequest $memoryLimit) (gt $memoryLimit 2147483648) -}}
+    {{- fail "generation shard builder memory must be positive, request <= limit, and limit <= 2Gi" -}}
+  {{- end -}}
+  {{- if or (le (int64 $builder.residentMemoryLimitBytes) 0) (gt (int64 $builder.residentMemoryLimitBytes) $memoryLimit) -}}
+    {{- fail "generation.shardBuilder.residentMemoryLimitBytes must be positive and no greater than the container memory limit" -}}
+  {{- end -}}
+  {{- if or (le (int64 $builder.spillFailThresholdBytes) 0) (ge (int64 $builder.spillFailThresholdBytes) (int64 $builder.residentMemoryLimitBytes)) -}}
+    {{- fail "generation.shardBuilder.spillFailThresholdBytes must be positive and below residentMemoryLimitBytes" -}}
+  {{- end -}}
+  {{- $ephemeralRequest := include "lakerunner.parseMemoryToBytes" (index $builder.resources.requests "ephemeral-storage") | int64 -}}
+  {{- $ephemeralLimit := include "lakerunner.parseMemoryToBytes" (index $builder.resources.limits "ephemeral-storage") | int64 -}}
+  {{- if or (lt $ephemeralRequest 19327352832) (lt $ephemeralLimit 19327352832) (gt $ephemeralRequest $ephemeralLimit) -}}
+    {{- fail "generation shard builder ephemeral-storage request and limit must be at least 18Gi and request <= limit" -}}
+  {{- end -}}
+  {{- if not (and (lt (int $builder.terminationGraceSeconds) (int $builder.podTerminationGraceSeconds)) (lt (int $builder.podTerminationGraceSeconds) (int $builder.leaseDurationSeconds))) -}}
+    {{- fail "generation shard builder grace periods must satisfy terminationGraceSeconds < podTerminationGraceSeconds < leaseDurationSeconds" -}}
+  {{- end -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Builder-specific environment composition. The builder hosts a Go supervisor
+and a separately budgeted Rust child in one 2Gi pod, so generic Go memory
+auto-tuning and operator overrides are unsafe here.
+*/}}
+{{- define "lakerunner.injectGenerationShardBuilderEnv" -}}
+{{- $root := index . 0 -}}
+{{- $comp := index . 1 -}}
+{{- $globalEnv := $root.Values.global.env | default list -}}
+{{- $compEnv := $comp.env | default list -}}
+{{- include "lakerunner.commonEnv" $root | nindent 2 }}
+  - name: GOMEMLIMIT
+    value: "512MiB"
+  - name: GOGC
+    value: "50"
+{{ include "lakerunner.tracesEnv" (list $root $comp) | nindent 2 -}}
+{{- with $globalEnv }}
+{{ toYaml . | nindent 2 -}}
+{{- end -}}
+{{- with $compEnv }}
+{{ toYaml . | nindent 2 -}}
+{{- end -}}
+{{- end -}}
+
 {{/*
 Common environment variables
 */}}
