@@ -23,9 +23,6 @@ spec:
       {{- include "lakerunner.annotationsWithComponent" (list . .Values.processLogs.annotations) | nindent 6 }}
     spec:
       serviceAccountName: {{ include "lakerunner.serviceAccountName" . }}
-      {{- if .Values.generation.coordination.enabled }}
-      terminationGracePeriodSeconds: {{ .Values.generation.coordination.podTerminationGraceSeconds }}
-      {{- end }}
       {{- include "lakerunner.podSecurityContext" (dict "root" . "override" .Values.processLogs.podSecurityContext) | nindent 6 }}
       {{- include "lakerunner.imagePullSecrets" . | nindent 6 }}
       containers:
@@ -56,14 +53,6 @@ spec:
             value: {{ include "lakerunner.fullname" . }}-process-logs
           - name: TMPDIR
             value: /scratch
-          {{- if .Values.generation.coordination.enabled }}
-          - name: LAKERUNNER_GENERATION_COORDINATOR_ENABLED
-            value: "true"
-          - name: LAKERUNNER_GENERATION_COORDINATOR_LEASE_DURATION
-            value: {{ printf "%ds" (int .Values.generation.coordination.leaseDurationSeconds) | quote }}
-          - name: LAKERUNNER_GENERATION_COORDINATOR_TERMINATION_GRACE
-            value: {{ printf "%ds" (int .Values.generation.coordination.terminationGraceSeconds) | quote }}
-          {{- end }}
           {{- if .Values.processLogs.agentSessions.enabled }}
           # Enable the in-process agent-sessions sub-processor (taps
           # claude-code records from each ingested Parquet bin, UPSERTs

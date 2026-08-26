@@ -19,59 +19,6 @@ helm install lakerunner oci://public.ecr.aws/cardinalhq.io/lakerunner \
    --namespace lakerunner --create-namespace
 ```
 
-## Distributed generation shadow workloads
-
-Chart 3.17.2 includes an opt-in shard-builder workload and an opt-in
-coordination capability embedded in every existing process-logs replica. They
-build and validate distributed generation artifacts, but do not publish them
-or change query routing. Both are disabled by default.
-
-Enable coordination only after every process-logs replica runs the supporting
-LakeRunner image. Database worklane claims and partition locks select an owner
-for each trigger; there is no coordinator Deployment, ServiceAccount, or
-Kubernetes leader election. Enable the fixed one-replica shard builder only
-with an image containing `/app/bin/lakerunner` and
-`/app/bin/lkrn-gen-shard`, pinned by its lowercase OCI digest:
-
-```yaml
-generation:
-  image:
-    repository: public.ecr.aws/cardinalhq.io/lakerunner
-    digest: sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
-  coordination:
-    enabled: true
-  shardBuilder:
-    enabled: true
-    serviceAccount:
-      annotations: {} # add only the builder's cloud workload identity here
-```
-
-Coordination requires `processLogs.autoscaling.minReplicas` of at least 2 so
-the enabled capability always has a second eligible pod during failure or
-replacement.
-
-The chart creates one no-RBAC ServiceAccount for the shard builder and
-disables Kubernetes API token automount. Coordination reuses the established
-process-logs pod and identity without adding Kubernetes permissions. The
-builder is held to concurrency 1, a 2 GiB maximum
-memory limit, a 16 GiB per-attempt scratch budget, a 17 GiB `emptyDir`, and an
-18 GiB ephemeral-storage request and limit. Its scratch path is fixed at
-`/scratch/generation`. Within the 2 GiB pod limit, the Go supervisor is pinned
-to `GOMEMLIMIT=512MiB` and `GOGC=50`, leaving room for the separately budgeted
-1 GiB Rust child and native/process overhead.
-
-These safety settings are render-time contracts. Unsafe digest, identity,
-resource, concurrency, environment, or shutdown/lease overrides cause Helm
-rendering to fail. Chart-owned generation and helper environment variables
-cannot be duplicated in `global.env` or either generation component's `env`.
-The builder Deployment uses the `Recreate` strategy so a rollout never runs
-more than its fixed single replica. Coordination follows the existing
-process-logs Deployment and HPA; each replica owns one bounded slot. The
-application termination grace is 30 seconds, the pod grace is 45 seconds, and
-the database lease is 300 seconds. This shadow slice intentionally contains no
-finalizer, cleanup task, publication path, generation HorizontalPodAutoscaler,
-Role, or RoleBinding.
-
 ## `value-local.yaml`
 
 The [default `values.yaml`](https://github.com/cardinalhq/charts/blob/main/lakerunner/values.yaml) file has several settings you will need to provide.
@@ -278,7 +225,6 @@ The following table summarizes the default resource requirements for each LakeRu
 | ingestMetrics | 1200m | 1Gi | 10Gi |
 | ingestTraces | 1200m | 1Gi | 10Gi |
 | **Data Processing** ||||
-| generationShardBuilder (disabled) | 250m | 1Gi | 18Gi |
 | boxerRollupMetrics | 500m | 128Mi | - |
 | boxerCompactMetrics | 500m | 128Mi | - |
 | boxerCompactLogs | 500m | 128Mi | - |

@@ -425,67 +425,6 @@ setup:
       username: ""
       sslMode: ""
 
-# Distributed generation shadow capabilities. They are deliberately disabled
-# by default and do not publish or serve generated indexes. The shard-builder
-# image must be pinned by lowercase sha256 digest; tags are never accepted.
-generation:
-  image:
-    repository: ghcr.io/cardinalhq/lakerunner
-    digest: ""
-    pullPolicy: IfNotPresent
-
-  # Every process-logs replica embeds a separately bounded one-slot consumer.
-  # Database claims and partition locks elect the owner; no coordinator
-  # Deployment or ServiceAccount is created.
-  coordination:
-    enabled: false
-    leaseDurationSeconds: 300
-    terminationGraceSeconds: 30
-    podTerminationGraceSeconds: 45
-
-  shardBuilder:
-    enabled: false
-    # Cloud workload-identity annotations belong only on this account.
-    serviceAccount:
-      name: ""
-      annotations: {}
-    leaseDurationSeconds: 300
-    terminationGraceSeconds: 30
-    podTerminationGraceSeconds: 45
-    concurrency: 1
-    scratchDirectory: /scratch/generation
-    scratchLimitBytes: 17179869184 # 16 GiB per attempt
-    scratchSizeLimit: 17Gi
-    residentMemoryLimitBytes: 1073741824 # 1 GiB
-    spillFailThresholdBytes: 536870912 # 512 MiB
-    pollInterval: 100ms
-    noWorkBackoffInitial: 1s
-    noWorkBackoffMax: 30s
-    errorBackoffInitial: 1s
-    errorBackoffMax: 30s
-    backoffJitter: 250ms
-    healthProbes:
-      enabled: true
-    # These limits are always rendered for this workload, independently of
-    # global.resources.enabled, because they are part of its safety contract.
-    resources:
-      requests:
-        cpu: 250m
-        memory: 1Gi
-        ephemeral-storage: 18Gi
-      limits:
-        cpu: "1"
-        memory: 2Gi
-        ephemeral-storage: 18Gi
-    labels: {}
-    annotations: {}
-    podSecurityContext: {}
-    containerSecurityContext: {}
-    nodeSelector: {}
-    tolerations: []
-    affinity: {}
-    env: []
-
 # Process Logs configuration (handles both ingest and compact for logs)
 processLogs:
   enabled: true
