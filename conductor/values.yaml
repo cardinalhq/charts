@@ -828,7 +828,7 @@ ha:
 # Entrypoint selects which component to run.
 image:
   repository: public.ecr.aws/cardinalhq.io/maestro
-  tag: "v1.94.40"  # pinned (mirrors legacy maestro appVersion); do not rely on Chart.appVersion
+  tag: "v1.94.44"  # pinned (mirrors legacy maestro appVersion); do not rely on Chart.appVersion
   pullPolicy: IfNotPresent
 
 # Maestro API server + UI configuration
