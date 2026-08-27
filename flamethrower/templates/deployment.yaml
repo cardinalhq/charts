@@ -28,6 +28,34 @@ spec:
             {{- if .Values.pubsubNotifyUrl }}
             - --pubsub-notify-url={{ .Values.pubsubNotifyUrl }}
             {{- end }}
+            {{- if .Values.fleet.enabled }}
+            - --shards={{ .Values.fleet.shards }}
+            - --lead={{ .Values.fleet.lead }}
+            - --job-image={{ .Values.fleet.image | default (include "flamethrower.image" .) }}
+            - --job-service-account={{ .Values.fleet.serviceAccount | default .Values.serviceAccount.name }}
+            - --job-cpu={{ .Values.fleet.resources.cpu }}
+            - --job-memory={{ .Values.fleet.resources.memory }}
+            - --report-url={{ .Values.fleet.reportUrl | default (printf "http://%s:%v/api/shard" (include "flamethrower.fullname" .) .Values.service.port) }}
+            {{- if .Values.fleet.namespace }}
+            - --job-namespace={{ .Values.fleet.namespace }}
+            {{- end }}
+            {{- if or .Values.auth.token .Values.auth.existingSecret }}
+            # The shards report counters over the same bearer auth as the UI.
+            # A key mismatch is silent -- the flood runs, every POST 401s --
+            # so it is derived from the secret the chart actually wires up.
+            - --job-auth-secret={{ if .Values.auth.existingSecret }}{{ .Values.auth.existingSecret }}{{ else }}{{ include "flamethrower.fullname" . }}-auth{{ end }}
+            - --job-auth-secret-key=FLAMETHROWER_AUTH_TOKEN
+            {{- end }}
+            # The SDK resolves its region from the environment; shard pods
+            # frequently cannot reach IMDS to fall back on.
+            - --job-env=AWS_REGION={{ .Values.auth.region }}
+            {{- if .Values.s3.usePathStyle }}
+            - --job-env=S3_USE_PATH_STYLE=true
+            {{- end }}
+            {{- range $k, $v := .Values.fleet.env }}
+            - --job-env={{ $k }}={{ $v }}
+            {{- end }}
+            {{- end }}
             {{- else }}
             - loggen
             - --style={{ .Values.style }}

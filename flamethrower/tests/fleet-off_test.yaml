@@ -1,0 +1,24 @@
+suite: fleet mode is off by default
+values:
+  - ../values.yaml
+set:
+  mode: serve
+  destinations:
+    - name: prod
+      bucket: my-bucket
+      prefix: otel-raw/org/col
+tests:
+  # An existing release must render exactly what it rendered before, so none
+  # of the fleet flags may appear unless fleet.enabled is set.
+  - it: adds no fleet flags to a plain serve deployment
+    template: deployment.yaml
+    asserts:
+      - notMatchRegex:
+          path: spec.template.spec.containers[0].args[*]
+          pattern: "^--(shards|job-|report-url|lead)"
+
+  - it: renders no RBAC
+    template: rbac-fleet.yaml
+    asserts:
+      - hasDocuments:
+          count: 0
