@@ -1,0 +1,28 @@
+{{- if and (eq .Values.mode "serve") .Values.fleet.enabled .Values.fleet.rbac.create }}
+# Exactly what the UI does with the Kubernetes API: create the flood Job, read
+# its status, delete it to stop. Namespace-scoped, and nothing else. The shard
+# pods themselves talk only to S3 and the UI, so they get no API access at all.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "flamethrower.fullname" . }}-fleet
+  labels: {{- include "flamethrower.labels" . | nindent 4 }}
+rules:
+  - apiGroups: ["batch"]
+    resources: ["jobs"]
+    verbs: ["create", "get", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "flamethrower.fullname" . }}-fleet
+  labels: {{- include "flamethrower.labels" . | nindent 4 }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ .Values.serviceAccount.name }}
+    namespace: {{ .Release.Namespace }}
+roleRef:
+  kind: Role
+  name: {{ include "flamethrower.fullname" . }}-fleet
+  apiGroup: rbac.authorization.k8s.io
+{{- end }}

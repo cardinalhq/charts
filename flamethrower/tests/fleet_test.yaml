@@ -1,0 +1,123 @@
+suite: serve mode with the sharded flood fleet enabled
+values:
+  - ../values.yaml
+set:
+  mode: serve
+  destinations:
+    - name: prod
+      bucket: my-bucket
+      prefix: otel-raw/org/col
+  auth.existingSecret: flamethrower-auth
+  auth.region: us-east-2
+  serviceAccount.create: false
+  serviceAccount.name: playground-conductor
+  fleet.enabled: true
+  fleet.shards: 16
+  fleet.resources.cpu: "2"
+  fleet.resources.memory: 3Gi
+tests:
+  - it: turns the UI into a Job launcher rather than an in-process flooder
+    template: deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --shards=16
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --lead=5m
+
+  # The shards must run the code the UI expects, so the default is the UI's
+  # own image rather than a floating tag.
+  - it: defaults the shard image to the UI image
+    template: deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --job-image=public.ecr.aws/cardinalhq.io/flamethrower:v1.1.0
+
+  # The shards write to the destination bucket, so they need the account that
+  # may do so -- here the pre-existing one holding the Pod Identity association.
+  - it: runs the shards as the chart's service account by default
+    template: deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --job-service-account=playground-conductor
+
+  - it: lets the shard service account be overridden independently
+    template: deployment.yaml
+    set:
+      fleet.serviceAccount: someone-else
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --job-service-account=someone-else
+
+  - it: sizes one shard from fleet.resources
+    template: deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --job-cpu=2
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --job-memory=3Gi
+
+  # A key mismatch here is silent: the flood runs while every counter POST
+  # 401s and the UI shows an empty fleet.
+  - it: points the shards at the same auth secret the UI uses
+    template: deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --job-auth-secret=flamethrower-auth
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --job-auth-secret-key=FLAMETHROWER_AUTH_TOKEN
+
+  # Shard pods often cannot reach IMDS, so the region cannot be left implicit.
+  - it: passes the AWS region into the shard pods
+    template: deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --job-env=AWS_REGION=us-east-2
+
+  - it: passes path-style addressing through when set
+    template: deployment.yaml
+    set:
+      s3.usePathStyle: true
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --job-env=S3_USE_PATH_STYLE=true
+
+  - it: aims the shard reports at the chart's own Service
+    template: deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --report-url=http://RELEASE-NAME-flamethrower:8080/api/shard
+
+  - it: grants the UI exactly create/get/delete on Jobs
+    template: rbac-fleet.yaml
+    documentIndex: 0
+    asserts:
+      - isKind:
+          of: Role
+      - equal:
+          path: rules[0].verbs
+          value: ["create", "get", "delete"]
+      - equal:
+          path: rules[0].resources
+          value: ["jobs"]
+
+  - it: binds that Role to the service account the UI runs as
+    template: rbac-fleet.yaml
+    documentIndex: 1
+    asserts:
+      - isKind:
+          of: RoleBinding
+      - equal:
+          path: subjects[0].name
+          value: playground-conductor
