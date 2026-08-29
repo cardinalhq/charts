@@ -2,7 +2,7 @@ apiVersion: v2
 name: flamethrower
 description: OTLP signal flood generator for calibration tests
 type: application
-version: 0.4.0
+version: "0.4.0"
 # appVersion is the app's released image tag; flamethrower images are
 # published v-prefixed (v0.3.0). The image helper defaults image.tag to
 # this, so it must carry the v or the default pulls the chart artifact
