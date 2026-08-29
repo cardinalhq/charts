@@ -28,20 +28,26 @@ extraVolumeMounts: []
 # --- sharded flood fleet (serve mode) ---
 # A single pod rendering a high-cardinality scenario needs many cores and tens
 # of GB, which is hard to schedule. With fleet.enabled, the UI pod instead
-# launches each flood as an Indexed Job of `shards` small pods and deletes it to
-# stop, so the UI itself stays tiny and an idle fleet costs nothing.
+# launches each flood as an Indexed Job of small pods sized to the requested
+# rate and deletes it to stop, so the UI itself stays tiny and an idle fleet
+# costs nothing.
 fleet:
   enabled: false
 
-  # Fleet size: pods, and the number of slices the scenario is split into.
+  # Records/sec one shard pod is trusted to push. The fleet for a flood is
+  # ceil(rate / shardRate) pods, so a 1M/sec flood at 200k is a 5-pod Job.
   # Each shard renders 1/N of the series space, so template memory and startup
   # CPU divide by N.
-  shards: 32
+  shardRate: 200000
 
-  # Lead time before the coordinated start. Creating the Job makes N pods
-  # Pending, which is what triggers the autoscaler, so this is the node
-  # provisioning window plus template rendering.
-  lead: 5m
+  # Every worker must build its templates and report ready within this window,
+  # covering node provisioning plus rendering, or the run fails and the Job is
+  # torn down. Creating the Job makes N pods Pending, which is what triggers
+  # the autoscaler.
+  readyTimeout: 10m
+
+  # Delay between starting one shard and the next.
+  stagger: 5s
 
   # Image the shard pods run. Empty uses the same image as the UI, which is
   # what you want: the shards must run the code the UI expects.
@@ -50,9 +56,9 @@ fleet:
   # Namespace for the flood Job. Empty uses the release namespace.
   namespace: ""
 
-  # Where shards POST their counters for the UI's fleet totals. Empty uses the
+  # Base URL the shards heartbeat to and are told to start by. Empty uses the
   # in-cluster Service this chart renders.
-  reportUrl: ""
+  controllerUrl: ""
 
   # Identity the shard pods run as. They write to the destination bucket, so
   # this must be an account that may do so -- on EKS, the one carrying the Pod
@@ -60,7 +66,7 @@ fleet:
   # which is normally exactly that account. The shards need no API access.
   serviceAccount: ""
 
-  # One shard's footprint. Times `shards` this is the flood's whole footprint,
+  # One shard's footprint. Times the fleet size this is the flood's whole footprint,
   # and so decides whether it schedules at all. Memory is both request and
   # limit: a shard's working set is its pre-rendered templates, known up front.
   resources:
@@ -72,8 +78,9 @@ fleet:
   env: {}
 
   rbac:
-    # Role + RoleBinding granting the UI exactly create/get/delete on Jobs in
-    # its own namespace, which is the entire Kubernetes API surface it uses.
+    # Role + RoleBinding granting the UI exactly create/get/delete on Jobs and
+    # list on their pods in its own namespace, which is the entire Kubernetes
+    # API surface it uses.
     # Disable only if you bind those verbs yourself.
     create: true
 

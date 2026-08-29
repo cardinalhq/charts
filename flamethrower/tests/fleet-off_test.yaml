@@ -15,7 +15,7 @@ tests:
     asserts:
       - notMatchRegex:
           path: spec.template.spec.containers[0].args[*]
-          pattern: "^--(shards|job-|report-url|lead)"
+          pattern: "^--(shard-rate|job-|controller-url|ready-timeout|stagger)"
 
   - it: renders no RBAC
     template: rbac-fleet.yaml

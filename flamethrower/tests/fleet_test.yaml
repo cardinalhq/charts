@@ -12,7 +12,8 @@ set:
   serviceAccount.create: false
   serviceAccount.name: playground-conductor
   fleet.enabled: true
-  fleet.shards: 16
+  fleet.shardRate: 200000
+  fleet.readyTimeout: 5m
   fleet.resources.cpu: "2"
   fleet.resources.memory: 3Gi
 tests:
@@ -21,10 +22,13 @@ tests:
     asserts:
       - contains:
           path: spec.template.spec.containers[0].args
-          content: --shards=16
+          content: --shard-rate=200000
       - contains:
           path: spec.template.spec.containers[0].args
-          content: --lead=5m
+          content: --ready-timeout=5m
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --stagger=5s
 
   # The shards must run the code the UI expects, so the default is the UI's
   # own image rather than a floating tag.
@@ -92,14 +96,14 @@ tests:
           path: spec.template.spec.containers[0].args
           content: --job-env=S3_USE_PATH_STYLE=true
 
-  - it: aims the shard reports at the chart's own Service
+  - it: aims the shard heartbeats at the chart's own Service
     template: deployment.yaml
     asserts:
       - contains:
           path: spec.template.spec.containers[0].args
-          content: --report-url=http://RELEASE-NAME-flamethrower:8080/api/shard
+          content: --controller-url=http://RELEASE-NAME-flamethrower:8080
 
-  - it: grants the UI exactly create/get/delete on Jobs
+  - it: grants the UI exactly create/get/delete on Jobs and list on pods
     template: rbac-fleet.yaml
     documentIndex: 0
     asserts:
@@ -111,6 +115,12 @@ tests:
       - equal:
           path: rules[0].resources
           value: ["jobs"]
+      - equal:
+          path: rules[1].resources
+          value: ["pods"]
+      - equal:
+          path: rules[1].verbs
+          value: ["list"]
 
   - it: binds that Role to the service account the UI runs as
     template: rbac-fleet.yaml

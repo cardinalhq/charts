@@ -29,13 +29,14 @@ spec:
             - --pubsub-notify-url={{ .Values.pubsubNotifyUrl }}
             {{- end }}
             {{- if .Values.fleet.enabled }}
-            - --shards={{ .Values.fleet.shards }}
-            - --lead={{ .Values.fleet.lead }}
+            - --shard-rate={{ .Values.fleet.shardRate }}
+            - --ready-timeout={{ .Values.fleet.readyTimeout }}
+            - --stagger={{ .Values.fleet.stagger }}
             - --job-image={{ .Values.fleet.image | default (include "flamethrower.image" .) }}
             - --job-service-account={{ .Values.fleet.serviceAccount | default .Values.serviceAccount.name }}
             - --job-cpu={{ .Values.fleet.resources.cpu }}
             - --job-memory={{ .Values.fleet.resources.memory }}
-            - --report-url={{ .Values.fleet.reportUrl | default (printf "http://%s:%v/api/shard" (include "flamethrower.fullname" .) .Values.service.port) }}
+            - --controller-url={{ .Values.fleet.controllerUrl | default (printf "http://%s:%v" (include "flamethrower.fullname" .) .Values.service.port) }}
             {{- if .Values.fleet.namespace }}
             - --job-namespace={{ .Values.fleet.namespace }}
             {{- end }}
