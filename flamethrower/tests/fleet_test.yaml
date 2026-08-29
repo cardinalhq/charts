@@ -34,10 +34,12 @@ tests:
   # own image rather than a floating tag.
   - it: defaults the shard image to the UI image
     template: deployment.yaml
+    chart:
+      appVersion: v9.9.9
     asserts:
       - contains:
           path: spec.template.spec.containers[0].args
-          content: --job-image=public.ecr.aws/cardinalhq.io/flamethrower:v1.1.0
+          content: --job-image=public.ecr.aws/cardinalhq.io/flamethrower:v9.9.9
 
   # The shards write to the destination bucket, so they need the account that
   # may do so -- here the pre-existing one holding the Pod Identity association.
