@@ -151,9 +151,9 @@ metrics:
 # Replay a pre-recorded corpus of zstd-compressed telemetry objects. The
 # producer publishes a manifest.json under srcUri; the pod caches the
 # objects locally, then PUTs them into s3.bucket/s3.prefix at the shared
-# /rate. mode must be set to "corpus" for this block to take effect.
+# /rate. Corpus mode is selected by setting mode: corpus at the top of
+# this file; this block is only consumed when mode == corpus.
 corpus:
-  enabled: false
   # s3://bucket/prefix/ under which manifest.json + objects live. Empty
   # is a chart lint error when mode == corpus.
   srcUri: ""

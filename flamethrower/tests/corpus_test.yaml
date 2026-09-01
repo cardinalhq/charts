@@ -3,7 +3,6 @@ values:
   - ../values.yaml
 set:
   mode: corpus
-  corpus.enabled: true
   corpus.srcUri: s3://bench-corpus/logs-2026-08-30/
   corpus.pick: random
   corpus.namePrefix: logs
