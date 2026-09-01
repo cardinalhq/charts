@@ -21,6 +21,9 @@ spec:
             - serve
             - --destinations=/etc/flamethrower/destinations.yaml
             - --max-duration={{ .Values.maxDuration }}
+            {{- if .Values.database.enabled }}
+            - --database-url=postgres://
+            {{- end }}
             - --control-addr={{ .Values.controlAddr }}
             {{- if .Values.scenariosDir }}
             - --scenarios-dir={{ .Values.scenariosDir }}
@@ -123,6 +126,29 @@ spec:
                 secretKeyRef:
                   name: {{ if .Values.auth.existingSecret }}{{ .Values.auth.existingSecret }}{{ else }}{{ include "flamethrower.fullname" . }}-auth{{ end }}
                   key: FLAMETHROWER_AUTH_TOKEN
+            {{- end }}
+            {{- if .Values.database.enabled }}
+            # pgx fills in whatever the bare URL leaves out from PG* env.
+            - name: PGHOST
+              value: {{ required "database.host is required with database.enabled" .Values.database.host | quote }}
+            - name: PGPORT
+              value: {{ .Values.database.port | quote }}
+            - name: PGDATABASE
+              value: {{ .Values.database.name | quote }}
+            - name: PGUSER
+              value: {{ .Values.database.username | quote }}
+            - name: PGSSLMODE
+              value: {{ .Values.database.sslMode | quote }}
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ required "database.secretName is required with database.enabled" .Values.database.secretName }}
+                  key: {{ .Values.database.passwordKey }}
+            - name: FLAMETHROWER_TOKEN_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ if .Values.tokens.existingSecret }}{{ .Values.tokens.existingSecret }}{{ else if .Values.tokens.key }}{{ include "flamethrower.fullname" . }}-tokens{{ else }}{{ fail "database.enabled needs tokens.key or tokens.existingSecret" }}{{ end }}
+                  key: FLAMETHROWER_TOKEN_KEY
             {{- end }}
             {{- if .Values.lakerunner.queryUrl }}
             - name: LAKERUNNER_API_KEY
