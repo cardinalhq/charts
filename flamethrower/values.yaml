@@ -201,6 +201,10 @@ corpus:
   # Filename prefix used when building destination keys:
   # <s3.prefix>/year=.../<namePrefix>_<runUUID>_<seq>.binpb.zst
   namePrefix: logs
+  # Shift every object's OTLP log timestamps by one shared offset so its
+  # newest record lands at upload time. Relative timing, attributes, and
+  # message bodies are preserved. Keep false for byte-verbatim replay.
+  rebaseTimestamps: false
   # Re-hash cached files at boot even when size already matches. Off by
   # default: hashing multi-GB caches on every restart is expensive and
   # size-only match is safe for our producer.
