@@ -3,7 +3,10 @@ image:
   tag: ""           # empty -> chart appVersion
   pullPolicy: IfNotPresent
 
-# mode selects the binary subcommand: serve (flood UI) or loggen (direct generator)
+# mode selects the binary subcommand:
+#   serve  - host the flood calibration UI
+#   loggen - directly generate synthetic OTLP logs
+#   corpus - replay pre-recorded log objects from an S3 corpus manifest
 mode: serve
 
 # --- serve mode config ---
@@ -143,3 +146,29 @@ metrics:
     enabled: false
     interval: 15s
     labels: {}
+
+# --- corpus mode config ---
+# Replay a pre-recorded corpus of zstd-compressed telemetry objects. The
+# producer publishes a manifest.json under srcUri; the pod caches the
+# objects locally, then PUTs them into s3.bucket/s3.prefix at the shared
+# /rate. Corpus mode is selected by setting mode: corpus at the top of
+# this file; this block is only consumed when mode == corpus.
+corpus:
+  # s3://bucket/prefix/ under which manifest.json + objects live. Empty
+  # is a chart lint error when mode == corpus.
+  srcUri: ""
+  # Local mount point for the cache. Populated at boot from srcUri and
+  # backed by an emptyDir volume sized by cacheSize.
+  cacheDir: /var/cache/flamethrower/corpus
+  # emptyDir sizeLimit for the cache volume. For corpora larger than
+  # a few tens of GiB switch to a PVC via extraVolumes/extraVolumeMounts.
+  cacheSize: 20Gi
+  # round-robin | random
+  pick: round-robin
+  # Filename prefix used when building destination keys:
+  # <s3.prefix>/year=.../<namePrefix>_<runUUID>_<seq>.binpb.zst
+  namePrefix: logs
+  # Re-hash cached files at boot even when size already matches. Off by
+  # default: hashing multi-GB caches on every restart is expensive and
+  # size-only match is safe for our producer.
+  verifySha: false

@@ -1,0 +1,78 @@
+suite: corpus replay mode
+values:
+  - ../values.yaml
+set:
+  mode: corpus
+  corpus.srcUri: s3://bench-corpus/logs-2026-08-30/
+  corpus.pick: random
+  corpus.namePrefix: logs
+  corpus.cacheSize: 40Gi
+  s3.bucket: raw-logs
+  s3.prefix: otel-raw/00000000-0000-0000-0000-000000000000/local
+  auth.mode: irsa
+  auth.roleArn: arn:aws:iam::123456789012:role/flamethrower-corpus
+tests:
+  - it: runs the corpus subcommand
+    template: deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].args[0]
+          value: corpus
+
+  - it: passes the corpus flags through
+    template: deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --corpus-src=s3://bench-corpus/logs-2026-08-30/
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --corpus-cache-dir=/var/cache/flamethrower/corpus
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --corpus-pick=random
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --corpus-name-prefix=logs
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --s3-path=s3://raw-logs/otel-raw/00000000-0000-0000-0000-000000000000/local
+
+  - it: does NOT include --corpus-verify-sha when verifySha is false
+    template: deployment.yaml
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[0].args
+          content: --corpus-verify-sha
+
+  - it: includes --corpus-verify-sha when verifySha is true
+    set:
+      corpus.verifySha: true
+    template: deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --corpus-verify-sha
+
+  - it: mounts the emptyDir cache volume at the configured path
+    template: deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: corpus-cache
+            mountPath: /var/cache/flamethrower/corpus
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: corpus-cache
+            emptyDir:
+              sizeLimit: 40Gi
+
+  - it: does not mount the serve destinations ConfigMap
+    template: deployment.yaml
+    asserts:
+      - notContains:
+          path: spec.template.spec.volumes
+          content:
+            name: destinations
