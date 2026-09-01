@@ -57,6 +57,22 @@ spec:
             - --job-env={{ $k }}={{ $v }}
             {{- end }}
             {{- end }}
+            {{- else if eq .Values.mode "corpus" }}
+            - corpus
+            - --corpus-src={{ required "corpus.srcUri is required when mode=corpus" .Values.corpus.srcUri }}
+            - --corpus-cache-dir={{ .Values.corpus.cacheDir }}
+            - --corpus-pick={{ .Values.corpus.pick }}
+            - --corpus-name-prefix={{ .Values.corpus.namePrefix }}
+            {{- if .Values.corpus.verifySha }}
+            - --corpus-verify-sha
+            {{- end }}
+            - --rate={{ .Values.rate }}
+            - --concurrency={{ .Values.concurrency }}
+            - --s3-path=s3://{{ .Values.s3.bucket }}/{{ .Values.s3.prefix }}
+            - --control-addr={{ .Values.controlAddr }}
+            {{- if .Values.pubsubNotifyUrl }}
+            - --pubsub-notify-url={{ .Values.pubsubNotifyUrl }}
+            {{- end }}
             {{- else }}
             - loggen
             - --style={{ .Values.style }}
@@ -122,12 +138,27 @@ spec:
             {{- with .Values.extraVolumeMounts }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
+          {{- else if eq .Values.mode "corpus" }}
+          volumeMounts:
+            - name: corpus-cache
+              mountPath: {{ .Values.corpus.cacheDir }}
+            {{- with .Values.extraVolumeMounts }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
           {{- end }}
       {{- if eq .Values.mode "serve" }}
       volumes:
         - name: destinations
           configMap:
             name: {{ include "flamethrower.fullname" . }}-destinations
+        {{- with .Values.extraVolumes }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- else if eq .Values.mode "corpus" }}
+      volumes:
+        - name: corpus-cache
+          emptyDir:
+            sizeLimit: {{ .Values.corpus.cacheSize }}
         {{- with .Values.extraVolumes }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
