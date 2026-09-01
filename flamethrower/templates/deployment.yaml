@@ -28,6 +28,16 @@ spec:
             {{- if .Values.pubsubNotifyUrl }}
             - --pubsub-notify-url={{ .Values.pubsubNotifyUrl }}
             {{- end }}
+            {{- if .Values.lakerunner.queryUrl }}
+            - --lakerunner-url={{ .Values.lakerunner.queryUrl }}
+            - --lakerunner-installation={{ required "lakerunner.installationId is required with lakerunner.queryUrl" .Values.lakerunner.installationId }}
+            {{- if .Values.lakerunner.probeUrl }}
+            - --lakerunner-probe-url={{ .Values.lakerunner.probeUrl }}
+            {{- end }}
+            {{- if .Values.lakerunner.queriesFile }}
+            - --lakerunner-queries={{ .Values.lakerunner.queriesFile }}
+            {{- end }}
+            {{- end }}
             {{- if .Values.fleet.enabled }}
             - --shard-rate={{ .Values.fleet.shardRate }}
             - --ready-timeout={{ .Values.fleet.readyTimeout }}
@@ -113,6 +123,20 @@ spec:
                 secretKeyRef:
                   name: {{ if .Values.auth.existingSecret }}{{ .Values.auth.existingSecret }}{{ else }}{{ include "flamethrower.fullname" . }}-auth{{ end }}
                   key: FLAMETHROWER_AUTH_TOKEN
+            {{- end }}
+            {{- if .Values.lakerunner.queryUrl }}
+            - name: LAKERUNNER_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ required "lakerunner.existingSecret is required with lakerunner.queryUrl" .Values.lakerunner.existingSecret }}
+                  key: LAKERUNNER_API_KEY
+            {{- if .Values.lakerunner.probeUrl }}
+            - name: LAKERUNNER_PROBE_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.lakerunner.existingSecret }}
+                  key: LAKERUNNER_PROBE_API_KEY
+            {{- end }}
             {{- end }}
             {{- end }}
           ports:
