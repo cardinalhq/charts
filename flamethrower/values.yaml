@@ -28,6 +28,22 @@ maxDuration: 1h
 extraVolumes: []
 extraVolumeMounts: []
 
+# --- lakerunner system health (serve mode) ---
+# With queryUrl set, the UI polls this lakerunner's query-api for the pods,
+# sizing, CPU and ingest rate of the process-* services and keeps a set of
+# background queries running to show query latency under load.
+lakerunner:
+  queryUrl: ""          # e.g. https://lakerunner-query-api.example.com
+  installationId: ""    # installation_id label of the lakerunner being flooded
+  existingSecret: ""    # Secret holding the query-api key under LAKERUNNER_API_KEY
+  # probeUrl is the query-api the probe queries run against, the lakerunner
+  # the flood writes to. Empty uses queryUrl. Its key is read from the same
+  # Secret under LAKERUNNER_PROBE_API_KEY.
+  probeUrl: ""
+  # queriesFile, when set, is passed as --lakerunner-queries; mount it via
+  # extraVolumes/extraVolumeMounts. Empty runs the built-in query set.
+  queriesFile: ""
+
 # --- sharded flood fleet (serve mode) ---
 # A single pod rendering a high-cardinality scenario needs many cores and tens
 # of GB, which is hard to schedule. With fleet.enabled, the UI pod instead

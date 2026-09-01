@@ -1,0 +1,68 @@
+suite: serve mode with lakerunner system health
+values:
+  - ../values.yaml
+set:
+  mode: serve
+  destinations:
+    - name: prod
+      bucket: my-bucket
+      prefix: otel-raw/org/col
+  lakerunner.queryUrl: https://lakerunner-query-api.example.com
+  lakerunner.installationId: inst-1
+  lakerunner.existingSecret: flamethrower-lakerunner
+tests:
+  - it: passes the query-api URL and installation as flags
+    template: deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --lakerunner-url=https://lakerunner-query-api.example.com
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --lakerunner-installation=inst-1
+
+  - it: reads the API key from the existing Secret
+    template: deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: LAKERUNNER_API_KEY
+            valueFrom:
+              secretKeyRef:
+                name: flamethrower-lakerunner
+                key: LAKERUNNER_API_KEY
+
+  - it: sends probes to their own query-api with their own key
+    template: deployment.yaml
+    set:
+      lakerunner.probeUrl: https://query.example.com
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --lakerunner-probe-url=https://query.example.com
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: LAKERUNNER_PROBE_API_KEY
+            valueFrom:
+              secretKeyRef:
+                name: flamethrower-lakerunner
+                key: LAKERUNNER_PROBE_API_KEY
+
+  - it: requires a secret with the URL
+    template: deployment.yaml
+    set:
+      lakerunner.existingSecret: ""
+    asserts:
+      - failedTemplate:
+          errorMessage: lakerunner.existingSecret is required with lakerunner.queryUrl
+
+  - it: renders nothing without a URL
+    template: deployment.yaml
+    set:
+      lakerunner.queryUrl: ""
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[0].args
+          content: --lakerunner-installation=inst-1
