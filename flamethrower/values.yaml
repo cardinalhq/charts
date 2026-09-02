@@ -140,6 +140,23 @@ auth:
   token: ""           # when set, rendered into a Secret as FLAMETHROWER_AUTH_TOKEN
   existingSecret: ""  # name of existing Secret with key FLAMETHROWER_AUTH_TOKEN
 
+# --- customer tokens and run history (chart >= 0.6.0, app >= v1.6.0) ---
+# With a database, the UI keeps issued customer tokens and every finished run,
+# and customers sign in with a token minted by `flamethrower token issue`.
+# The password comes from a Secret; everything else is passed as PG* env.
+database:
+  enabled: false
+  host: ""
+  port: 5432
+  name: flamethrower
+  username: flamethrower
+  sslMode: require
+  secretName: ""          # Secret holding the password
+  passwordKey: password
+tokens:
+  key: ""                 # signing secret; when set, rendered into a Secret as FLAMETHROWER_TOKEN_KEY
+  existingSecret: ""      # name of existing Secret with key FLAMETHROWER_TOKEN_KEY
+
 serviceAccount:
   create: true
   name: flamethrower-flood

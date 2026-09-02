@@ -1,0 +1,62 @@
+suite: serve mode with the customer token database
+values:
+  - ../values.yaml
+set:
+  mode: serve
+  destinations:
+    - name: prod
+      bucket: my-bucket
+      prefix: otel-raw/org/col
+  database.enabled: true
+  database.host: cnpg-rw.db.svc
+  database.name: playground_flamethrower
+  database.username: playground_app
+  database.secretName: playground-db-app
+  tokens.existingSecret: flamethrower-auth
+tests:
+  - it: passes a bare database URL and the PG* env with the password from the Secret
+    template: deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --database-url=postgres://
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: PGDATABASE
+            value: playground_flamethrower
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: PGPASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: playground-db-app
+                key: password
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: FLAMETHROWER_TOKEN_KEY
+            valueFrom:
+              secretKeyRef:
+                name: flamethrower-auth
+                key: FLAMETHROWER_TOKEN_KEY
+
+  - it: renders the signing key into a Secret when given inline
+    set:
+      tokens.existingSecret: ""
+      tokens.key: hush
+    template: secret-tokens.yaml
+    asserts:
+      - equal:
+          path: stringData.FLAMETHROWER_TOKEN_KEY
+          value: hush
+
+  - it: leaves the database out when disabled
+    set:
+      database.enabled: false
+    template: deployment.yaml
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[0].args
+          content: --database-url=postgres://
