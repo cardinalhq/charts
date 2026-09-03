@@ -45,6 +45,22 @@ tests:
           path: spec.template.spec.containers[0].args
           content: --corpus-verify-sha
 
+  - it: preserves corpus timestamps by default
+    template: deployment.yaml
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[0].args
+          content: --corpus-rebase-timestamps
+
+  - it: rebases corpus timestamps when requested
+    set:
+      corpus.rebaseTimestamps: true
+    template: deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --corpus-rebase-timestamps
+
   - it: includes --corpus-verify-sha when verifySha is true
     set:
       corpus.verifySha: true

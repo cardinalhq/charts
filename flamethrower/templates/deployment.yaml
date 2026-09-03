@@ -76,6 +76,9 @@ spec:
             - --corpus-cache-dir={{ .Values.corpus.cacheDir }}
             - --corpus-pick={{ .Values.corpus.pick }}
             - --corpus-name-prefix={{ .Values.corpus.namePrefix }}
+            {{- if .Values.corpus.rebaseTimestamps }}
+            - --corpus-rebase-timestamps
+            {{- end }}
             {{- if .Values.corpus.verifySha }}
             - --corpus-verify-sha
             {{- end }}
