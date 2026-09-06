@@ -1,0 +1,109 @@
+suite: cardinal-gateway
+templates:
+  - templates/deployment.yaml
+  - templates/configmap.yaml
+  - templates/service.yaml
+  - templates/serviceaccount.yaml
+tests:
+  - it: renders the config with the required storage settings
+    template: templates/configmap.yaml
+    set:
+      config.storage.bucket: test-bucket
+      config.storage.prefix: otel-raw/156e24fd-5d6b-4253-ba0c-400aef43c03a/gw/
+    asserts:
+      - matchRegex:
+          path: data["config.toml"]
+          pattern: 'bucket = "test-bucket"'
+      - matchRegex:
+          path: data["config.toml"]
+          pattern: 'prefix = "otel-raw/156e24fd-5d6b-4253-ba0c-400aef43c03a/gw/"'
+      # No credentials are ever rendered; the AWS SDK chain supplies them.
+      - notMatchRegex:
+          path: data["config.toml"]
+          pattern: '(?i)(access_key|secret)'
+
+  # A gateway with no bucket would accept writes and silently drop them, so
+  # both storage settings must fail the render rather than default.
+  # Asserted against the deployment: it includes the configmap to compute the
+  # checksum annotation, so that is where the render actually fails.
+  - it: fails closed when the bucket is not set
+    template: templates/deployment.yaml
+    set:
+      config.storage.prefix: otel-raw/156e24fd-5d6b-4253-ba0c-400aef43c03a/gw/
+    asserts:
+      - failedTemplate:
+          errorMessage: config.storage.bucket is required
+
+  - it: fails closed when the prefix is not set
+    template: templates/deployment.yaml
+    set:
+      config.storage.bucket: test-bucket
+    asserts:
+      - failedTemplate: {}
+
+  - it: derives the container port from the listen address
+    template: templates/deployment.yaml
+    set:
+      config.storage.bucket: test-bucket
+      config.storage.prefix: otel-raw/gw/
+      config.listen: "0.0.0.0:9999"
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].ports[0].containerPort
+          value: 9999
+
+  - it: keeps a grace period long enough to flush in-memory buffers
+    template: templates/deployment.yaml
+    set:
+      config.storage.bucket: test-bucket
+      config.storage.prefix: otel-raw/gw/
+    asserts:
+      - equal:
+          path: spec.template.spec.terminationGracePeriodSeconds
+          value: 60
+
+  - it: rolls the pods when the config changes
+    template: templates/deployment.yaml
+    set:
+      config.storage.bucket: test-bucket
+      config.storage.prefix: otel-raw/gw/
+    asserts:
+      - isNotNullOrEmpty:
+          path: spec.template.metadata.annotations["checksum/config"]
+
+  - it: defaults the image tag to the v-prefixed appVersion
+    template: templates/deployment.yaml
+    set:
+      config.storage.bucket: test-bucket
+      config.storage.prefix: otel-raw/gw/
+    asserts:
+      - matchRegex:
+          path: spec.template.spec.containers[0].image
+          pattern: 'cardinal-gateway:v[0-9]'
+
+  - it: binds the service account the storage credentials attach to
+    template: templates/serviceaccount.yaml
+    set:
+      config.storage.bucket: test-bucket
+      config.storage.prefix: otel-raw/gw/
+      serviceAccount.annotations:
+        eks.amazonaws.com/role-arn: arn:aws:iam::123456789012:role/Gateway
+    asserts:
+      - equal:
+          path: metadata.annotations["eks.amazonaws.com/role-arn"]
+          value: arn:aws:iam::123456789012:role/Gateway
+
+  # Regression: without a numeric uid the pod fails with
+  # CreateContainerConfigError, because distroless declares USER by name.
+  - it: runs as a numeric non-root uid
+    template: templates/deployment.yaml
+    set:
+      config.storage.bucket: test-bucket
+      config.storage.prefix: otel-raw/gw/
+    asserts:
+      - equal:
+          path: spec.template.spec.securityContext.runAsUser
+          value: 65532
+      - equal:
+          path: spec.template.spec.securityContext.runAsNonRoot
+          value: true

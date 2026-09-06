@@ -1,0 +1,15 @@
+apiVersion: v2
+name: cardinal-gateway
+description: Receives OTLP and Prometheus remote write, buffers, and writes to object storage for LakeRunner
+type: application
+version: "0.1.0"
+# appVersion is the app's released image tag; cardinal-gateway images are
+# published v-prefixed. The image helper defaults image.tag to this, so it
+# must carry the v or the default pulls the chart artifact (same OCI repo)
+# instead of the image.
+appVersion: "v0.1.0-rc2"
+home: https://github.com/cardinalhq/cardinal-gateway
+sources:
+  - https://github.com/cardinalhq/cardinal-gateway
+maintainers:
+  - name: CardinalHQ

@@ -1,0 +1,31 @@
+{{- /*
+config.toml for the gateway. Credentials are deliberately absent: the AWS SDK
+default chain resolves them (EKS Pod Identity, IRSA, or AWS_* env), so this
+file never holds a secret and can live in a ConfigMap.
+
+The checksum annotation on the Deployment keys on this content, so a config
+change rolls the pods.
+*/}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "cardinal-gateway.fullname" . }}
+  labels:
+    {{- include "cardinal-gateway.labels" . | nindent 4 }}
+data:
+  config.toml: |
+    listen = {{ .Values.config.listen | quote }}
+    max_body_bytes = {{ .Values.config.maxBodyBytes | quote }}
+
+    [storage]
+    provider = {{ .Values.config.storage.provider | quote }}
+    bucket = {{ required "config.storage.bucket is required" .Values.config.storage.bucket | quote }}
+    region = {{ .Values.config.storage.region | quote }}
+    {{- with .Values.config.storage.endpoint }}
+    endpoint = {{ . | quote }}
+    {{- end }}
+    prefix = {{ required "config.storage.prefix is required (otel-raw/<org-uuid>/<collector>/)" .Values.config.storage.prefix | quote }}
+
+    [buffer]
+    max_bytes = {{ .Values.config.buffer.maxBytes | quote }}
+    max_age = {{ .Values.config.buffer.maxAge | quote }}
