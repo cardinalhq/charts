@@ -1,0 +1,39 @@
+{{- if .Values.prometheusRules.enabled -}}
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: {{ include "maestro.fullname" . }}-alerts
+  labels:
+    {{- include "maestro.labels" . | nindent 4 }}
+    {{- with .Values.prometheusRules.additionalLabels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  groups:
+    - name: maestro.lakerunner
+      rules:
+        # Maestro G.2 (operator config bundling): pending operator-managed
+        # Lakerunner workloads whose license token is within 7 days of
+        # expiry. Pre-G.3 reconciliation, a token expiry forces
+        # destructive recovery (uninstall-pending deletes labeled PVCs).
+        # Any non-zero count pages so the operator can either deploy G.3
+        # or remediate the affected workloads before the token dies.
+        - alert: MaestroPendingOperatorWorkloadTokenExpiringSoon
+          expr: maestro_pending_operator_workloads_token_expiring_soon > 0
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "{{ "{{ $value }}" }} pending operator-managed Lakerunner workloads have license tokens expiring within 7 days"
+            description: |
+              At least one operator-managed Lakerunner workload has been
+              awaiting G.3 reconciliation long enough that its license
+              token is within 7 days of expiry. If the token expires
+              before reconciliation, recovery is destructive
+              (uninstall-pending wipes Lakerunner PVCs, losing telemetry).
+              Either ship G.3 reconciliation or uninstall+re-add the
+              affected workload(s) before the token expires.
+
+              See maestro G.2 spec (lakerunner-grouping-g2-operator-config-bundling-design.md)
+              §Error handling.
+{{- end }}
