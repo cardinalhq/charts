@@ -80,6 +80,11 @@ podLabels: {}
 
 podSecurityContext:
   runAsNonRoot: true
+  # Must be numeric. The distroless base declares USER by name ("nonroot"),
+  # which kubelet cannot verify against runAsNonRoot -- the pod fails with
+  # CreateContainerConfigError. 65532 is distroless nonroot.
+  runAsUser: 65532
+  runAsGroup: 65532
   seccompProfile:
     type: RuntimeDefault
 

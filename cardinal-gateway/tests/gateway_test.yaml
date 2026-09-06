@@ -92,3 +92,18 @@ tests:
       - equal:
           path: metadata.annotations["eks.amazonaws.com/role-arn"]
           value: arn:aws:iam::123456789012:role/Gateway
+
+  # Regression: without a numeric uid the pod fails with
+  # CreateContainerConfigError, because distroless declares USER by name.
+  - it: runs as a numeric non-root uid
+    template: templates/deployment.yaml
+    set:
+      config.storage.bucket: test-bucket
+      config.storage.prefix: otel-raw/gw/
+    asserts:
+      - equal:
+          path: spec.template.spec.securityContext.runAsUser
+          value: 65532
+      - equal:
+          path: spec.template.spec.securityContext.runAsNonRoot
+          value: true
