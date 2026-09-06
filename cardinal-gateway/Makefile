@@ -1,0 +1,55 @@
+# Makefile for cardinal-gateway Helm Chart
+
+CHART_NAME := cardinal-gateway
+TEST_RELEASE_NAME := test-release
+
+.PHONY: help test check lint template unittest clean package publish
+
+help:  ## Show this help message
+	@echo "Available targets:"
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2}'
+
+test: lint template unittest  ## Run all tests
+
+check: test  ## Alias for test
+
+lint:  ## Run helm lint on the chart
+	@echo "Linting $(CHART_NAME) chart..."
+	helm lint .
+
+template:  ## Test template rendering
+	@echo "Testing template rendering..."
+	@# storage.bucket and storage.prefix have no safe default: a gateway
+	@# without them would accept writes and drop them. They fail the render
+	@# instead, so the smoke render must supply them.
+	@helm template $(TEST_RELEASE_NAME) . \
+	  --set config.storage.bucket=test-bucket \
+	  --set config.storage.prefix=otel-raw/00000000-0000-0000-0000-000000000000/gw/ \
+	  > /dev/null
+	@echo "Template rendering passed"
+
+unittest:  ## Run helm unittest tests
+	@echo "Running unit tests..."
+	helm unittest .
+
+clean:  ## Clean up test artifacts and packaged charts
+	@echo "Cleaning up..."
+	rm -f *.tgz
+	rm -rf charts/ $(OUT_DIR)/
+
+# Chart packaging and publishing
+REGISTRY := public.ecr.aws/cardinalhq.io
+CHART_VERSION := $(shell yq e '.version' Chart.yaml)
+OUT_DIR := packages
+
+package:  ## Package the chart for distribution
+	@echo "Packaging $(CHART_NAME) chart version $(CHART_VERSION)..."
+	@mkdir -p $(OUT_DIR)
+	helm package . --destination $(OUT_DIR)
+	@echo "Chart packaged: $(OUT_DIR)/$(CHART_NAME)-$(CHART_VERSION).tgz"
+
+publish: package  ## Package and publish chart to ECR registry (assumes you're already logged in)
+	@echo "Publishing $(CHART_NAME) chart version $(CHART_VERSION) to $(REGISTRY)..."
+	helm push "$(OUT_DIR)/$(CHART_NAME)-$(CHART_VERSION).tgz" "oci://$(REGISTRY)"
+	@echo "Chart published successfully!"
+	@echo "To install: helm install my-release oci://$(REGISTRY)/$(CHART_NAME) --version $(CHART_VERSION)"

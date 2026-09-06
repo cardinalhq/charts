@@ -1,0 +1,108 @@
+# cardinal-gateway
+#
+# Receives OTLP/HTTP and Prometheus remote write, buffers in memory, and
+# writes zstd files to object storage in the layout LakeRunner ingests.
+#
+# Buffering is IN MEMORY. SIGTERM flushes every buffer before exit, so
+# terminationGracePeriodSeconds must comfortably exceed a flush; a hard kill
+# loses at most one buffer window. Sizing memory: roughly
+# `buffer.maxBytes * number of active signals`, plus headroom for in-flight
+# request bodies (`maxBodyBytes`).
+
+replicaCount: 1
+
+image:
+  repository: public.ecr.aws/cardinalhq.io/cardinal-gateway
+  # Defaults to .Chart.AppVersion, which is v-prefixed deliberately — see
+  # Chart.yaml. Override for a specific build.
+  tag: ""
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  # Leave empty to use the generated name. Credentials come from the
+  # environment or instance role (EKS Pod Identity / IRSA), so whatever
+  # binds S3 write access must reference THIS service account name.
+  name: ""
+  annotations: {}
+
+service:
+  type: ClusterIP
+  port: 4318
+  annotations: {}
+
+# Rendered into config.toml. Storage credentials are NOT set here: the AWS SDK
+# default chain picks them up (Pod Identity, IRSA, or AWS_* env vars).
+config:
+  listen: "0.0.0.0:4318"
+  maxBodyBytes: "64MiB"
+  storage:
+    provider: "s3"
+    bucket: ""
+    region: "us-east-2"
+    # Set for MinIO or other S3-compatible endpoints; enables plain http
+    # automatically in the gateway.
+    endpoint: ""
+    # Objects land here. LakeRunner resolves the organization from the org id
+    # in this prefix, so it must match the storage profile registered for the
+    # org: otel-raw/<org-uuid>/<collector-name>/
+    prefix: ""
+  buffer:
+    # Flush a signal's buffer at this size...
+    maxBytes: "16MiB"
+    # ...or when its oldest byte reaches this age, whichever comes first.
+    # Each flush is one PutObject per signal, so shrinking these multiplies
+    # S3 request cost and can trigger SlowDown on busy accounts.
+    maxAge: "30s"
+
+# Extra environment variables, e.g. RUST_LOG or AWS_* overrides.
+env: []
+# Existing secret keys to project as env vars (static credentials, if you are
+# not using Pod Identity/IRSA).
+envFrom: []
+
+# Must exceed a full buffer flush; SIGTERM triggers one.
+terminationGracePeriodSeconds: 60
+
+resources:
+  requests:
+    cpu: 200m
+    memory: 256Mi
+  limits:
+    memory: 512Mi
+
+podAnnotations: {}
+podLabels: {}
+
+podSecurityContext:
+  runAsNonRoot: true
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop: ["ALL"]
+
+livenessProbe:
+  httpGet:
+    path: /healthz
+    port: http
+  initialDelaySeconds: 10
+  periodSeconds: 30
+
+readinessProbe:
+  httpGet:
+    path: /healthz
+    port: http
+  initialDelaySeconds: 3
+  periodSeconds: 10
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
