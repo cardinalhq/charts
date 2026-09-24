@@ -66,7 +66,7 @@ global:
     # Pinned explicitly here so lakerunner images do NOT default to the unified
     # Chart.appVersion (which tracks maestro). Mirrors the legacy lakerunner
     # chart's appVersion. Per-component image.tag still wins over this.
-    tag: "v1.88.0"
+    tag: "v1.90.0"
     # Default pull policy for all images
     pullPolicy: "IfNotPresent"
   # Global temporary storage (scratch / DuckDB temp / cache) configuration.
@@ -187,6 +187,20 @@ global:
   # to this service account, either by annotations or through
   # systems like EKS's IAM roles for service accounts (IRSA).
   # Required.
+
+# Cross-cutting lakerunner feature flags (mirrored from the standalone lakerunner
+# chart). Each toggle here maps to a LAKERUNNER_FEATURES_* env var read by the
+# process it applies to (see config/config.go:Features in the lakerunner repo).
+features:
+  # Publish an LKIDX004 C2 text index inside each log .lkrn bundle at
+  # ingest, described by the descriptor stored in log_seg.index_run.
+  # Injected as LAKERUNNER_FEATURES_LOG_EMBEDDED_C2_INDEX on process-logs.
+  #
+  # ON by default in this chart version. Turning it on changes what a
+  # segment *is*, not just what it costs: newly written segments carry a
+  # C2 root and older readers that predate the format error out on them.
+  # See kb/specs/lkrn-format/embedded-c2-admission.md.
+  logEmbeddedC2Index: true
 
 # Single shared ServiceAccount for the unified chart. Both the lakerunner.* and
 # maestro.* families delegate to conductor.serviceAccountName, so exactly one SA
@@ -828,7 +842,7 @@ ha:
 # Entrypoint selects which component to run.
 image:
   repository: public.ecr.aws/cardinalhq.io/maestro
-  tag: "v1.95.15"  # pinned (mirrors legacy maestro appVersion); do not rely on Chart.appVersion
+  tag: "v1.96.2"  # pinned (mirrors legacy maestro appVersion); do not rely on Chart.appVersion
   pullPolicy: IfNotPresent
 
 # Maestro API server + UI configuration
