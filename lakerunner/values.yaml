@@ -182,6 +182,20 @@ global:
   # systems like EKS's IAM roles for service accounts (IRSA).
   # Required.
 
+# Cross-cutting lakerunner feature flags. Each toggle here maps to a
+# LAKERUNNER_FEATURES_* env var read by the process it applies to (see
+# config/config.go:Features in the lakerunner repo).
+features:
+  # Publish an LKIDX004 C2 text index inside each log .lkrn bundle at
+  # ingest, described by the descriptor stored in log_seg.index_run.
+  # Injected as LAKERUNNER_FEATURES_LOG_EMBEDDED_C2_INDEX on process-logs.
+  #
+  # ON by default in this chart version. Turning it on changes what a
+  # segment *is*, not just what it costs: newly written segments carry a
+  # C2 root and older readers that predate the format error out on them.
+  # See kb/specs/lkrn-format/embedded-c2-admission.md.
+  logEmbeddedC2Index: true
+
 serviceAccount:
   # Create indicates whether to create the service account.
   # If set to false, the service account must already

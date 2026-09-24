@@ -56,6 +56,10 @@ spec:
           - name: AZURE_AUTH_TYPE
             value: {{ .Values.cloudProvider.azure.authType | quote }}
           {{- end }}
+          {{- if .Values.features.logEmbeddedC2Index }}
+          - name: LAKERUNNER_FEATURES_LOG_EMBEDDED_C2_INDEX
+            value: "true"
+          {{- end }}
           {{- include "lakerunner.injectEnvDuckdb" (list . .Values.processLogs) | nindent 8 }}
           {{- include "lakerunner.cardinalTelemetryEnv" . | nindent 10 }}
         {{- if eq (include "lakerunner.injectCloudProviderCredentials" .) "true" }}
