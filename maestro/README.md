@@ -23,6 +23,14 @@ See [`values.yaml`](https://github.com/cardinalhq/charts/blob/main/maestro/value
 * `database.password` (if `database.create: true`) or an existing secret name via `database.secretName` (with `database.create: false`)
 * `mcpGateway.apiKey` if the gateway is enabled
 
+## Installation system key (`MAESTRO_MCP_API_KEY`)
+
+Maestro admits `MAESTRO_MCP_API_KEY` as the system principal, and the mcp-gateway sidecar needs the same value to call maestro back (storyboard and outcomes tools) and, on the default keyless sidecar, to raise dataset-materialization limits for Investigation Storyboards. The chart puts it into both containers from a single source, first match wins:
+
+1. A `MAESTRO_MCP_API_KEY` entry you already set in `global.env`, `maestro.env` or `mcpGateway.env`. The container that lacks it gets a copy of that entry (same Secret reference).
+2. `maestro.systemKeySecret.name` / `.key`: an existing Secret. Use this with GitOps or sealed-secrets.
+3. Otherwise a generated Secret `<fullname>-system-key`, kept stable across `helm upgrade` via `lookup`. Plain `helm template` (e.g. ArgoCD) cannot look it up and regenerates it on every render, so GitOps installs should use option 1 or 2.
+
 ## Security context / Pod Security Standards
 
 Both workloads (`maestro`, `mcp-gateway`) and the `wait-for-mcp-gateway` init container run under a hardened `securityContext` by default:

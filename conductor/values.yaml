@@ -897,6 +897,23 @@ maestro:
   #   - name: OIDC_TRUST_UNVERIFIED_EMAILS  # default: false — pair carefully with a
   #     value: "true"                       # remapped OIDC_EMAIL_CLAIM (see docs)
   env: []
+  # Installation system key (MAESTRO_MCP_API_KEY): maestro admits it as the
+  # system principal, and the mcp-gateway sidecar uses the same value to call
+  # maestro back (storyboard + outcomes drivers) and, on the keyless sidecar,
+  # as the dataset-materialization raise secret. The chart wires it into BOTH
+  # containers from one source, first match wins:
+  #   1. a MAESTRO_MCP_API_KEY entry you put in global.env, maestro.env or
+  #      mcpGateway.env — the other container gets a copy of that entry;
+  #   2. systemKeySecret.name — an existing Secret (use this with GitOps /
+  #      sealed-secrets);
+  #   3. otherwise a generated Secret <fullname>-system-key, kept stable across
+  #      `helm upgrade` via lookup. Plain `helm template` (ArgoCD) cannot look it
+  #      up and regenerates it on every render, so GitOps installs should set
+  #      systemKeySecret.name. Read the key back with
+  #      `kubectl get secret <fullname>-system-key -o jsonpath='{.data.MAESTRO_MCP_API_KEY}' | base64 -d`.
+  systemKeySecret:
+    name: ""
+    key: "MAESTRO_MCP_API_KEY"
   extraVolumes: []       # additional volumes
   extraVolumeMounts: []  # additional volume mounts
 
