@@ -231,6 +231,7 @@ Usage (inside a pod template's initContainers list):
       value: "true"
     {{- end }}
     {{- include "maestro.cardinalTelemetryEnv" .root | nindent 4 }}
+    {{- include "maestro.systemKeyEnv" (dict "root" .root "env" .root.Values.mcpGateway.env) | nindent 4 }}
     {{- with .root.Values.global.env }}
     {{- toYaml . | nindent 4 }}
     {{- end }}
@@ -243,6 +244,97 @@ Usage (inside a pod template's initContainers list):
   {{- end }}
   volumeMounts:
   {{- include "maestro.licenseVolumeMount" .root | nindent 2 }}
+{{- end -}}
+
+{{/*
+"true" when an env list already defines the named variable (mirrors
+lakerunner.hasEnvVar in the lakerunner/conductor charts).
+Usage: {{ include "maestro.hasEnvVar" (list $envList "MAESTRO_MCP_API_KEY") }}
+*/}}
+{{- define "maestro.hasEnvVar" -}}
+{{- $envList := index . 0 | default list -}}
+{{- $varName := index . 1 -}}
+{{- $found := false -}}
+{{- range $envList -}}
+  {{- if eq .name $varName -}}
+    {{- $found = true -}}
+  {{- end -}}
+{{- end -}}
+{{- $found -}}
+{{- end -}}
+
+{{/*
+Installation system key (MAESTRO_MCP_API_KEY).
+
+maestro admits it as the system principal. The mcp-gateway sidecar needs the
+SAME value for its gateway->maestro hops (storyboard + outcomes drivers, kube
+fan-out) and, on the keyless pod-local sidecar (MCP_ALLOW_NO_AUTH), as the
+dataset-materialization raise secret (cardinalhq/conductor#1947). Both
+containers must therefore resolve it from one source:
+
+  1. An operator entry named MAESTRO_MCP_API_KEY in global.env, maestro.env or
+     mcpGateway.env (first match, in that order) is THE source. A container
+     that does not already carry it gets a verbatim copy of that entry — same
+     Secret reference, nothing duplicated.
+  2. Otherwise maestro.systemKeySecret.name: an existing Secret (GitOps /
+     sealed-secrets), key maestro.systemKeySecret.key.
+  3. Otherwise a chart-generated Secret (<fullname>-system-key), reused across
+     upgrades via lookup (see system-key-secret.yaml).
+
+A container whose own env (global.env + its component env) already defines the
+variable gets nothing from the chart, so there is never a duplicate entry.
+*/}}
+{{- define "maestro.systemKeyOperatorEntry" -}}
+{{- $found := dict -}}
+{{- range (concat (.Values.global.env | default list) (.Values.maestro.env | default list) (.Values.mcpGateway.env | default list)) -}}
+  {{- if and (not (hasKey $found "entry")) (eq .name "MAESTRO_MCP_API_KEY") -}}
+    {{- $_ := set $found "entry" . -}}
+  {{- end -}}
+{{- end -}}
+{{- with $found.entry -}}
+{{- toYaml (list .) -}}
+{{- end -}}
+{{- end -}}
+
+{{- define "maestro.systemKeySecretName" -}}
+{{- $cfg := .Values.maestro.systemKeySecret | default dict -}}
+{{- if $cfg.name -}}
+{{- $cfg.name -}}
+{{- else -}}
+{{- printf "%s-system-key" (include "maestro.fullname" .) | trunc 63 | trimSuffix "-" -}}
+{{- end -}}
+{{- end -}}
+
+{{- define "maestro.systemKeySecretKey" -}}
+{{- (.Values.maestro.systemKeySecret | default dict).key | default "MAESTRO_MCP_API_KEY" -}}
+{{- end -}}
+
+{{/* "true" when the chart must render its own generated system-key Secret. */}}
+{{- define "maestro.systemKeyGenerated" -}}
+{{- if and (not (include "maestro.systemKeyOperatorEntry" .)) (not (.Values.maestro.systemKeySecret | default dict).name) -}}
+true
+{{- end -}}
+{{- end -}}
+
+{{/*
+MAESTRO_MCP_API_KEY env entry for one container, or nothing when that
+container's own env (global.env + .env) already defines it.
+Usage: {{- include "maestro.systemKeyEnv" (dict "root" . "env" .Values.maestro.env) | nindent 10 }}
+*/}}
+{{- define "maestro.systemKeyEnv" -}}
+{{- $own := concat (.root.Values.global.env | default list) (.env | default list) -}}
+{{- if ne (include "maestro.hasEnvVar" (list $own "MAESTRO_MCP_API_KEY")) "true" -}}
+{{- $entry := include "maestro.systemKeyOperatorEntry" .root -}}
+{{- if $entry -}}
+{{ $entry }}
+{{- else -}}
+- name: MAESTRO_MCP_API_KEY
+  valueFrom:
+    secretKeyRef:
+      name: {{ include "maestro.systemKeySecretName" .root | quote }}
+      key: {{ include "maestro.systemKeySecretKey" .root | quote }}
+{{- end -}}
+{{- end -}}
 {{- end -}}
 
 {{/*

@@ -1,0 +1,227 @@
+suite: installation system key (MAESTRO_MCP_API_KEY) on maestro + mcp-gateway sidecar
+# The sidecar needs the same system key maestro admits: for the storyboard /
+# outcomes gateway->maestro hop and, on the keyless sidecar (the default), as
+# the dataset-materialization raise secret (cardinalhq/conductor#1947). Both
+# containers must resolve it from ONE source, and never carry a duplicate.
+templates:
+  - maestro-deployment.yaml
+  - system-key-secret.yaml
+tests:
+  - it: stock install generates one Secret and wires both containers to it
+    template: system-key-secret.yaml
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: Secret
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-maestro-system-key
+      - isNotNullOrEmpty:
+          path: data.MAESTRO_MCP_API_KEY
+
+  - it: stock install references the generated Secret from maestro and the sidecar
+    template: maestro-deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[?(@.name == "maestro")].env
+          content:
+            name: MAESTRO_MCP_API_KEY
+            valueFrom:
+              secretKeyRef:
+                name: RELEASE-NAME-maestro-system-key
+                key: MAESTRO_MCP_API_KEY
+      - contains:
+          path: spec.template.spec.initContainers[?(@.name == "mcp-gateway")].env
+          content:
+            name: MAESTRO_MCP_API_KEY
+            valueFrom:
+              secretKeyRef:
+                name: RELEASE-NAME-maestro-system-key
+                key: MAESTRO_MCP_API_KEY
+      # The stock sidecar is keyless; the system key is what raises there.
+      - contains:
+          path: spec.template.spec.initContainers[?(@.name == "mcp-gateway")].env
+          content:
+            name: MCP_ALLOW_NO_AUTH
+            value: "true"
+
+  - it: maestro.systemKeySecret.name points both containers at an existing Secret and skips generation
+    set:
+      maestro.systemKeySecret.name: my-system-key
+      maestro.systemKeySecret.key: token
+    asserts:
+      - template: system-key-secret.yaml
+        hasDocuments:
+          count: 0
+      - template: maestro-deployment.yaml
+        contains:
+          path: spec.template.spec.containers[?(@.name == "maestro")].env
+          content:
+            name: MAESTRO_MCP_API_KEY
+            valueFrom:
+              secretKeyRef:
+                name: my-system-key
+                key: token
+      - template: maestro-deployment.yaml
+        contains:
+          path: spec.template.spec.initContainers[?(@.name == "mcp-gateway")].env
+          content:
+            name: MAESTRO_MCP_API_KEY
+            valueFrom:
+              secretKeyRef:
+                name: my-system-key
+                key: token
+
+  - it: a key set only in maestro.env (the documented self-hosted setup) is mirrored onto the sidecar
+    set:
+      maestro.env:
+        - name: MAESTRO_MCP_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: mcp-api-key
+              key: MAESTRO_MCP_API_KEY
+    asserts:
+      - template: system-key-secret.yaml
+        hasDocuments:
+          count: 0
+      - template: maestro-deployment.yaml
+        contains:
+          path: spec.template.spec.initContainers[?(@.name == "mcp-gateway")].env
+          content:
+            name: MAESTRO_MCP_API_KEY
+            valueFrom:
+              secretKeyRef:
+                name: mcp-api-key
+                key: MAESTRO_MCP_API_KEY
+      - template: maestro-deployment.yaml
+        contains:
+          path: spec.template.spec.containers[?(@.name == "maestro")].env
+          count: 1
+          content:
+            name: MAESTRO_MCP_API_KEY
+            valueFrom:
+              secretKeyRef:
+                name: mcp-api-key
+                key: MAESTRO_MCP_API_KEY
+      - template: maestro-deployment.yaml
+        contains:
+          path: spec.template.spec.initContainers[?(@.name == "mcp-gateway")].env
+          count: 1
+          content:
+            name: MAESTRO_MCP_API_KEY
+            valueFrom:
+              secretKeyRef:
+                name: mcp-api-key
+                key: MAESTRO_MCP_API_KEY
+
+  - it: a key set only in mcpGateway.env is mirrored onto maestro
+    set:
+      mcpGateway.env:
+        - name: MAESTRO_MCP_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: gw-creds
+              key: SYS
+    asserts:
+      - template: system-key-secret.yaml
+        hasDocuments:
+          count: 0
+      - template: maestro-deployment.yaml
+        contains:
+          path: spec.template.spec.containers[?(@.name == "maestro")].env
+          content:
+            name: MAESTRO_MCP_API_KEY
+            valueFrom:
+              secretKeyRef:
+                name: gw-creds
+                key: SYS
+      - template: maestro-deployment.yaml
+        contains:
+          path: spec.template.spec.initContainers[?(@.name == "mcp-gateway")].env
+          count: 1
+          content:
+            name: MAESTRO_MCP_API_KEY
+            valueFrom:
+              secretKeyRef:
+                name: gw-creds
+                key: SYS
+
+  - it: prod shape (key in both maestro.env and mcpGateway.env) renders no chart entry and no Secret
+    set:
+      maestro.env:
+        - name: MAESTRO_MCP_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: mcp-gateway-creds
+              key: MCP_API_KEY
+      mcpGateway.env:
+        - name: MAESTRO_MCP_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: mcp-gateway-creds
+              key: MCP_API_KEY
+    asserts:
+      - template: system-key-secret.yaml
+        hasDocuments:
+          count: 0
+      - template: maestro-deployment.yaml
+        contains:
+          path: spec.template.spec.containers[?(@.name == "maestro")].env
+          count: 1
+          content:
+            name: MAESTRO_MCP_API_KEY
+            valueFrom:
+              secretKeyRef:
+                name: mcp-gateway-creds
+                key: MCP_API_KEY
+      - template: maestro-deployment.yaml
+        contains:
+          path: spec.template.spec.initContainers[?(@.name == "mcp-gateway")].env
+          count: 1
+          content:
+            name: MAESTRO_MCP_API_KEY
+            valueFrom:
+              secretKeyRef:
+                name: mcp-gateway-creds
+                key: MCP_API_KEY
+
+  - it: a key in global.env already reaches both containers, so the chart adds nothing
+    set:
+      global.env:
+        - name: MAESTRO_MCP_API_KEY
+          value: plain-sys-key
+      # An explicit Secret must not produce a second entry either.
+      maestro.systemKeySecret.name: ignored
+    asserts:
+      - template: system-key-secret.yaml
+        hasDocuments:
+          count: 0
+      - template: maestro-deployment.yaml
+        contains:
+          path: spec.template.spec.containers[?(@.name == "maestro")].env
+          count: 1
+          content:
+            name: MAESTRO_MCP_API_KEY
+            value: plain-sys-key
+      - template: maestro-deployment.yaml
+        contains:
+          path: spec.template.spec.initContainers[?(@.name == "mcp-gateway")].env
+          count: 1
+          content:
+            name: MAESTRO_MCP_API_KEY
+            value: plain-sys-key
+      - template: maestro-deployment.yaml
+        contains:
+          path: spec.template.spec.initContainers[?(@.name == "mcp-gateway")].env
+          content:
+            name: MAESTRO_MCP_API_KEY
+            value: plain-sys-key
+
+  - it: maestro.enabled=false renders no system-key Secret
+    set:
+      maestro.enabled: false
+    template: system-key-secret.yaml
+    asserts:
+      - hasDocuments:
+          count: 0

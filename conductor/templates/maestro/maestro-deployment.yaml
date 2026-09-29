@@ -127,6 +127,7 @@ spec:
           {{- end }}
           {{- include "maestro.oidcEnv" . | nindent 10 }}
           {{- include "maestro.cardinalTelemetryEnv" . | nindent 10 }}
+          {{- include "maestro.systemKeyEnv" (dict "root" . "env" .Values.maestro.env) | nindent 10 }}
           {{- with .Values.global.env }}
           {{- toYaml . | nindent 10 }}
           {{- end }}
