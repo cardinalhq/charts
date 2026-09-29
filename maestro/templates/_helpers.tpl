@@ -949,7 +949,7 @@ wildcard): share URLs are always https://<share.host>/s/<token>.
 {{- range .Values.ingress.tls -}}
 {{- range (default list (get . "hosts")) -}}
 {{- $th := lower (toString .) -}}
-{{- if or (eq $th $hostname) (eq $th (printf "*.%s" $parent)) -}}
+{{- if or (eq $th $hostname) (and (contains "." $hostname) (eq $th (printf "*.%s" $parent))) -}}
 {{- $covered = true -}}
 {{- end -}}
 {{- end -}}
@@ -966,10 +966,17 @@ Validate mcpOAuth and return "true" when it is enabled. Enabled needs:
   - a public base URL (maestro.baseUrl, ingress.host, or MAESTRO_BASE_URL
     in maestro.env/global.env) — the protected-resource metadata and the
     default token audience are built from it;
-  - an authorization server: mcpOAuth.issuer, or an OIDC_ISSUER_URL the
-    operator sets in env. The bundled Dex is refused as the MCP issuer: it
-    has no dynamic client registration and no client for MCP connectors,
-    so an MCP OAuth flow against it can never complete.
+  - OIDC_ISSUER_URL set by the operator in maestro.env/global.env, with
+    the bundled Dex off. Maestro verifies /mcp bearer tokens with its
+    ordinary OIDC verifier (issuer OIDC_ISSUER_URL and its JWKS; the MCP
+    audience is the only extra it accepts), so connector tokens must carry
+    iss=OIDC_ISSUER_URL. mcpOAuth.issuer only changes the authorization
+    server advertised to MCP clients; it does not add a second verifier,
+    so it never stands in for OIDC_ISSUER_URL. The bundled Dex is refused
+    whether or not mcpOAuth.issuer is set: with Dex on, OIDC_ISSUER_URL is
+    Dex, so /mcp accepts only Dex tokens, and Dex has no dynamic client
+    registration and no client for MCP connectors, so the flow can never
+    complete.
 selfSignup without enabled fails too: the org-less /mcp endpoint it
 applies to is only mounted when MCP OAuth is on.
 */}}
@@ -987,14 +994,14 @@ applies to is only mounted when MCP OAuth is on.
 {{- end -}}
 {{- $issuer := dig "issuer" "" $o | toString | trim -}}
 {{- $cfg := include "maestro.dexConfig" . | fromYaml -}}
-{{- if $issuer -}}
-{{- if not (regexMatch "^https?://[^/]" $issuer) -}}
+{{- if and $issuer (not (regexMatch "^https?://[^/]" $issuer)) -}}
 {{- fail (printf "mcpOAuth.issuer must be an http(s) URL (got %q)" $issuer) -}}
 {{- end -}}
-{{- else if $cfg.enabled -}}
-{{- fail "mcpOAuth.enabled=true with the bundled Dex: Dex has no dynamic client registration and no client registered for MCP connectors, so the OAuth flow cannot complete. Leave mcpOAuth off and connect MCP clients with an API key (X-CardinalHQ-API-Key), or set mcpOAuth.issuer to an IdP that supports DCR or has a pre-registered client." -}}
-{{- else if not (include "maestro.userEnvHas" (dict "root" . "name" "OIDC_ISSUER_URL")) -}}
-{{- fail "mcpOAuth.enabled=true requires an authorization server: set mcpOAuth.issuer, or OIDC_ISSUER_URL in maestro.env" -}}
+{{- if $cfg.enabled -}}
+{{- fail "mcpOAuth.enabled=true with the bundled Dex: maestro verifies /mcp tokens against OIDC_ISSUER_URL, which is Dex here, and Dex has no dynamic client registration and no client registered for MCP connectors, so the OAuth flow cannot complete (setting mcpOAuth.issuer does not change which issuer /mcp accepts). Leave mcpOAuth off and connect MCP clients with an API key (X-CardinalHQ-API-Key), or make an IdP that supports DCR or has a pre-registered client the web app's OIDC IdP (dex.enabled=false plus OIDC_ISSUER_URL in maestro.env)." -}}
+{{- end -}}
+{{- if not (include "maestro.userEnvHas" (dict "root" . "name" "OIDC_ISSUER_URL")) -}}
+{{- fail "mcpOAuth.enabled=true requires OIDC_ISSUER_URL in maestro.env: maestro verifies /mcp bearer tokens against it (mcpOAuth.issuer only changes the authorization server advertised to MCP clients, which must issue tokens whose iss is OIDC_ISSUER_URL)" -}}
 {{- end -}}
 true
 {{- end -}}
@@ -1020,12 +1027,12 @@ before. Emitted after the built-ins and before the user's env lists.
 {{- end }}
 {{- if include "maestro.mcpOAuthEnabled" . }}
 {{- $o := .Values.mcpOAuth | default dict }}
-{{- $cfg := include "maestro.dexConfig" . | fromYaml }}
 - name: MCP_OAUTH_ENABLED
   value: "true"
-{{- /* The bundled Dex already emits MAESTRO_BASE_URL (oidcEnv); otherwise
-    derive it unless the operator sets it by hand. */}}
-{{- if and (not $cfg.enabled) (include "maestro.baseUrl" .) (not (include "maestro.userEnvHas" (dict "root" . "name" "MAESTRO_BASE_URL"))) }}
+{{- /* mcpOAuthEnabled refuses the bundled Dex (whose oidcEnv would already
+    emit MAESTRO_BASE_URL), so derive it unless the operator sets it by
+    hand. */}}
+{{- if and (include "maestro.baseUrl" .) (not (include "maestro.userEnvHas" (dict "root" . "name" "MAESTRO_BASE_URL"))) }}
 - name: MAESTRO_BASE_URL
   value: {{ include "maestro.baseUrl" . | quote }}
 {{- end }}

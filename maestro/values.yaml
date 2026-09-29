@@ -333,16 +333,26 @@ share:
 # MCP connectors register themselves with the authorization server through
 # OAuth dynamic client registration (DCR). The bundled Dex (dex.enabled) has
 # no DCR and the chart registers no client for connectors in it, so a flow
-# against it can never complete (rendering fails if you try). Connect MCP clients with an API
-# key instead, unless your IdP supports DCR or you have pre-registered a
-# client for the connector in it (then use that IdP as `issuer`).
+# against it can never complete; rendering fails if you enable mcpOAuth with
+# dex.enabled, whatever `issuer` says. Connect MCP clients with an API key
+# instead.
+#
+# Maestro verifies /mcp bearer tokens against OIDC_ISSUER_URL (the web
+# app's OIDC IdP) and its JWKS, so connector tokens must carry that `iss`.
+# To use an IdP that supports DCR or has a pre-registered connector client,
+# make it the web app's IdP: dex.enabled=false plus OIDC_ISSUER_URL (and
+# the other OIDC_* vars) in maestro.env.
 mcpOAuth:
   # Rendered as MCP_OAUTH_ENABLED. Needs a public base URL (maestro.baseUrl,
-  # ingress.host, or MAESTRO_BASE_URL in maestro.env) and an authorization
-  # server (`issuer` below, or OIDC_ISSUER_URL in maestro.env).
+  # ingress.host, or MAESTRO_BASE_URL in maestro.env), OIDC_ISSUER_URL in
+  # maestro.env or global.env, and dex.enabled=false. When MAESTRO_BASE_URL
+  # is not set by hand, it is derived from maestro.baseUrl / ingress.host.
   enabled: false
   # Authorization server advertised to MCP clients (MCP_OAUTH_ISSUER). Empty
-  # uses OIDC_ISSUER_URL, the IdP the web app signs in with.
+  # uses OIDC_ISSUER_URL. This only changes what discovery advertises; it
+  # does not add a second token verifier, so it must issue tokens whose
+  # `iss` is OIDC_ISSUER_URL or every /mcp call 401s. Leave it empty unless
+  # your IdP's authorization server URL differs from its issuer.
   issuer: ""
   # Token `aud` accepted on /mcp only (MCP_OAUTH_AUDIENCE); every other route
   # keeps requiring OIDC_AUDIENCE. Empty means "<base URL origin>/mcp", the

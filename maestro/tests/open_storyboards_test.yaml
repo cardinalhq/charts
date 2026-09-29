@@ -40,6 +40,9 @@ tests:
       mcpOAuth.enabled: true
       mcpOAuth.issuer: https://idp.example.com
       maestro.baseUrl: https://app.example.com
+      maestro.env:
+        - name: OIDC_ISSUER_URL
+          value: https://idp.example.com
     template: maestro-deployment.yaml
     asserts:
       - notContains:
@@ -336,6 +339,20 @@ tests:
       - failedTemplate:
           errorPattern: "no ingress.tls entry lists share.eu.example.com"
 
+  - it: does not treat a wildcard as covering a single-label share host
+    set:
+      ingress.enabled: true
+      ingress.host: app.example.com
+      ingress.tls:
+        - hosts: ["*.localhost"]
+          secretName: wildcard
+      share.host: localhost
+      share.ingress.enabled: true
+    template: maestro-deployment.yaml
+    asserts:
+      - failedTemplate:
+          errorPattern: "no ingress.tls entry lists localhost"
+
   - it: refuses share.ingress without share.host
     set:
       ingress.enabled: true
@@ -364,6 +381,9 @@ tests:
       mcpOAuth.audience: https://app.example.com/mcp
       mcpOAuth.asMetadataProxy: true
       mcpOAuth.selfSignup: true
+      maestro.env:
+        - name: OIDC_ISSUER_URL
+          value: https://idp.example.com/realms/cardinal
     template: maestro-deployment.yaml
     asserts:
       - contains:
@@ -429,6 +449,8 @@ tests:
       mcpOAuth.enabled: true
       mcpOAuth.issuer: https://idp.example.com
       maestro.env:
+        - name: OIDC_ISSUER_URL
+          value: https://idp.example.com
         - name: MAESTRO_BASE_URL
           value: https://public.example.com
     template: maestro-deployment.yaml
@@ -485,6 +507,9 @@ tests:
       mcpOAuth.issuer: https://idp.example.com
       maestro.baseUrl: https://app.example.com
       mcpOAuth.selfSignup: "false"
+      maestro.env:
+        - name: OIDC_ISSUER_URL
+          value: https://idp.example.com
     template: maestro-deployment.yaml
     asserts:
       - failedTemplate:
@@ -494,25 +519,57 @@ tests:
     set:
       mcpOAuth.enabled: true
       mcpOAuth.issuer: https://idp.example.com
+      maestro.env:
+        - name: OIDC_ISSUER_URL
+          value: https://idp.example.com
     template: maestro-deployment.yaml
     asserts:
       - failedTemplate:
           errorPattern: "mcpOAuth.enabled=true requires a public base URL"
 
-  - it: refuses MCP OAuth without an authorization server
+  - it: refuses MCP OAuth without OIDC_ISSUER_URL
     set:
       mcpOAuth.enabled: true
       maestro.baseUrl: https://app.example.com
     template: maestro-deployment.yaml
     asserts:
       - failedTemplate:
-          errorPattern: "mcpOAuth.enabled=true requires an authorization server"
+          errorPattern: "mcpOAuth.enabled=true requires OIDC_ISSUER_URL in maestro.env"
+
+  # mcpOAuth.issuer only changes the advertised authorization server; /mcp
+  # still verifies tokens against OIDC_ISSUER_URL, so without it every /mcp
+  # call would 401.
+  - it: refuses mcpOAuth.issuer without OIDC_ISSUER_URL
+    set:
+      mcpOAuth.enabled: true
+      mcpOAuth.issuer: https://idp.example.com
+      maestro.baseUrl: https://app.example.com
+    template: maestro-deployment.yaml
+    asserts:
+      - failedTemplate:
+          errorPattern: "mcpOAuth.enabled=true requires OIDC_ISSUER_URL in maestro.env: maestro verifies /mcp bearer tokens against it"
+
+  - it: accepts OIDC_ISSUER_URL from global.env
+    set:
+      mcpOAuth.enabled: true
+      maestro.baseUrl: https://app.example.com
+      global.env:
+        - name: OIDC_ISSUER_URL
+          value: https://idp.example.com
+    template: maestro-deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: { name: MCP_OAUTH_ENABLED, value: "true" }
 
   - it: refuses a non-URL issuer
     set:
       mcpOAuth.enabled: true
       maestro.baseUrl: https://app.example.com
       mcpOAuth.issuer: idp.example.com
+      maestro.env:
+        - name: OIDC_ISSUER_URL
+          value: https://idp.example.com
     template: maestro-deployment.yaml
     asserts:
       - failedTemplate:
@@ -532,9 +589,12 @@ tests:
     template: maestro-deployment.yaml
     asserts:
       - failedTemplate:
-          errorPattern: "bundled Dex: Dex has no dynamic client registration"
+          errorPattern: "mcpOAuth.enabled=true with the bundled Dex: maestro verifies /mcp tokens against OIDC_ISSUER_URL, which is Dex here"
 
-  - it: allows MCP OAuth alongside Dex when an external issuer is named
+  # With Dex on, OIDC_ISSUER_URL is Dex, so /mcp only accepts Dex tokens: an
+  # external mcpOAuth.issuer would send connectors to an IdP whose tokens
+  # maestro rejects. Rendering must fail rather than ship a flow that 401s.
+  - it: refuses MCP OAuth alongside Dex even when an external issuer is named
     set:
       mcpOAuth.enabled: true
       mcpOAuth.issuer: https://idp.example.com
@@ -548,10 +608,19 @@ tests:
           hash: "$2a$10$abc"
     template: maestro-deployment.yaml
     asserts:
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content: { name: MCP_OAUTH_ISSUER, value: "https://idp.example.com" }
-      # Dex already renders MAESTRO_BASE_URL; MCP OAuth must not add a second.
+      - failedTemplate:
+          errorPattern: "setting mcpOAuth.issuer does not change which issuer /mcp accepts"
+
+  - it: derives MAESTRO_BASE_URL from ingress.host when MCP OAuth is on without Dex
+    set:
+      mcpOAuth.enabled: true
+      ingress.enabled: true
+      ingress.host: app.example.com
+      maestro.env:
+        - name: OIDC_ISSUER_URL
+          value: https://idp.example.com
+    template: maestro-deployment.yaml
+    asserts:
       - contains:
           path: spec.template.spec.containers[0].env
           content: { name: MAESTRO_BASE_URL, value: "http://app.example.com" }

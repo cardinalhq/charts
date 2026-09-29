@@ -201,13 +201,17 @@ This lets MCP clients (claude.ai and Claude Desktop connectors, Claude Code) sig
 
 | value | env | notes |
 | --- | --- | --- |
-| `mcpOAuth.enabled` | `MCP_OAUTH_ENABLED` | Needs a base URL (`maestro.baseUrl`, `ingress.host` or `MAESTRO_BASE_URL`) and an issuer. |
-| `mcpOAuth.issuer` | `MCP_OAUTH_ISSUER` | Defaults to `OIDC_ISSUER_URL`. |
+| `mcpOAuth.enabled` | `MCP_OAUTH_ENABLED` | Needs a base URL (`maestro.baseUrl`, `ingress.host` or `MAESTRO_BASE_URL`), `OIDC_ISSUER_URL` in `maestro.env` or `global.env`, and `dex.enabled: false`. |
+| `mcpOAuth.issuer` | `MCP_OAUTH_ISSUER` | Defaults to `OIDC_ISSUER_URL`. Only changes the authorization server advertised to MCP clients; it must issue tokens whose `iss` is `OIDC_ISSUER_URL`. |
 | `mcpOAuth.audience` | `MCP_OAUTH_AUDIENCE` | Token `aud` accepted on `/mcp` only. Defaults to `<origin>/mcp`. |
 | `mcpOAuth.asMetadataProxy` | `MCP_OAUTH_AS_METADATA_PROXY` | For issuers that publish only OIDC discovery (e.g. Keycloak). |
 | `mcpOAuth.selfSignup` | `MCP_OAUTH_SELF_SIGNUP` | For SaaS only. A new connector user with a verified email gets a personal workspace, with daily quotas tunable through `PERSONAL_WORKSPACE_MAX_*`. |
 
-**Self-hosted installs should normally leave this off.** MCP connectors register themselves through OAuth dynamic client registration (DCR). The bundled Dex has no DCR, and the chart registers no connector client in it, so rendering fails if you enable `mcpOAuth` with `dex.enabled` and no `mcpOAuth.issuer`. Connect MCP clients with an API key instead, unless your IdP supports DCR or already has a client registered for the connector.
+**Self-hosted installs should normally leave this off.** MCP connectors register themselves through OAuth dynamic client registration (DCR). The bundled Dex has no DCR, and the chart registers no connector client in it, so rendering fails if you enable `mcpOAuth` with `dex.enabled`, whether or not `mcpOAuth.issuer` is set. Connect MCP clients with an API key instead.
+
+Maestro checks `/mcp` bearer tokens with the same OIDC verifier as the web app: issuer `OIDC_ISSUER_URL` and its JWKS, plus the MCP audience. `mcpOAuth.issuer` does not add a second verifier, so a connector sent to an IdP that is not `OIDC_ISSUER_URL` gets tokens maestro rejects. To use an IdP that supports DCR or has a pre-registered connector client, make it the web app's OIDC IdP: set `dex.enabled: false` and put `OIDC_ISSUER_URL` (and the other `OIDC_*` vars) in `maestro.env`. Rendering fails when `OIDC_ISSUER_URL` is missing.
+
+When `MAESTRO_BASE_URL` is not set by hand, enabling `mcpOAuth` derives it from `maestro.baseUrl` or `ingress.host`. Maestro also uses that origin for storyboard share URLs when `share.host` is unset.
 
 ## Deployment modes: POC vs HA
 
