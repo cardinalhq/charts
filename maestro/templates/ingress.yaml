@@ -1,5 +1,8 @@
 {{- if .Values.ingress.enabled -}}
 {{- $cfg := include "maestro.dexConfig" . | fromYaml -}}
+{{- include "maestro.shareIngressValidate" . -}}
+{{- $shareHost := regexReplaceAll ":[0-9]+$" (include "maestro.shareHost" .) "" -}}
+{{- $shareIngress := dig "ingress" "enabled" false (.Values.share | default dict) -}}
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -41,4 +44,19 @@ spec:
             name: {{ include "maestro.fullname" . }}-maestro
             port:
               name: http
+  {{- if $shareIngress }}
+  # Public storyboard links (share.host). Everything goes to maestro, which
+  # serves only /s/*, /api/public/* and static assets on this host and 404s
+  # the rest; /dex is deliberately not routed here.
+  - host: {{ $shareHost | quote }}
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: {{ include "maestro.fullname" . }}-maestro
+            port:
+              name: http
+  {{- end }}
 {{- end }}

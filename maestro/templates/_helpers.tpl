@@ -819,3 +819,238 @@ and locked in for OIDC_ISSUER_URL specifically by dex_test.yaml).
 {{- end -}}
 {{- end -}}
 
+
+{{/*
+Value of an env var the operator set as a literal in global.env or
+maestro.env ("" when absent or when it comes from valueFrom). Used to
+cross-check chart-emitted settings against hand-set ones.
+
+Usage: include "maestro.userEnvValue" (dict "root" . "name" "MAESTRO_BASE_URL")
+*/}}
+{{- define "maestro.userEnvValue" -}}
+{{- $name := .name -}}
+{{- $out := "" -}}
+{{- range (concat (default list .root.Values.global.env) (default list .root.Values.maestro.env)) -}}
+{{- if and (kindIs "map" .) (eq (toString (get . "name")) $name) (not $out) -}}
+{{- $out = toString (default "" (get . "value")) -}}
+{{- end -}}
+{{- end -}}
+{{- $out -}}
+{{- end -}}
+
+{{/*
+"true" when the operator set the env var (literal or valueFrom) in
+global.env or maestro.env, "" otherwise.
+
+Usage: include "maestro.userEnvHas" (dict "root" . "name" "OIDC_ISSUER_URL")
+*/}}
+{{- define "maestro.userEnvHas" -}}
+{{- $name := .name -}}
+{{- $found := false -}}
+{{- range (concat (default list .root.Values.global.env) (default list .root.Values.maestro.env)) -}}
+{{- if and (kindIs "map" .) (eq (toString (get . "name")) $name) -}}
+{{- $found = true -}}
+{{- end -}}
+{{- end -}}
+{{- if $found -}}true{{- end -}}
+{{- end -}}
+
+{{/*
+MAESTRO_TRUSTED_PROXY_HOPS as a string, or "" when maestro.trustedProxyHops
+is unset (null / ""). Mirrors maestro's parser (lib/trusted-proxy.ts):
+only a plain non-negative integer is accepted. A bool — in particular
+`true`, "trust every hop" — fails rendering: it would let any client
+choose its own req.ip through X-Forwarded-For and walk around every
+IP-keyed rate limit. Maestro itself ignores an invalid value with a WARN;
+failing here surfaces the mistake at install time instead.
+*/}}
+{{- define "maestro.trustedProxyHops" -}}
+{{- $v := dig "trustedProxyHops" nil (.Values.maestro | default dict) -}}
+{{- if not (include "maestro.isUnset" $v) -}}
+{{- $s := "" -}}
+{{- if kindIs "string" $v -}}
+{{- $s = trim $v -}}
+{{- else if or (kindIs "float64" $v) (kindIs "int" $v) (kindIs "int64" $v) -}}
+{{- if and (kindIs "float64" $v) (ne $v (floor $v)) -}}
+{{- fail (printf "maestro.trustedProxyHops must be a non-negative integer (the number of reverse proxies in front of maestro), got %v" $v) -}}
+{{- end -}}
+{{- $s = toString (int64 $v) -}}
+{{- else -}}
+{{- fail (printf "maestro.trustedProxyHops must be a non-negative integer (the number of reverse proxies in front of maestro), got %v of type %s. `true` (trust every hop) is deliberately not supported: it lets clients spoof their IP via X-Forwarded-For." $v (kindOf $v)) -}}
+{{- end -}}
+{{- if not (regexMatch "^[0-9]+$" $s) -}}
+{{- fail (printf "maestro.trustedProxyHops must be a non-negative integer (the number of reverse proxies in front of maestro), got %q" $s) -}}
+{{- end -}}
+{{- $s -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Normalized SHARE_HOST (lowercased bare host[:port]) from share.host, or ""
+when unset. Mirrors maestro's parser (lib/share-host.ts): a scheme, path,
+userinfo or wildcard fails rendering — maestro refuses to start on an
+invalid SHARE_HOST, so catching it here keeps a bad value from
+crash-looping the pod. Also refuses a share host equal to the app's own
+host: maestro 404s everything but /s/*, /api/public/* and static assets on
+the share host, so pointing it at the app host would take the app down.
+*/}}
+{{- define "maestro.shareHost" -}}
+{{- $raw := dig "host" "" (.Values.share | default dict) -}}
+{{- if not (kindIs "string" $raw) -}}
+{{- fail (printf "share.host must be a string such as share.example.com, got %v of type %s" $raw (kindOf $raw)) -}}
+{{- end -}}
+{{- $h := $raw | trim | lower -}}
+{{- if $h -}}
+{{- if not (regexMatch "^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*(:[0-9]{1,5})?$" $h) -}}
+{{- fail (printf "share.host must be a bare host[:port] such as share.example.com — no scheme, path or wildcard (got %q)" $raw) -}}
+{{- end -}}
+{{- $hostname := regexReplaceAll ":[0-9]+$" $h "" -}}
+{{- if gt (len $hostname) 253 -}}
+{{- fail (printf "share.host is longer than 253 characters (got %q)" $raw) -}}
+{{- end -}}
+{{- $port := regexFind ":[0-9]+$" $h | trimPrefix ":" -}}
+{{- if and $port (or (lt (atoi $port) 1) (gt (atoi $port) 65535)) -}}
+{{- fail (printf "share.host port must be 1-65535 (got %q)" $raw) -}}
+{{- end -}}
+{{- $appHosts := list (include "maestro.baseUrlHost" . | lower) -}}
+{{- $envBase := include "maestro.userEnvValue" (dict "root" . "name" "MAESTRO_BASE_URL") -}}
+{{- if $envBase -}}
+{{- $envHost := $envBase | trim | lower | trimPrefix "https://" | trimPrefix "http://" -}}
+{{- $envHost = regexReplaceAll "/.*$" $envHost "" -}}
+{{- $appHosts = append $appHosts (regexReplaceAll ":[0-9]+$" $envHost "") -}}
+{{- end -}}
+{{- if has $hostname $appHosts -}}
+{{- fail (printf "share.host (%s) must be a dedicated hostname, not the app's own host: maestro serves only public storyboard pages on the share host and 404s the rest of the app there" $hostname) -}}
+{{- end -}}
+{{- $h -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Validate share.ingress: routing the share host through the chart's Ingress
+needs a share host and the Ingress itself. When ingress.tls is set, one of
+its entries must cover the share host (exactly or by a one-level
+wildcard): share URLs are always https://<share.host>/s/<token>.
+*/}}
+{{- define "maestro.shareIngressValidate" -}}
+{{- $s := .Values.share | default dict -}}
+{{- if include "maestro.boolOrFail" (dict "value" (dig "ingress" "enabled" false $s) "path" "share.ingress.enabled") -}}
+{{- $h := include "maestro.shareHost" . -}}
+{{- if not $h -}}
+{{- fail "share.ingress.enabled=true requires share.host" -}}
+{{- end -}}
+{{- if not .Values.ingress.enabled -}}
+{{- fail "share.ingress.enabled=true adds the share host to the chart's Ingress, so it requires ingress.enabled=true (or leave it false and route share.host to the maestro Service yourself)" -}}
+{{- end -}}
+{{- $hostname := regexReplaceAll ":[0-9]+$" $h "" -}}
+{{- if .Values.ingress.tls -}}
+{{- $parent := regexReplaceAll "^[^.]+\\." $hostname "" -}}
+{{- $covered := false -}}
+{{- range .Values.ingress.tls -}}
+{{- range (default list (get . "hosts")) -}}
+{{- $th := lower (toString .) -}}
+{{- if or (eq $th $hostname) (and (contains "." $hostname) (eq $th (printf "*.%s" $parent))) -}}
+{{- $covered = true -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+{{- if not $covered -}}
+{{- fail (printf "share.ingress.enabled=true but no ingress.tls entry lists %s (or a matching wildcard): share links are always https://%s/s/<token>, so add the share host to ingress.tls" $hostname $hostname) -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Validate mcpOAuth and return "true" when it is enabled. Enabled needs:
+  - a public base URL (maestro.baseUrl, ingress.host, or MAESTRO_BASE_URL
+    in maestro.env/global.env) — the protected-resource metadata and the
+    default token audience are built from it;
+  - OIDC_ISSUER_URL set by the operator in maestro.env/global.env, with
+    the bundled Dex off. Maestro verifies /mcp bearer tokens with its
+    ordinary OIDC verifier (issuer OIDC_ISSUER_URL and its JWKS; the MCP
+    audience is the only extra it accepts), so connector tokens must carry
+    iss=OIDC_ISSUER_URL. mcpOAuth.issuer only changes the authorization
+    server advertised to MCP clients; it does not add a second verifier,
+    so it never stands in for OIDC_ISSUER_URL. The bundled Dex is refused
+    whether or not mcpOAuth.issuer is set: with Dex on, OIDC_ISSUER_URL is
+    Dex, so /mcp accepts only Dex tokens, and Dex has no dynamic client
+    registration and no client for MCP connectors, so the flow can never
+    complete.
+selfSignup without enabled fails too: the org-less /mcp endpoint it
+applies to is only mounted when MCP OAuth is on.
+*/}}
+{{- define "maestro.mcpOAuthEnabled" -}}
+{{- $o := .Values.mcpOAuth | default dict -}}
+{{- $enabled := include "maestro.boolOrFail" (dict "value" (dig "enabled" false $o) "path" "mcpOAuth.enabled") -}}
+{{- $selfSignup := include "maestro.boolOrFail" (dict "value" (dig "selfSignup" false $o) "path" "mcpOAuth.selfSignup") -}}
+{{- $_ := include "maestro.boolOrFail" (dict "value" (dig "asMetadataProxy" false $o) "path" "mcpOAuth.asMetadataProxy") -}}
+{{- if and $selfSignup (not $enabled) -}}
+{{- fail "mcpOAuth.selfSignup=true requires mcpOAuth.enabled=true (self-signup only applies to the OAuth /mcp endpoint)" -}}
+{{- end -}}
+{{- if $enabled -}}
+{{- if not (or (include "maestro.baseUrl" .) (include "maestro.userEnvHas" (dict "root" . "name" "MAESTRO_BASE_URL"))) -}}
+{{- fail "mcpOAuth.enabled=true requires a public base URL: set maestro.baseUrl, ingress.host, or MAESTRO_BASE_URL in maestro.env" -}}
+{{- end -}}
+{{- $issuer := dig "issuer" "" $o | toString | trim -}}
+{{- $cfg := include "maestro.dexConfig" . | fromYaml -}}
+{{- if and $issuer (not (regexMatch "^https?://[^/]" $issuer)) -}}
+{{- fail (printf "mcpOAuth.issuer must be an http(s) URL (got %q)" $issuer) -}}
+{{- end -}}
+{{- if $cfg.enabled -}}
+{{- fail "mcpOAuth.enabled=true with the bundled Dex: maestro verifies /mcp tokens against OIDC_ISSUER_URL, which is Dex here, and Dex has no dynamic client registration and no client registered for MCP connectors, so the OAuth flow cannot complete (setting mcpOAuth.issuer does not change which issuer /mcp accepts). Leave mcpOAuth off and connect MCP clients with an API key (X-CardinalHQ-API-Key), or make an IdP that supports DCR or has a pre-registered client the web app's OIDC IdP (dex.enabled=false plus OIDC_ISSUER_URL in maestro.env)." -}}
+{{- end -}}
+{{- if not (include "maestro.userEnvHas" (dict "root" . "name" "OIDC_ISSUER_URL")) -}}
+{{- fail "mcpOAuth.enabled=true requires OIDC_ISSUER_URL in maestro.env: maestro verifies /mcp bearer tokens against it (mcpOAuth.issuer only changes the authorization server advertised to MCP clients, which must issue tokens whose iss is OIDC_ISSUER_URL)" -}}
+{{- end -}}
+true
+{{- end -}}
+{{- end -}}
+
+{{/*
+Open Storyboards env for the maestro container: trusted proxy hops, the
+public share host, and MCP OAuth. Each var is emitted only when its value
+is configured, so an install that sets none of them renders exactly as
+before. Emitted after the built-ins and before the user's env lists.
+*/}}
+{{- define "maestro.openStoryboardsEnv" -}}
+{{- include "maestro.shareIngressValidate" . -}}
+{{- $hops := include "maestro.trustedProxyHops" . -}}
+{{- if $hops }}
+- name: MAESTRO_TRUSTED_PROXY_HOPS
+  value: {{ $hops | quote }}
+{{- end }}
+{{- $share := include "maestro.shareHost" . -}}
+{{- if $share }}
+- name: SHARE_HOST
+  value: {{ $share | quote }}
+{{- end }}
+{{- if include "maestro.mcpOAuthEnabled" . }}
+{{- $o := .Values.mcpOAuth | default dict }}
+- name: MCP_OAUTH_ENABLED
+  value: "true"
+{{- /* mcpOAuthEnabled refuses the bundled Dex (whose oidcEnv would already
+    emit MAESTRO_BASE_URL), so derive it unless the operator sets it by
+    hand. */}}
+{{- if and (include "maestro.baseUrl" .) (not (include "maestro.userEnvHas" (dict "root" . "name" "MAESTRO_BASE_URL"))) }}
+- name: MAESTRO_BASE_URL
+  value: {{ include "maestro.baseUrl" . | quote }}
+{{- end }}
+{{- with (dig "issuer" "" $o | toString | trim) }}
+- name: MCP_OAUTH_ISSUER
+  value: {{ . | quote }}
+{{- end }}
+{{- with (dig "audience" "" $o | toString | trim) }}
+- name: MCP_OAUTH_AUDIENCE
+  value: {{ . | quote }}
+{{- end }}
+{{- if dig "asMetadataProxy" false $o }}
+- name: MCP_OAUTH_AS_METADATA_PROXY
+  value: "true"
+{{- end }}
+{{- if dig "selfSignup" false $o }}
+- name: MCP_OAUTH_SELF_SIGNUP
+  value: "true"
+{{- end }}
+{{- end }}
+{{- end -}}
