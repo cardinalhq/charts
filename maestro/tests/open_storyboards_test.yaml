@@ -1,0 +1,557 @@
+suite: open storyboards (trusted proxy hops, share host, MCP OAuth)
+templates:
+  - maestro-deployment.yaml
+  - ingress.yaml
+tests:
+  # ---------------------------------------------------------------- defaults
+  - it: renders none of the new env vars by default
+    template: maestro-deployment.yaml
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          any: true
+          content:
+            name: MAESTRO_TRUSTED_PROXY_HOPS
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          any: true
+          content:
+            name: SHARE_HOST
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          any: true
+          content:
+            name: MCP_OAUTH_ENABLED
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          any: true
+          content:
+            name: MCP_OAUTH_SELF_SIGNUP
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          any: true
+          content:
+            name: MAESTRO_BASE_URL
+
+  - it: keeps the new env vars out of the mcp-gateway sidecar
+    set:
+      maestro.trustedProxyHops: 1
+      share.host: share.example.com
+      mcpOAuth.enabled: true
+      mcpOAuth.issuer: https://idp.example.com
+      maestro.baseUrl: https://app.example.com
+    template: maestro-deployment.yaml
+    asserts:
+      - notContains:
+          path: spec.template.spec.initContainers[?(@.name == "mcp-gateway")].env
+          any: true
+          content:
+            name: SHARE_HOST
+      - notContains:
+          path: spec.template.spec.initContainers[?(@.name == "mcp-gateway")].env
+          any: true
+          content:
+            name: MCP_OAUTH_ENABLED
+
+  # ------------------------------------------------------ trustedProxyHops
+  - it: renders MAESTRO_TRUSTED_PROXY_HOPS as a string from an integer
+    set:
+      maestro.trustedProxyHops: 1
+    template: maestro-deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: MAESTRO_TRUSTED_PROXY_HOPS
+            value: "1"
+
+  - it: accepts a numeric string (--set-string) and zero
+    set:
+      maestro.trustedProxyHops: " 2 "
+    template: maestro-deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: MAESTRO_TRUSTED_PROXY_HOPS
+            value: "2"
+
+  - it: renders an explicit zero
+    set:
+      maestro.trustedProxyHops: 0
+    template: maestro-deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: MAESTRO_TRUSTED_PROXY_HOPS
+            value: "0"
+
+  - it: treats an empty string as unset
+    set:
+      maestro.trustedProxyHops: ""
+    template: maestro-deployment.yaml
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          any: true
+          content:
+            name: MAESTRO_TRUSTED_PROXY_HOPS
+
+  - it: refuses trustedProxyHops=true (trust every hop is spoofable)
+    set:
+      maestro.trustedProxyHops: true
+    template: maestro-deployment.yaml
+    asserts:
+      - failedTemplate:
+          errorPattern: "maestro.trustedProxyHops must be a non-negative integer.*`true` \\(trust every hop\\) is deliberately not supported"
+
+  - it: refuses the string "true"
+    set:
+      maestro.trustedProxyHops: "true"
+    template: maestro-deployment.yaml
+    asserts:
+      - failedTemplate:
+          errorPattern: "maestro.trustedProxyHops must be a non-negative integer"
+
+  - it: refuses a negative count
+    set:
+      maestro.trustedProxyHops: -1
+    template: maestro-deployment.yaml
+    asserts:
+      - failedTemplate:
+          errorPattern: "maestro.trustedProxyHops must be a non-negative integer"
+
+  - it: refuses a fractional count
+    set:
+      maestro.trustedProxyHops: 1.5
+    template: maestro-deployment.yaml
+    asserts:
+      - failedTemplate:
+          errorPattern: "maestro.trustedProxyHops must be a non-negative integer"
+
+  - it: refuses a CIDR / address list
+    set:
+      maestro.trustedProxyHops: "10.0.0.0/8"
+    template: maestro-deployment.yaml
+    asserts:
+      - failedTemplate:
+          errorPattern: "maestro.trustedProxyHops must be a non-negative integer"
+
+  # ------------------------------------------------------------ share.host
+  - it: renders SHARE_HOST normalized to lowercase
+    set:
+      share.host: " Share.Example.COM "
+    template: maestro-deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: SHARE_HOST
+            value: share.example.com
+
+  - it: accepts a host with a port
+    set:
+      share.host: share.example.com:8443
+    template: maestro-deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: SHARE_HOST
+            value: share.example.com:8443
+
+  - it: refuses a share.host with a scheme
+    set:
+      share.host: https://share.example.com
+    template: maestro-deployment.yaml
+    asserts:
+      - failedTemplate:
+          errorPattern: "share.host must be a bare host\\[:port\\]"
+
+  - it: refuses a share.host with a path
+    set:
+      share.host: share.example.com/s
+    template: maestro-deployment.yaml
+    asserts:
+      - failedTemplate:
+          errorPattern: "share.host must be a bare host\\[:port\\]"
+
+  - it: refuses a wildcard share.host
+    set:
+      share.host: "*.example.com"
+    template: maestro-deployment.yaml
+    asserts:
+      - failedTemplate:
+          errorPattern: "share.host must be a bare host\\[:port\\]"
+
+  - it: refuses userinfo in share.host
+    set:
+      share.host: evil@share.example.com
+    template: maestro-deployment.yaml
+    asserts:
+      - failedTemplate:
+          errorPattern: "share.host must be a bare host\\[:port\\]"
+
+  - it: refuses an out-of-range port
+    set:
+      share.host: share.example.com:70000
+    template: maestro-deployment.yaml
+    asserts:
+      - failedTemplate:
+          errorPattern: "share.host port must be 1-65535"
+
+  - it: refuses a share host equal to ingress.host
+    set:
+      ingress.enabled: true
+      ingress.host: app.example.com
+      share.host: APP.example.com
+    template: maestro-deployment.yaml
+    asserts:
+      - failedTemplate:
+          errorPattern: "share.host \\(app.example.com\\) must be a dedicated hostname"
+
+  - it: refuses a share host equal to maestro.baseUrl's host
+    set:
+      maestro.baseUrl: https://app.example.com:8443/
+      share.host: app.example.com
+    template: maestro-deployment.yaml
+    asserts:
+      - failedTemplate:
+          errorPattern: "must be a dedicated hostname"
+
+  - it: refuses a share host equal to a hand-set MAESTRO_BASE_URL's host
+    set:
+      maestro.env:
+        - name: MAESTRO_BASE_URL
+          value: https://app.example.com/
+      share.host: app.example.com
+    template: maestro-deployment.yaml
+    asserts:
+      - failedTemplate:
+          errorPattern: "must be a dedicated hostname"
+
+  - it: allows a share host that is a subdomain sibling of the app host
+    set:
+      maestro.baseUrl: https://app.example.com
+      share.host: share.example.com
+    template: maestro-deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: SHARE_HOST
+            value: share.example.com
+
+  # ------------------------------------------------------- share.ingress
+  - it: does not add a share rule to the Ingress unless share.ingress.enabled
+    set:
+      ingress.enabled: true
+      ingress.host: app.example.com
+      share.host: share.example.com
+    template: ingress.yaml
+    asserts:
+      - lengthEqual:
+          path: spec.rules
+          count: 1
+
+  - it: adds a share host rule to maestro (no /dex) when share.ingress.enabled
+    set:
+      ingress.enabled: true
+      ingress.host: app.example.com
+      ingress.tls:
+        - hosts: [app.example.com, share.example.com]
+          secretName: tls
+      share.host: share.example.com:443
+      share.ingress.enabled: true
+      dex.enabled: true
+      dex.staticUsers:
+        - email: a@example.com
+          username: a
+          userID: u1
+          hash: "$2a$10$abc"
+    template: ingress.yaml
+    asserts:
+      - lengthEqual:
+          path: spec.rules
+          count: 2
+      - equal:
+          path: spec.rules[1].host
+          value: share.example.com
+      - equal:
+          path: spec.rules[1].http.paths
+          value:
+            - path: /
+              pathType: Prefix
+              backend:
+                service:
+                  name: RELEASE-NAME-maestro-maestro
+                  port:
+                    name: http
+      # The app host still routes /dex to Dex.
+      - equal:
+          path: spec.rules[0].http.paths[0].path
+          value: /dex
+
+  - it: accepts a wildcard TLS entry covering the share host
+    set:
+      ingress.enabled: true
+      ingress.host: app.example.com
+      ingress.tls:
+        - hosts: ["*.example.com"]
+          secretName: wildcard
+      share.host: share.example.com
+      share.ingress.enabled: true
+    template: ingress.yaml
+    asserts:
+      - equal:
+          path: spec.rules[1].host
+          value: share.example.com
+
+  - it: refuses share.ingress when ingress.tls does not cover the share host
+    set:
+      ingress.enabled: true
+      ingress.host: app.example.com
+      ingress.tls:
+        - hosts: [app.example.com]
+          secretName: tls
+      share.host: share.example.com
+      share.ingress.enabled: true
+    template: maestro-deployment.yaml
+    asserts:
+      - failedTemplate:
+          errorPattern: "no ingress.tls entry lists share.example.com"
+
+  - it: refuses a wildcard one level too shallow for the share host
+    set:
+      ingress.enabled: true
+      ingress.host: app.example.com
+      ingress.tls:
+        - hosts: ["*.example.com"]
+          secretName: wildcard
+      share.host: share.eu.example.com
+      share.ingress.enabled: true
+    template: maestro-deployment.yaml
+    asserts:
+      - failedTemplate:
+          errorPattern: "no ingress.tls entry lists share.eu.example.com"
+
+  - it: refuses share.ingress without share.host
+    set:
+      ingress.enabled: true
+      ingress.host: app.example.com
+      share.ingress.enabled: true
+    template: maestro-deployment.yaml
+    asserts:
+      - failedTemplate:
+          errorPattern: "share.ingress.enabled=true requires share.host"
+
+  - it: refuses share.ingress without the chart Ingress
+    set:
+      share.host: share.example.com
+      share.ingress.enabled: true
+    template: maestro-deployment.yaml
+    asserts:
+      - failedTemplate:
+          errorPattern: "share.ingress.enabled=true .* requires ingress.enabled=true"
+
+  # ------------------------------------------------------------- mcpOAuth
+  - it: renders MCP OAuth env with every option set
+    set:
+      maestro.baseUrl: https://app.example.com
+      mcpOAuth.enabled: true
+      mcpOAuth.issuer: https://idp.example.com/realms/cardinal
+      mcpOAuth.audience: https://app.example.com/mcp
+      mcpOAuth.asMetadataProxy: true
+      mcpOAuth.selfSignup: true
+    template: maestro-deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: { name: MCP_OAUTH_ENABLED, value: "true" }
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: { name: MCP_OAUTH_ISSUER, value: "https://idp.example.com/realms/cardinal" }
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: { name: MCP_OAUTH_AUDIENCE, value: "https://app.example.com/mcp" }
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: { name: MCP_OAUTH_AS_METADATA_PROXY, value: "true" }
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: { name: MCP_OAUTH_SELF_SIGNUP, value: "true" }
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: { name: MAESTRO_BASE_URL, value: "https://app.example.com" }
+
+  - it: emits only MCP_OAUTH_ENABLED for a minimal opt-in (issuer via OIDC_ISSUER_URL)
+    set:
+      mcpOAuth.enabled: true
+      maestro.env:
+        - name: OIDC_ISSUER_URL
+          value: https://idp.example.com
+        - name: MAESTRO_BASE_URL
+          value: https://app.example.com
+    template: maestro-deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: { name: MCP_OAUTH_ENABLED, value: "true" }
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          any: true
+          content: { name: MCP_OAUTH_ISSUER }
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          any: true
+          content: { name: MCP_OAUTH_AUDIENCE }
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          any: true
+          content: { name: MCP_OAUTH_AS_METADATA_PROXY }
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          any: true
+          content: { name: MCP_OAUTH_SELF_SIGNUP }
+      # The operator's own MAESTRO_BASE_URL is the only one rendered.
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content: { name: MAESTRO_BASE_URL, value: "" }
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: { name: MAESTRO_BASE_URL, value: "https://app.example.com" }
+
+  - it: does not duplicate a hand-set MAESTRO_BASE_URL even when one is derivable
+    set:
+      ingress.enabled: true
+      ingress.host: app.example.com
+      mcpOAuth.enabled: true
+      mcpOAuth.issuer: https://idp.example.com
+      maestro.env:
+        - name: MAESTRO_BASE_URL
+          value: https://public.example.com
+    template: maestro-deployment.yaml
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content: { name: MAESTRO_BASE_URL, value: "http://app.example.com" }
+
+  - it: renders no MCP OAuth env when disabled, even with options set
+    set:
+      maestro.baseUrl: https://app.example.com
+      mcpOAuth.enabled: false
+      mcpOAuth.issuer: https://idp.example.com
+      mcpOAuth.audience: aud
+      mcpOAuth.asMetadataProxy: true
+    template: maestro-deployment.yaml
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          any: true
+          content: { name: MCP_OAUTH_ENABLED }
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          any: true
+          content: { name: MCP_OAUTH_ISSUER }
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          any: true
+          content: { name: MCP_OAUTH_AS_METADATA_PROXY }
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          any: true
+          content: { name: MAESTRO_BASE_URL }
+
+  - it: refuses selfSignup without MCP OAuth enabled
+    set:
+      mcpOAuth.selfSignup: true
+    template: maestro-deployment.yaml
+    asserts:
+      - failedTemplate:
+          errorPattern: "mcpOAuth.selfSignup=true requires mcpOAuth.enabled=true"
+
+  - it: refuses a string for mcpOAuth.enabled
+    set:
+      mcpOAuth.enabled: "true"
+    template: maestro-deployment.yaml
+    asserts:
+      - failedTemplate:
+          errorPattern: "mcpOAuth.enabled must be a YAML boolean"
+
+  - it: refuses a string for mcpOAuth.selfSignup
+    set:
+      mcpOAuth.enabled: true
+      mcpOAuth.issuer: https://idp.example.com
+      maestro.baseUrl: https://app.example.com
+      mcpOAuth.selfSignup: "false"
+    template: maestro-deployment.yaml
+    asserts:
+      - failedTemplate:
+          errorPattern: "mcpOAuth.selfSignup must be a YAML boolean"
+
+  - it: refuses MCP OAuth without a base URL
+    set:
+      mcpOAuth.enabled: true
+      mcpOAuth.issuer: https://idp.example.com
+    template: maestro-deployment.yaml
+    asserts:
+      - failedTemplate:
+          errorPattern: "mcpOAuth.enabled=true requires a public base URL"
+
+  - it: refuses MCP OAuth without an authorization server
+    set:
+      mcpOAuth.enabled: true
+      maestro.baseUrl: https://app.example.com
+    template: maestro-deployment.yaml
+    asserts:
+      - failedTemplate:
+          errorPattern: "mcpOAuth.enabled=true requires an authorization server"
+
+  - it: refuses a non-URL issuer
+    set:
+      mcpOAuth.enabled: true
+      maestro.baseUrl: https://app.example.com
+      mcpOAuth.issuer: idp.example.com
+    template: maestro-deployment.yaml
+    asserts:
+      - failedTemplate:
+          errorPattern: "mcpOAuth.issuer must be an http\\(s\\) URL"
+
+  - it: refuses MCP OAuth against the bundled Dex (no DCR)
+    set:
+      mcpOAuth.enabled: true
+      ingress.enabled: true
+      ingress.host: app.example.com
+      dex.enabled: true
+      dex.staticUsers:
+        - email: a@example.com
+          username: a
+          userID: u1
+          hash: "$2a$10$abc"
+    template: maestro-deployment.yaml
+    asserts:
+      - failedTemplate:
+          errorPattern: "bundled Dex: Dex has no dynamic client registration"
+
+  - it: allows MCP OAuth alongside Dex when an external issuer is named
+    set:
+      mcpOAuth.enabled: true
+      mcpOAuth.issuer: https://idp.example.com
+      ingress.enabled: true
+      ingress.host: app.example.com
+      dex.enabled: true
+      dex.staticUsers:
+        - email: a@example.com
+          username: a
+          userID: u1
+          hash: "$2a$10$abc"
+    template: maestro-deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: { name: MCP_OAUTH_ISSUER, value: "https://idp.example.com" }
+      # Dex already renders MAESTRO_BASE_URL; MCP OAuth must not add a second.
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: { name: MAESTRO_BASE_URL, value: "http://app.example.com" }

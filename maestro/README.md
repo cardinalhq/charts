@@ -168,6 +168,47 @@ when only one of `cert.crt`/`cert.key` is set.
 
 All sidecar/init images are overridable: `maestro.tls.image.{repository,tag,pullPolicy}` for the nginx sidecar, `maestro.tls.cert.image.{repository,tag,pullPolicy}` for the openssl cert-init. `dex.image.{repository,tag,pullPolicy}` overrides the bundled Dex image (defaults in `templates/_helpers.tpl`).
 
+## Proxy hops, public storyboard links and MCP OAuth
+
+All three are off by default; an install that sets none of them renders exactly as before.
+
+### `maestro.trustedProxyHops` → `MAESTRO_TRUSTED_PROXY_HOPS`
+
+The number of reverse proxies in front of maestro that append to `X-Forwarded-For` (an Ingress controller is one; a cloud L7 load balancer in front of it is another; an L4 load balancer is not). Maestro sets Express `trust proxy` to it, so IP-keyed rate limits bucket on the real client instead of the ingress pod. Too low is safe (every client shares one bucket, which is what happens today); too high lets a client choose its own IP. Rendering fails on anything but a non-negative integer. `true` (trust every hop) is refused for that reason.
+
+### `share.host` → `SHARE_HOST`
+
+This is the dedicated, cookie-less host that public storyboard links are served from (`https://<share.host>/s/<token>`). On it maestro serves only `/s/*`, `/api/public/*` and static assets. Rendering fails when the value is not a bare `host[:port]`, or when it equals the app's own host (maestro would 404 the app there). Set `share.ingress.enabled: true` to add a rule for it to the chart's `Ingress`. That needs `ingress.enabled: true`, and if `ingress.tls` is set, one of its entries must list the share host or a matching `*.parent` wildcard. If you route the host some other way (an IngressRoute, the Gateway API or a load balancer), leave it off.
+
+```yaml
+maestro:
+  trustedProxyHops: 1
+ingress:
+  enabled: true
+  host: maestro.example.com
+  tls:
+    - hosts: [maestro.example.com, share.example.com]
+      secretName: maestro-tls
+share:
+  host: share.example.com
+  ingress:
+    enabled: true
+```
+
+### `mcpOAuth` → `MCP_OAUTH_*`
+
+This lets MCP clients (claude.ai and Claude Desktop connectors, Claude Code) sign in with OAuth against your IdP and use the org-less `/mcp` endpoint. API-key auth keeps working either way.
+
+| value | env | notes |
+| --- | --- | --- |
+| `mcpOAuth.enabled` | `MCP_OAUTH_ENABLED` | Needs a base URL (`maestro.baseUrl`, `ingress.host` or `MAESTRO_BASE_URL`) and an issuer. |
+| `mcpOAuth.issuer` | `MCP_OAUTH_ISSUER` | Defaults to `OIDC_ISSUER_URL`. |
+| `mcpOAuth.audience` | `MCP_OAUTH_AUDIENCE` | Token `aud` accepted on `/mcp` only. Defaults to `<origin>/mcp`. |
+| `mcpOAuth.asMetadataProxy` | `MCP_OAUTH_AS_METADATA_PROXY` | For issuers that publish only OIDC discovery (e.g. Keycloak). |
+| `mcpOAuth.selfSignup` | `MCP_OAUTH_SELF_SIGNUP` | For SaaS only. A new connector user with a verified email gets a personal workspace, with daily quotas tunable through `PERSONAL_WORKSPACE_MAX_*`. |
+
+**Self-hosted installs should normally leave this off.** MCP connectors register themselves through OAuth dynamic client registration (DCR). The bundled Dex has no DCR, and the chart registers no connector client in it, so rendering fails if you enable `mcpOAuth` with `dex.enabled` and no `mcpOAuth.issuer`. Connect MCP clients with an API key instead, unless your IdP supports DCR or already has a client registered for the connector.
+
 ## Deployment modes: POC vs HA
 
 The chart ships two deployment shapes, gated by a single flag.

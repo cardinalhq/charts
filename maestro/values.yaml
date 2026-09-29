@@ -36,6 +36,22 @@ maestro:
   # explicit value <2 fails template rendering.
   replicas: ~
   port: 4200
+  # Number of reverse proxies between clients and maestro that each append
+  # to X-Forwarded-For (an Ingress controller counts as one; a cloud L7
+  # load balancer in front of it is another; an L4/TCP load balancer is
+  # not). Rendered as MAESTRO_TRUSTED_PROXY_HOPS: maestro sets Express
+  # `trust proxy` to this count so IP-keyed rate limits (invitations, the
+  # public storyboard viewer, the MCP aggregator's stamped source IP)
+  # bucket on the real client instead of the ingress pod address. It also
+  # makes maestro read the Host from the proxy's X-Forwarded-Host, which the
+  # share host (share.host) is matched against.
+  #
+  # Leave unset (~) when nothing proxies maestro, or when unsure: too LOW is
+  # safe (every client shares the proxy's bucket, today's behavior); too
+  # HIGH lets a client pick its own IP by sending X-Forwarded-For. Must be a
+  # non-negative integer — `true` (trust every hop) fails rendering for that
+  # reason.
+  trustedProxyHops: ~
   resources:
     requests:
       cpu: 1
@@ -280,6 +296,75 @@ ingress:
   host: ""
   annotations: {}
   tls: []
+
+# Public storyboard links (Open Storyboards). A published storyboard shared
+# by public link is served at https://<share.host>/s/<token> from a dedicated,
+# cookie-less hostname, so a shared page never runs on the app's origin. On
+# that host maestro serves only /s/*, /api/public/* and static assets; the
+# rest of the app 404s there, and no cookie is read or set.
+#
+# Leave `host` empty to serve /s/* on the main host (MAESTRO_BASE_URL). Whether
+# an org may create public links at all is a per-org setting in the app
+# (off by default for team orgs); this block only decides where they are
+# served.
+share:
+  # Bare host[:port], no scheme or path — e.g. share.example.com. Rendered as
+  # SHARE_HOST. Must differ from the app's own host (rendering fails
+  # otherwise: maestro would 404 the app there). DNS and TLS for it are
+  # yours; links always use https://.
+  host: ""
+  ingress:
+    # Add a rule routing share.host to the maestro Service on the chart's
+    # Ingress (needs ingress.enabled=true). When ingress.tls is set, one of
+    # its entries must list share.host (or a matching *.parent wildcard).
+    # Leave false when you route the share host yourself (IngressRoute,
+    # Gateway API, a load balancer).
+    enabled: false
+
+# OAuth for MCP clients (claude.ai and Claude Desktop connectors, Claude
+# Code). When enabled, maestro advertises OAuth discovery
+# (/.well-known/oauth-protected-resource, and the 401 challenge that points
+# at it) and mounts an org-less /mcp endpoint that accepts a bearer token
+# from your IdP and picks the caller's org itself. The existing
+# /api/orgs/<org>/mcp endpoint and API-key auth (X-CardinalHQ-API-Key) keep
+# working either way.
+#
+# Off by default, and self-hosted installs should normally leave it off:
+# MCP connectors register themselves with the authorization server through
+# OAuth dynamic client registration (DCR). The bundled Dex (dex.enabled) has
+# no DCR and the chart registers no client for connectors in it, so a flow
+# against it can never complete (rendering fails if you try). Connect MCP clients with an API
+# key instead, unless your IdP supports DCR or you have pre-registered a
+# client for the connector in it (then use that IdP as `issuer`).
+mcpOAuth:
+  # Rendered as MCP_OAUTH_ENABLED. Needs a public base URL (maestro.baseUrl,
+  # ingress.host, or MAESTRO_BASE_URL in maestro.env) and an authorization
+  # server (`issuer` below, or OIDC_ISSUER_URL in maestro.env).
+  enabled: false
+  # Authorization server advertised to MCP clients (MCP_OAUTH_ISSUER). Empty
+  # uses OIDC_ISSUER_URL, the IdP the web app signs in with.
+  issuer: ""
+  # Token `aud` accepted on /mcp only (MCP_OAUTH_AUDIENCE); every other route
+  # keeps requiring OIDC_AUDIENCE. Empty means "<base URL origin>/mcp", the
+  # RFC 8707 resource the discovery document advertises. Set it to what your
+  # IdP actually puts in `aud` for connector tokens (for a pre-registered
+  # client this is often its client id).
+  audience: ""
+  # Serve /.well-known/oauth-authorization-server from maestro, mirrored from
+  # the issuer's /.well-known/openid-configuration, and advertise maestro
+  # itself as the authorization server (MCP_OAUTH_AS_METADATA_PROXY). For
+  # issuers that publish only OIDC discovery at a path MCP clients don't probe
+  # (e.g. Keycloak realms).
+  asMetadataProxy: false
+  # Let a new user who signs in through an MCP connector get a personal
+  # workspace even when self-signup is switched off in the admin settings
+  # (MCP_OAUTH_SELF_SIGNUP). The caller must still have a verified email, and
+  # a user from a managed email domain is still refused (they belong in that
+  # domain's org). Meant for SaaS:
+  # with it on, anyone your IdP lets sign in gets a workspace. Personal
+  # workspaces have daily quotas, tunable with PERSONAL_WORKSPACE_MAX_*
+  # env vars in maestro.env. Requires enabled=true.
+  selfSignup: false
 
 # Service account configuration
 serviceAccount:
