@@ -106,7 +106,7 @@ maestro:
   #   - name: OUTCOMES_SUMMARY_COST_FLOOR_USD     # default: 0.5 — skip sessions
   #     value: "0.5"                             # cheaper than this
   #
-  #   # Automatic private Storyboard projection (Maestro v1.107.0+ for org scope).
+  #   # On-demand private Storyboard visualization (requires a supporting Maestro release).
   #   # Publishing/sharing stay explicit. Owner input is not a dependency.
   #   - name: STORYBOARD_PROJECTION_ENABLED     # default: false
   #     value: "true"
@@ -114,8 +114,9 @@ maestro:
   #     value: ""                              # empty: none; unset: all when enabled
   #   - name: INVESTIGATION_OWNER_INPUT_ENABLED
   #     value: "false"                         # keep off for initial rollout
-  #   # Existing caps: 12 model runs/storyboard/UTC day, 40/org/rolling day,
-  #   # 2 concurrent/process. Default model preference: sonnet; no match pauses.
+  #   # Generate/Update or publishing requests generation; checkpoints alone do not.
+  #   # No daily generation quotas; per-run bounds and 2 concurrent/process remain.
+  #   # Default model preference: sonnet; no match disables generation.
   env: []
   # Installation system key (MAESTRO_MCP_API_KEY): maestro admits it as the
   # system principal, and the mcp-gateway sidecar uses the same value to call
