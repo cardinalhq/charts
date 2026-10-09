@@ -106,17 +106,11 @@ maestro:
   #   - name: OUTCOMES_SUMMARY_COST_FLOOR_USD     # default: 0.5 — skip sessions
   #     value: "0.5"                             # cheaper than this
   #
-  #   # On-demand private Storyboard visualization (requires a supporting Maestro release).
-  #   # Publishing/sharing stay explicit. Owner input is not a dependency.
-  #   - name: STORYBOARD_PROJECTION_ENABLED     # default: false
-  #     value: "true"
-  #   - name: STORYBOARD_PROJECTION_ORG_IDS     # comma-separated org UUIDs
-  #     value: ""                              # empty: none; unset: all when enabled
+  #   # Storyboard visualizations are authored in the agent session after user consent.
+  #   # No STORYBOARD_PROJECTION_* settings are needed; generation is not server-side.
+  #   # Keep STORYBOARD_PROJECTION_ENABLED=false when rolling back to older Maestro.
   #   - name: INVESTIGATION_OWNER_INPUT_ENABLED
-  #     value: "false"                         # keep off for initial rollout
-  #   # Generate/Update or publishing requests generation; checkpoints alone do not.
-  #   # No daily generation quotas; per-run bounds and 2 concurrent/process remain.
-  #   # Default model preference: sonnet; no match disables generation.
+  #     value: "false"                         # optional; independent of visualization
   env: []
   # Installation system key (MAESTRO_MCP_API_KEY): maestro admits it as the
   # system principal, and the mcp-gateway sidecar uses the same value to call
