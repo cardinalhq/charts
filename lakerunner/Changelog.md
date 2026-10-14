@@ -8,7 +8,7 @@
   `process-traces-{ingest,compact}`, each with its own HPA, so every pipeline
   stage is measured and scaled on its own CPU. Each pod runs with
   `LAKERUNNER_PROCESS_ROLE` set and registers only that role's worklane
-  actions. Requires lakerunner v1.93.0 or later; an older image refuses to
+  actions. Requires lakerunner v1.95.0 or later; an older image refuses to
   start without the role.
 * **CHANGED**: worker values move from `processLogs` / `processMetrics` /
   `processTraces` to `process.<signal>` (signal-wide defaults) plus
