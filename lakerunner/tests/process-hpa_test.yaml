@@ -7,10 +7,12 @@ set:
   cloudProvider.aws.region: us-west-2
   license.data: '{"key":"test"}'
 tests:
-  - it: renders one HPA per process-* worker
+  # Document order: logs ingest(0) compact(1); metrics partition(2)
+  # materialize(3) compact(4) rollup(5); traces ingest(6) compact(7).
+  - it: renders one HPA per signal and role
     asserts:
       - hasDocuments:
-          count: 3
+          count: 8
       - isKind:
           of: HorizontalPodAutoscaler
         documentIndex: 0
@@ -20,23 +22,55 @@ tests:
         documentIndex: 0
       - equal:
           path: metadata.name
-          value: RELEASE-NAME-lakerunner-process-logs
+          value: RELEASE-NAME-lakerunner-process-logs-ingest
         documentIndex: 0
       - equal:
           path: metadata.name
-          value: RELEASE-NAME-lakerunner-process-metrics
+          value: RELEASE-NAME-lakerunner-process-logs-compact
         documentIndex: 1
       - equal:
           path: metadata.name
-          value: RELEASE-NAME-lakerunner-process-traces
+          value: RELEASE-NAME-lakerunner-process-metrics-partition
         documentIndex: 2
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-lakerunner-process-metrics-materialize
+        documentIndex: 3
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-lakerunner-process-metrics-compact
+        documentIndex: 4
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-lakerunner-process-metrics-rollup
+        documentIndex: 5
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-lakerunner-process-traces-ingest
+        documentIndex: 6
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-lakerunner-process-traces-compact
+        documentIndex: 7
+      - equal:
+          path: metadata.labels["lakerunner.cardinalhq.io/signal"]
+          value: metrics
+        documentIndex: 3
+      - equal:
+          path: metadata.labels["lakerunner.cardinalhq.io/role"]
+          value: materialize
+        documentIndex: 3
 
-  - it: logs HPA targets the deployment with bounds, cpu target, and behavior
+  - it: each HPA targets its own deployment and container with bounds, cpu target, and behavior
     asserts:
       - equal:
           path: spec.scaleTargetRef.name
-          value: RELEASE-NAME-lakerunner-process-logs
+          value: RELEASE-NAME-lakerunner-process-logs-ingest
         documentIndex: 0
+      - equal:
+          path: spec.scaleTargetRef.name
+          value: RELEASE-NAME-lakerunner-process-metrics-rollup
+        documentIndex: 5
       - equal:
           path: spec.minReplicas
           value: 1
@@ -55,16 +89,16 @@ tests:
         documentIndex: 0
       - equal:
           path: spec.metrics[0].containerResource.container
-          value: process-logs
+          value: process-logs-ingest
         documentIndex: 0
       - equal:
           path: spec.metrics[0].containerResource.container
-          value: process-metrics
-        documentIndex: 1
+          value: process-metrics-materialize
+        documentIndex: 3
       - equal:
           path: spec.metrics[0].containerResource.container
-          value: process-traces
-        documentIndex: 2
+          value: process-traces-compact
+        documentIndex: 7
       - equal:
           path: spec.behavior.scaleDown.stabilizationWindowSeconds
           value: 120
@@ -82,11 +116,11 @@ tests:
           value: 8
         documentIndex: 0
 
-  - it: uses per-service min/max and target overrides
+  - it: signal-level min/max and target apply to every role of that signal
     set:
-      processLogs.autoscaling.minReplicas: 2
-      processLogs.autoscaling.maxReplicas: 25
-      processLogs.autoscaling.targetCPUUtilizationPercentage: 70
+      process.logs.autoscaling.minReplicas: 2
+      process.logs.autoscaling.maxReplicas: 25
+      process.logs.autoscaling.targetCPUUtilizationPercentage: 70
     asserts:
       - equal:
           path: spec.minReplicas
@@ -100,10 +134,97 @@ tests:
           path: spec.metrics[0].containerResource.target.averageUtilization
           value: 70
         documentIndex: 0
+      - equal:
+          path: spec.maxReplicas
+          value: 25
+        documentIndex: 1
+      - equal:
+          path: spec.maxReplicas
+          value: 10
+        documentIndex: 2
 
-  - it: a per-service behavior override replaces the global behavior
+  - it: a role override replaces the signal default for that role only
     set:
-      processLogs.autoscaling.behavior:
+      process.metrics.autoscaling.maxReplicas: 12
+      process.metrics.roles.compact.autoscaling.maxReplicas: 3
+      process.metrics.roles.compact.autoscaling.targetCPUUtilizationPercentage: 60
+    asserts:
+      - equal:
+          path: spec.maxReplicas
+          value: 12
+        documentIndex: 2
+      - equal:
+          path: spec.maxReplicas
+          value: 3
+        documentIndex: 4
+      - equal:
+          path: spec.metrics[0].containerResource.target.averageUtilization
+          value: 60
+        documentIndex: 4
+      - equal:
+          path: spec.metrics[0].containerResource.target.averageUtilization
+          value: 80
+        documentIndex: 5
+
+  - it: a legacy processMetrics block is read as the metrics signal defaults
+    set:
+      processMetrics:
+        autoscaling:
+          minReplicas: 2
+          maxReplicas: 15
+    asserts:
+      - equal:
+          path: spec.minReplicas
+          value: 2
+        documentIndex: 2
+      - equal:
+          path: spec.maxReplicas
+          value: 15
+        documentIndex: 5
+      - equal:
+          path: spec.maxReplicas
+          value: 10
+        documentIndex: 0
+
+  - it: the materialize role's inherited maxReplicas is clamped to process.metrics.partitions
+    set:
+      process.metrics.partitions: 4
+      process.metrics.autoscaling.maxReplicas: 20
+    asserts:
+      - equal:
+          path: spec.maxReplicas
+          value: 20
+        documentIndex: 2
+      - equal:
+          path: spec.maxReplicas
+          value: 4
+        documentIndex: 3
+      - equal:
+          path: spec.maxReplicas
+          value: 20
+        documentIndex: 5
+
+  - it: an explicit materialize maxReplicas above the partition count fails the render
+    set:
+      process.metrics.partitions: 4
+      process.metrics.roles.materialize.autoscaling.maxReplicas: 5
+    asserts:
+      - failedTemplate:
+          errorPattern: "maxReplicas \\(5\\) exceeds process.metrics.partitions \\(4\\)"
+
+  - it: an explicit materialize maxReplicas at or below the partition count renders
+    set:
+      process.metrics.partitions: 4
+      process.metrics.roles.materialize.autoscaling.maxReplicas: 4
+    asserts:
+      - equal:
+          path: spec.maxReplicas
+          value: 4
+        documentIndex: 3
+
+  - it: a per-signal behavior override replaces the global behavior
+    set:
+      process.logs.autoscaling.behavior:
         scaleDown:
           stabilizationWindowSeconds: 600
     asserts:
@@ -127,17 +248,13 @@ tests:
           path: spec.behavior
         documentIndex: 0
 
-  - it: omits the HPA for a disabled worker
+  - it: omits every HPA of a disabled signal
     set:
-      processTraces.enabled: false
+      process.traces.enabled: false
     asserts:
       - hasDocuments:
-          count: 2
+          count: 6
       - equal:
           path: metadata.name
-          value: RELEASE-NAME-lakerunner-process-logs
-        documentIndex: 0
-      - equal:
-          path: metadata.name
-          value: RELEASE-NAME-lakerunner-process-metrics
-        documentIndex: 1
+          value: RELEASE-NAME-lakerunner-process-metrics-rollup
+        documentIndex: 5

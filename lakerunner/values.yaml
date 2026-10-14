@@ -4,13 +4,13 @@
 # Global settings
 global:
   # Autoscaling for the process-* workers. The chart renders one
-  # HorizontalPodAutoscaler per enabled process-* worker (see hpa below); its
-  # min/max come from that service's autoscaling.minReplicas/maxReplicas.
+  # HorizontalPodAutoscaler per process-<signal>-<role> deployment (see hpa
+  # below); its min/max come from process.<signal>.autoscaling, overridable per
+  # role under process.<signal>.roles.<role>.autoscaling.
   autoscaling:
-    # Settings for the HorizontalPodAutoscalers. One HPA is created per enabled
-    # process-* worker. targetCPUUtilizationPercentage and behavior here are the
-    # defaults for all three and can be overridden per-service under
-    # processLogs/processMetrics/processTraces.autoscaling.
+    # Settings for the HorizontalPodAutoscalers. targetCPUUtilizationPercentage
+    # and behavior here are the defaults for every worker and can be overridden
+    # per signal or per role under the same autoscaling blocks.
     hpa:
       # Target average CPU as a percentage of the pod's cpu request.
       targetCPUUtilizationPercentage: 80
@@ -188,7 +188,7 @@ global:
 features:
   # Publish an LKIDX004 C2 text index inside each log .lkrn bundle at
   # ingest, described by the descriptor stored in log_seg.index_run.
-  # Injected as LAKERUNNER_FEATURES_LOG_EMBEDDED_C2_INDEX on process-logs.
+  # Injected as LAKERUNNER_FEATURES_LOG_EMBEDDED_C2_INDEX on the process-logs-* pods.
   #
   # ON by default in this chart version. Turning it on changes what a
   # segment *is*, not just what it costs: newly written segments carry a
@@ -439,132 +439,151 @@ setup:
       username: ""
       sslMode: ""
 
-# Process Logs configuration (handles both ingest and compact for logs)
-processLogs:
-  enabled: true
-  replicas: 1
-  image:
-    repository: ghcr.io/cardinalhq/lakerunner
-    tag: ""
-    pullPolicy: ""
-  resources:
-    requests:
-      cpu: "1"
-      memory: 2Gi
-    limits:
-      cpu: "1"
-      memory: 2Gi
-  temporaryStorage:
-    # Scratch/DuckDB-temp size for this service. Sizes the volume (emptyDir
-    # sizeLimit or ephemeral PVC request). When global.temporaryStorage.type is
-    # "emptyDir", this value is also exported as LAKERUNNER_SCRATCH_DISK_SIZE_BYTES
-    # (in bytes) so the app stays within its node-disk slice; when "ephemeral"
-    # (a real PV) it is left unset and the app uses statfs(). See
-    # global.temporaryStorage above.
-    size: "10Gi"
-  autoscaling:
-    minReplicas: 1
-    maxReplicas: 10
-  healthProbes:
-    enabled: null # null = inherit from global.healthProbes.enabled
-  # Optional in-process agent-sessions sub-processor. When enabled, the
-  # log-ingest hook scans each just-written Parquet bin for claude-code
-  # records and UPSERTs them into the agent_sessions table that powers
-  # the Outcome Observability dashboard. Off by default — turning it
-  # on requires the v1.41.1+ lakerunner image. See
-  # docs/specs/agent-sessions.md in the lakerunner repo for the design.
-  #
-  # Resource cost is small: the tap is one extra DuckDB read per bin
-  # (negligible when no claude-code rows are present, which is the
-  # common case). The consumer goroutine is bounded by lrdb write
-  # throughput, not memory.
-  #
-  # When rulesConfigMap.enabled is false (default), the sweeper falls
-  # back to the "stale-pending → unknown" path — counters/context/
-  # lifecycle still populate; only verdict classification is inactive.
-  agentSessions:
-    enabled: false
-    # Mount a ConfigMap at /etc/lakerunner/agent-sessions-rules.yaml.
-    # The operator owns the rules.yaml content; the chart only wires
-    # the volume.
-    rulesConfigMap:
+# Process workers (lakerunner #1966).
+#
+# Each signal runs as one Deployment per role, named
+# <release>-process-<signal>-<role>, each with its own HorizontalPodAutoscaler
+# (see process-hpa.yaml) so every pipeline stage is measured and scaled on its
+# own CPU. The role table is fixed by the binary (LAKERUNNER_PROCESS_ROLE):
+#
+#   logs:    ingest, compact
+#   metrics: partition (ingest), materialize (claim-driven consolidation,
+#            counter_increase materialization, metric-v2 dateint carry),
+#            compact, rollup (rollup + counter rollups)
+#   traces:  ingest, compact
+#
+# Keys directly under process.<signal> are the signal-wide defaults; keys under
+# process.<signal>.roles.<role> are deep-merged over them for that role only.
+# Any of image, env, resources, temporaryStorage, autoscaling, healthProbes,
+# labels, annotations, nodeSelector, tolerations, affinity, podSecurityContext,
+# containerSecurityContext may be set at either level.
+#
+# Upgrading from a pre-4.0 values file: the old processLogs / processMetrics /
+# processTraces blocks are still read as the signal defaults (and take
+# precedence over process.<signal>), so nothing has to change for the upgrade;
+# move them under process.<signal> and delete the old block when convenient.
+process:
+  logs:
+    enabled: true
+    image:
+      repository: ghcr.io/cardinalhq/lakerunner
+      tag: ""
+      pullPolicy: ""
+    env: []
+    resources:
+      requests:
+        cpu: "1"
+        memory: 2Gi
+      limits:
+        cpu: "1"
+        memory: 2Gi
+    temporaryStorage:
+      # Scratch size for this signal's pods. Sizes the volume (emptyDir sizeLimit
+      # or ephemeral PVC request). When global.temporaryStorage.type is
+      # "emptyDir", this value is also exported as LAKERUNNER_SCRATCH_DISK_SIZE_BYTES
+      # (in bytes) so the app stays within its node-disk slice; when "ephemeral"
+      # (a real PV) it is left unset and the app uses statfs(). See
+      # global.temporaryStorage above.
+      size: "10Gi"
+    autoscaling:
+      minReplicas: 1
+      maxReplicas: 10
+    healthProbes:
+      enabled: null # null = inherit from global.healthProbes.enabled
+    # Optional in-process agent-sessions sub-processor (runs in the ingest
+    # role). When enabled, the log-ingest hook scans each just-written bundle
+    # for claude-code records and UPSERTs them into the agent_sessions table
+    # that powers the Outcome Observability dashboard. Off by default. See
+    # kb/specs/agent-analytics in the lakerunner repo for the design.
+    #
+    # When rulesConfigMap.enabled is false (default), the sweeper falls
+    # back to the "stale-pending → unknown" path — counters/context/
+    # lifecycle still populate; only verdict classification is inactive.
+    agentSessions:
       enabled: false
-      # Defaults to "<release>-agent-sessions-rules" if empty.
-      name: ""
-  labels: {}
-  annotations: {}
-  nodeSelector: {}
-  tolerations: []
-  affinity: {}
+      # Mount a ConfigMap at /etc/lakerunner/agent-sessions-rules.yaml.
+      # The operator owns the rules.yaml content; the chart only wires
+      # the volume.
+      rulesConfigMap:
+        enabled: false
+        # Defaults to "<release>-agent-sessions-rules" if empty.
+        name: ""
+    labels: {}
+    annotations: {}
+    nodeSelector: {}
+    tolerations: []
+    affinity: {}
+    roles:
+      ingest: {}
+      compact: {}
 
-# Process Metrics configuration (handles ingest, compact, and rollup for metrics)
-processMetrics:
-  enabled: true
-  replicas: 1
-  image:
-    repository: ghcr.io/cardinalhq/lakerunner
-    tag: ""
-    pullPolicy: ""
-  resources:
-    requests:
-      cpu: "1"
-      memory: 2Gi
-    limits:
-      cpu: "1"
-      memory: 2Gi
-  temporaryStorage:
-    # Scratch/DuckDB-temp size for this service. Sizes the volume (emptyDir
-    # sizeLimit or ephemeral PVC request). When global.temporaryStorage.type is
-    # "emptyDir", this value is also exported as LAKERUNNER_SCRATCH_DISK_SIZE_BYTES
-    # (in bytes) so the app stays within its node-disk slice; when "ephemeral"
-    # (a real PV) it is left unset and the app uses statfs(). See
-    # global.temporaryStorage above.
-    size: "10Gi"
-  autoscaling:
-    minReplicas: 1
-    maxReplicas: 10
-  healthProbes:
-    enabled: null # null = inherit from global.healthProbes.enabled
-  labels: {}
-  annotations: {}
-  nodeSelector: {}
-  tolerations: []
-  affinity: {}
+  metrics:
+    enabled: true
+    # Number of ingest partitions. Not read by the binary until pre-ingest
+    # partitioning lands; it already bounds the materialize role, which will
+    # own one partition per replica: an inherited maxReplicas above this is
+    # clamped to it, and roles.materialize.autoscaling.maxReplicas set above
+    # it fails the render.
+    partitions: 16
+    image:
+      repository: ghcr.io/cardinalhq/lakerunner
+      tag: ""
+      pullPolicy: ""
+    env: []
+    resources:
+      requests:
+        cpu: "1"
+        memory: 2Gi
+      limits:
+        cpu: "1"
+        memory: 2Gi
+    temporaryStorage:
+      size: "10Gi"
+    autoscaling:
+      minReplicas: 1
+      maxReplicas: 10
+    healthProbes:
+      enabled: null # null = inherit from global.healthProbes.enabled
+    labels: {}
+    annotations: {}
+    nodeSelector: {}
+    tolerations: []
+    affinity: {}
+    roles:
+      partition: {}
+      materialize: {}
+      compact: {}
+      rollup: {}
 
-# Process Traces configuration (handles both ingest and compact for traces)
-processTraces:
-  enabled: true
-  replicas: 1
-  image:
-    repository: ghcr.io/cardinalhq/lakerunner
-    tag: ""
-    pullPolicy: ""
-  resources:
-    requests:
-      cpu: "1"
-      memory: 2Gi
-    limits:
-      cpu: "1"
-      memory: 2Gi
-  temporaryStorage:
-    # Scratch/DuckDB-temp size for this service. Sizes the volume (emptyDir
-    # sizeLimit or ephemeral PVC request). When global.temporaryStorage.type is
-    # "emptyDir", this value is also exported as LAKERUNNER_SCRATCH_DISK_SIZE_BYTES
-    # (in bytes) so the app stays within its node-disk slice; when "ephemeral"
-    # (a real PV) it is left unset and the app uses statfs(). See
-    # global.temporaryStorage above.
-    size: "10Gi"
-  autoscaling:
-    minReplicas: 1
-    maxReplicas: 10
-  healthProbes:
-    enabled: null # null = inherit from global.healthProbes.enabled
-  labels: {}
-  annotations: {}
-  nodeSelector: {}
-  tolerations: []
-  affinity: {}
-
+  traces:
+    enabled: true
+    image:
+      repository: ghcr.io/cardinalhq/lakerunner
+      tag: ""
+      pullPolicy: ""
+    env: []
+    resources:
+      requests:
+        cpu: "1"
+        memory: 2Gi
+      limits:
+        cpu: "1"
+        memory: 2Gi
+    temporaryStorage:
+      size: "10Gi"
+    autoscaling:
+      minReplicas: 1
+      maxReplicas: 10
+    healthProbes:
+      enabled: null # null = inherit from global.healthProbes.enabled
+    labels: {}
+    annotations: {}
+    nodeSelector: {}
+    tolerations: []
+    affinity: {}
+    roles:
+      ingest: {}
+      compact: {}
 
 # Control-plane configuration.
 #

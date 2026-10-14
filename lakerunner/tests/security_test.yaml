@@ -210,7 +210,7 @@ tests:
     set:
       serviceAccount.create: true
       serviceAccount.name: "custom-sa"
-      processLogs.enabled: true
+      process.logs.enabled: true
     templates:
       - process-logs-deployment.yaml
     asserts:

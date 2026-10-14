@@ -150,9 +150,9 @@ tests:
 
   - it: should render all processing components when enabled
     set:
-      processLogs.enabled: true
-      processMetrics.enabled: true
-      processTraces.enabled: true
+      process.logs.enabled: true
+      process.metrics.enabled: true
+      process.traces.enabled: true
     templates:
       - process-logs-deployment.yaml
       - process-metrics-deployment.yaml

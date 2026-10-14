@@ -65,7 +65,7 @@ tests:
   - it: should allow service-level health probe override to enabled
     set:
       global.healthProbes.enabled: false
-      processLogs.healthProbes.enabled: true
+      process.logs.healthProbes.enabled: true
     templates:
       - process-logs-deployment.yaml
     asserts:
@@ -79,7 +79,7 @@ tests:
   - it: should allow service-level health probe override to disabled
     set:
       global.healthProbes.enabled: true
-      processLogs.healthProbes.enabled: false
+      process.logs.healthProbes.enabled: false
     templates:
       - process-logs-deployment.yaml
     asserts:

@@ -23,10 +23,10 @@ template:  ## Test template rendering with various configurations
 	@helm template $(TEST_RELEASE_NAME) . --set aws.region=us-west-2 --set-string license.data=test --set queryApi.enabled=false --set grafana.enabled=false --dry-run > /dev/null 2>&1
 	@helm template $(TEST_RELEASE_NAME) . --set aws.region=us-west-2 --set-string license.data=test --set grafana.cardinalPlugin.url="https://internal.example.com/plugin.zip;cardinalhq-lakerunner-datasource" --dry-run > /dev/null 2>&1
 	@helm template $(TEST_RELEASE_NAME) . --set aws.region=us-west-2 --set-string license.data=test --set grafana.additionalPlugins="grafana-clock-panel" --dry-run > /dev/null 2>&1
-	@helm template $(TEST_RELEASE_NAME) . --set aws.region=us-west-2 --set-string license.data=test --set queryApi.replicas=3 --set processLogs.replicas=5 --dry-run > /dev/null 2>&1
+	@helm template $(TEST_RELEASE_NAME) . --set aws.region=us-west-2 --set-string license.data=test --set queryApi.replicas=3 --set process.logs.replicas=5 --dry-run > /dev/null 2>&1
 	@helm template $(TEST_RELEASE_NAME) . --set aws.region=us-west-2 --set-string license.data=test --set database.lrdb.host=postgres.example.com --dry-run > /dev/null 2>&1
 	@helm template $(TEST_RELEASE_NAME) . --set aws.region=us-west-2 --set-string license.data=test --set global.autoscaling.hpa.targetCPUUtilizationPercentage=70 --dry-run > /dev/null 2>&1
-	@helm template $(TEST_RELEASE_NAME) . --set aws.region=us-west-2 --set-string license.data=test --set processLogs.autoscaling.minReplicas=0 --set processLogs.autoscaling.maxReplicas=0 --dry-run > /dev/null 2>&1
+	@helm template $(TEST_RELEASE_NAME) . --set aws.region=us-west-2 --set-string license.data=test --set process.logs.autoscaling.minReplicas=0 --set process.logs.autoscaling.maxReplicas=0 --dry-run > /dev/null 2>&1
 
 unittest:  ## Run helm unittest tests
 	@echo "Running unit tests..."

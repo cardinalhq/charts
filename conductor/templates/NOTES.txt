@@ -3,8 +3,9 @@
 {{- $mReplicas := include "maestro.replicas" (dict "root" . "explicit" .Values.maestro.replicas) -}}
 {{- $gReplicas := include "maestro.replicas" (dict "root" . "explicit" .Values.mcpGateway.replicas) -}}
 conductor — the unified CardinalHQ chart — is installed. It deploys BOTH:
-  - lakerunner: the log/metrics/trace pipeline (process-logs/metrics/traces,
-    query-api, query-worker, control-plane, pubsub ingest, setup job)
+  - lakerunner: the log/metrics/trace pipeline (one process-<signal>-<role>
+    worker per pipeline stage, query-api, query-worker, control-plane, pubsub
+    ingest, setup job)
   - maestro: the UI + mcp-gateway + (optional) Dex OIDC, with github-cache in HA
 
 Mode:               {{ if $ha }}HA{{ else }}POC{{ end }}
