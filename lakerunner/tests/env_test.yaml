@@ -295,7 +295,7 @@ tests:
           path: spec.template.spec.containers[0].env
           content:
             name: OTEL_SERVICE_NAME
-            value: RELEASE-NAME-lakerunner-process-logs-ingest
+            value: RELEASE-NAME-lakerunner-logs-ingest
       - template: query-api-deployment.yaml
         contains:
           path: spec.template.spec.containers[0].env

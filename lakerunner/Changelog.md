@@ -1,5 +1,13 @@
 # Changelog
 
+## 4.1.0
+
+* **CHANGED**: the worker Deployments, HPAs, and containers drop the `process-`
+  prefix: `<release>-logs-ingest`, `<release>-metrics-materialize`, etc., with
+  container `logs-ingest` (the 4.0.0 names put pod names at the 63-character
+  cap). Patches and dashboards keyed on `<release>-process-<signal>-<role>`
+  from 4.0.0 need the same rename. Values keys are unchanged.
+
 ## 4.0.0
 
 * **CHANGED**: the process-* workers are now one Deployment per signal **and

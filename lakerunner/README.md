@@ -244,7 +244,7 @@ The following table summarizes the default resource requirements for each LakeRu
 | grafana | 200m | 256Mi | - |
 
 **Process workers** (`process.<signal>`): each signal runs one Deployment per
-role, `<release>-process-<signal>-<role>`, each with its own HPA. Roles are
+role, `<release>-<signal>-<role>`, each with its own HPA. Roles are
 `ingest`/`compact` for logs and traces and
 `partition`/`materialize`/`compact`/`rollup` for metrics. Set signal-wide
 defaults under `process.<signal>` and per-role overrides under
