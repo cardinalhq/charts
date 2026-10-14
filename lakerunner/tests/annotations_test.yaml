@@ -83,7 +83,7 @@ tests:
 
   - it: should apply per-component annotations when supported
     set:
-      processLogs.annotations:
+      process.logs.annotations:
         component-specific: "logs-processor"
         prometheus.io/port: "8080"
       global.annotations:
@@ -104,7 +104,7 @@ tests:
 
   - it: should prioritize component annotations over global annotations
     set:
-      processLogs.annotations:
+      process.logs.annotations:
         prometheus.io/scrape: "false"
       global.annotations:
         prometheus.io/scrape: "true"
@@ -117,7 +117,7 @@ tests:
 
   - it: should handle mixed global and component annotations
     set:
-      processLogs.annotations:
+      process.logs.annotations:
         app.kubernetes.io/component-config: "custom-config"
         fluentd.log-level: "debug"
       global.annotations:

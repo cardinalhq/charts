@@ -25,7 +25,7 @@ tests:
 
   - it: should not set replicas on autoscaled worker deployments
     set:
-      processLogs.enabled: true
+      process.logs.enabled: true
     templates:
       - process-logs-deployment.yaml
     asserts:
@@ -34,7 +34,7 @@ tests:
 
   - it: should not set replicas for process metrics
     set:
-      processMetrics.enabled: true
+      process.metrics.enabled: true
     templates:
       - process-metrics-deployment.yaml
     asserts:
@@ -43,7 +43,7 @@ tests:
 
   - it: should not set replicas for process traces
     set:
-      processTraces.enabled: true
+      process.traces.enabled: true
     templates:
       - process-traces-deployment.yaml
     asserts:

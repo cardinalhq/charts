@@ -1,5 +1,34 @@
 # Changelog
 
+## 4.0.0
+
+* **CHANGED**: the process-* workers are now one Deployment per signal **and
+  role** (lakerunner #1966): `process-logs-{ingest,compact}`,
+  `process-metrics-{partition,materialize,compact,rollup}`,
+  `process-traces-{ingest,compact}`, each with its own HPA, so every pipeline
+  stage is measured and scaled on its own CPU. Each pod runs with
+  `LAKERUNNER_PROCESS_ROLE` set and registers only that role's worklane
+  actions. Requires lakerunner v1.93.0 or later; an older image refuses to
+  start without the role.
+* **CHANGED**: worker values move from `processLogs` / `processMetrics` /
+  `processTraces` to `process.<signal>` (signal-wide defaults) plus
+  `process.<signal>.roles.<role>` (per-role overrides, deep-merged). The old
+  blocks are still read as the signal defaults and take precedence over
+  `process.<signal>`, so a 3.x values file upgrades with only the chart bump
+  and renders each role exactly as the combined pod was rendered; move the
+  settings and delete the old block when convenient.
+* **NEW**: `process.metrics.partitions` (default 16). Not read by the binary
+  until pre-ingest partitioning lands; it already bounds the materialize role:
+  an inherited `autoscaling.maxReplicas` above it is clamped, and
+  `roles.materialize.autoscaling.maxReplicas` set above it fails the render.
+* **CHANGED**: Deployment and HPA names and the container name carry the role
+  (`<release>-process-<signal>-<role>`). Kustomize patches or dashboards keyed
+  on the old `<release>-process-<signal>` names need updating; the pods also
+  carry `lakerunner.cardinalhq.io/signal` and `lakerunner.cardinalhq.io/role`
+  labels.
+* **REMOVED**: the per-signal `replicas` key (it was never rendered; the HPA
+  owns replicas).
+
 ## 3.16.22
 
 * **REMOVED**: the Perch operator. Deleted the `perch` deployment, configmap,

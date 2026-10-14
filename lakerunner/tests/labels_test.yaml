@@ -93,7 +93,7 @@ tests:
 
   - it: should apply per-component labels when supported
     set:
-      processLogs.labels:
+      process.logs.labels:
         component-specific: "logs-processor"
         workload-type: "batch"
       global.labels:
@@ -114,7 +114,7 @@ tests:
 
   - it: should prioritize component labels over global labels
     set:
-      processLogs.labels:
+      process.logs.labels:
         environment: "component-override"
       global.labels:
         environment: "global-value"

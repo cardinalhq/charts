@@ -1,44 +1,48 @@
 {{- /*
-HorizontalPodAutoscalers for the process-* workers. Bounds come from each
-service's autoscaling.minReplicas/maxReplicas; the CPU target and behavior
-default from global.autoscaling.hpa and may be overridden per-service.
+HorizontalPodAutoscalers for the process-* workers: one per signal and role,
+matching the Deployments in _process-worker.tpl. Bounds come from the role's
+effective autoscaling.minReplicas/maxReplicas (signal defaults with role
+overrides); the CPU target and behavior default from global.autoscaling.hpa.
+The metrics materialize role's max is bounded by process.metrics.partitions.
 
 The process-* Deployment templates intentionally omit spec.replicas, so an HPA
 owns the replica count without fighting the rendered manifest.
 */ -}}
 {{- $root := . }}
 {{- $hpa := .Values.global.autoscaling.hpa | default dict }}
-{{- $services := list
-    (dict "component" "process-logs" "values" .Values.processLogs)
-    (dict "component" "process-metrics" "values" .Values.processMetrics)
-    (dict "component" "process-traces" "values" .Values.processTraces) }}
-{{- range $svc := $services }}
-{{- if $svc.values.enabled }}
-{{- $as := $svc.values.autoscaling | default dict }}
+{{- range $signal := list "logs" "metrics" "traces" }}
+{{- $sig := include "lakerunner.processSignalValues" (list $root $signal) | fromYaml }}
+{{- if $sig.enabled }}
+{{- range $role := include "lakerunner.processRoles" $signal | fromJsonArray }}
+{{- $v := include "lakerunner.processRoleValues" (list $root $signal $role) | fromYaml }}
+{{- $component := printf "process-%s-%s" $signal $role }}
+{{- $as := $v.autoscaling | default dict }}
 {{- $target := $as.targetCPUUtilizationPercentage | default $hpa.targetCPUUtilizationPercentage | default 85 }}
 {{- $behavior := $as.behavior | default $hpa.behavior }}
 ---
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
-  name: {{ include "lakerunner.fullname" $root }}-{{ $svc.component }}
+  name: {{ include "lakerunner.fullname" $root }}-{{ $component }}
   labels:
-    {{- include "lakerunner.labelsWithComponent" (list $root $svc.values.labels) | nindent 4 }}
-    app.kubernetes.io/component: {{ $svc.component }}
+    {{- include "lakerunner.labelsWithComponent" (list $root $v.labels) | nindent 4 }}
+    app.kubernetes.io/component: {{ $component }}
+    lakerunner.cardinalhq.io/signal: {{ $signal }}
+    lakerunner.cardinalhq.io/role: {{ $role }}
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
-    name: {{ include "lakerunner.fullname" $root }}-{{ $svc.component }}
+    name: {{ include "lakerunner.fullname" $root }}-{{ $component }}
   minReplicas: {{ $as.minReplicas | default 1 }}
-  maxReplicas: {{ $as.maxReplicas | default 1 }}
+  maxReplicas: {{ include "lakerunner.processMaxReplicas" (list $root $signal $role $v) }}
   metrics:
     # ContainerResource scopes scaling to our own container so an injected
     # sidecar (e.g. istio) does not skew the utilization calculation.
     - type: ContainerResource
       containerResource:
         name: cpu
-        container: {{ $svc.component }}
+        container: {{ $component }}
         target:
           type: Utilization
           averageUtilization: {{ $target }}
@@ -46,5 +50,6 @@ spec:
   behavior:
     {{- toYaml . | nindent 4 }}
   {{- end }}
+{{- end }}
 {{- end }}
 {{- end }}

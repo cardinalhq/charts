@@ -264,7 +264,7 @@ Takes two args:
   0: the root chart context (so we can call commonEnv with it)
   1: the component's values block (must have .env as a list)
 Usage:
-  {{ include "lakerunner.injectEnvDuckdb" (list . .Values.processLogs) | nindent 10 }}
+  {{ include "lakerunner.injectEnvDuckdb" (list . $roleValues) | nindent 10 }}
 */}}
 {{- define "lakerunner.injectEnvDuckdb" -}}
 {{- $root := index . 0 -}}

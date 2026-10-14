@@ -137,7 +137,7 @@ tests:
 
   - it: should render component-specific env variables
     set:
-      processLogs.env:
+      process.logs.env:
         - name: COMPONENT_SPECIFIC_VAR
           value: "logs-component"
         - name: LOG_BUFFER_SIZE
@@ -196,7 +196,7 @@ tests:
           value: "global-value"
         - name: SHARED_VAR
           value: "global-shared"
-      processLogs.env:
+      process.logs.env:
         - name: COMPONENT_VAR
           value: "component-value"
         - name: SHARED_VAR
@@ -224,7 +224,7 @@ tests:
     set:
       global.env: []
       database.lrdb.host: "postgresql.default.svc.cluster.local"
-      processMetrics.env:
+      process.metrics.env:
         - name: ONLY_COMPONENT_VAR
           value: "only-component"
     templates:
@@ -245,7 +245,7 @@ tests:
     set:
       global.env: null
       database.lrdb.host: "postgresql.default.svc.cluster.local"
-      processMetrics.env:
+      process.metrics.env:
         - name: METRICS_VAR
           value: "metrics-value"
     templates:
@@ -290,11 +290,12 @@ tests:
       - setup-job.yaml
     asserts:
       - template: process-logs-deployment.yaml
+        documentIndex: 0
         contains:
           path: spec.template.spec.containers[0].env
           content:
             name: OTEL_SERVICE_NAME
-            value: RELEASE-NAME-lakerunner-process-logs
+            value: RELEASE-NAME-lakerunner-process-logs-ingest
       - template: query-api-deployment.yaml
         contains:
           path: spec.template.spec.containers[0].env
