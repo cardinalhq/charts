@@ -15,7 +15,7 @@ owns the replica count without fighting the rendered manifest.
 {{- if $sig.enabled }}
 {{- range $role := include "lakerunner.processRoles" $signal | fromJsonArray }}
 {{- $v := include "lakerunner.processRoleValues" (list $root $signal $role) | fromYaml }}
-{{- $component := printf "process-%s-%s" $signal $role }}
+{{- $component := printf "%s-%s" $signal $role }}
 {{- $as := $v.autoscaling | default dict }}
 {{- $target := $as.targetCPUUtilizationPercentage | default $hpa.targetCPUUtilizationPercentage | default 85 }}
 {{- $behavior := $as.behavior | default $hpa.behavior }}

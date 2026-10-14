@@ -2,7 +2,7 @@
 Expand the name of the chart.
 */}}
 {{- define "lakerunner.name" -}}
-{{- default "lakerunner" .Values.nameOverride | trunc 63 | trimSuffix "-" }}
+{{- default "lr" .Values.nameOverride | trunc 63 | trimSuffix "-" }}
 {{- end }}
 
 {{/*
@@ -26,7 +26,7 @@ If release name contains chart name it will be used as a full name.
 {{- if .Values.fullnameOverride }}
 {{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" }}
 {{- else }}
-{{- $name := default "lakerunner" .Values.nameOverride }}
+{{- $name := default "lr" .Values.nameOverride }}
 {{- if contains $name .Release.Name }}
 {{- .Release.Name | trunc 63 | trimSuffix "-" }}
 {{- else }}
@@ -1201,10 +1201,10 @@ so the Jobs mount it directly.
 
 {{/* In-cluster admin-api / query-api base URLs (release-scoped service names). */}}
 {{- define "conductor.adminApiUrl" -}}
-{{- printf "http://%s-lakerunner-admin-api:9091" .Release.Name -}}
+{{- printf "http://%s-admin-api:9091" (include "lakerunner.fullname" .) -}}
 {{- end }}
 {{- define "conductor.queryApiUrl" -}}
-{{- printf "http://%s-lakerunner-query-api:8080" .Release.Name -}}
+{{- printf "http://%s-query-api:8080" (include "lakerunner.fullname" .) -}}
 {{- end }}
 
 {{/*

@@ -1,6 +1,6 @@
 {{/*
 process-* workers: one Deployment (and one HPA, see process-hpa.yaml) per
-signal and role. The role table is fixed by the lakerunner binary
+signal and role, named <release>-<signal>-<role> (the "process" is implied). The role table is fixed by the lakerunner binary
 (LAKERUNNER_PROCESS_ROLE; kb/specs/work-orchestration/worker-split.md in the
 lakerunner repo): a pod registers only its role's worklane actions, so every
 action of a signal is owned by exactly one deployment and each stage scales on
@@ -106,7 +106,7 @@ Usage: {{ include "lakerunner.processWorker" (dict "root" . "signal" "logs" "rol
 {{- $signal := .signal -}}
 {{- $role := .role -}}
 {{- $v := include "lakerunner.processRoleValues" (list $root $signal $role) | fromYaml -}}
-{{- $component := printf "process-%s-%s" $signal $role -}}
+{{- $component := printf "%s-%s" $signal $role -}}
 {{- $name := printf "%s-%s" (include "lakerunner.fullname" $root) $component -}}
 {{- $image := $v.image | default dict -}}
 {{- $agentSessions := dict -}}

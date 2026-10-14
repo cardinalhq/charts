@@ -6,7 +6,7 @@
 # Global settings
 global:
   # Settings for the HorizontalPodAutoscalers. One HPA is created per
-  # process-<signal>-<role> deployment (see lakerunner/process-hpa.yaml); its
+  # <signal>-<role> worker deployment (see lakerunner/process-hpa.yaml); its
   # min/max come from process.<signal>.autoscaling, overridable per role under
   # process.<signal>.roles.<role>.autoscaling.
   autoscaling:
@@ -448,7 +448,7 @@ setup:
 # Process workers (lakerunner #1966).
 #
 # Each signal runs as one Deployment per role, named
-# <release>-process-<signal>-<role>, each with its own HorizontalPodAutoscaler
+# <release>-<signal>-<role>, each with its own HorizontalPodAutoscaler
 # (see process-hpa.yaml) so every pipeline stage is measured and scaled on its
 # own CPU. The role table is fixed by the binary (LAKERUNNER_PROCESS_ROLE):
 #
