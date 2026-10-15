@@ -249,7 +249,9 @@ role, `<release>-<signal>-<role>`, each with its own HPA. Roles are
 `partition`/`materialize`/`compact`/`rollup` for metrics. Set signal-wide
 defaults under `process.<signal>` and per-role overrides under
 `process.<signal>.roles.<role>`; `process.metrics.partitions` bounds the
-materialize role's `maxReplicas`. See the comments in `values.yaml`.
+materialize role's `maxReplicas` and must equal the active partition
+layout's count (the binary checks it at startup). See the comments in
+`values.yaml`.
 
 **Notes:**
 

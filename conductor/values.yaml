@@ -525,11 +525,13 @@ process:
 
   metrics:
     enabled: true
-    # Number of ingest partitions. Not read by the binary until pre-ingest
-    # partitioning lands; it already bounds the materialize role, which will
-    # own one partition per replica: an inherited maxReplicas above this is
-    # clamped to it, and roles.materialize.autoscaling.maxReplicas set above
-    # it fails the render.
+    # Number of pre-ingest partitions. Must equal the partition count of the
+    # active metric_partition_layout row (16 as seeded); the value is handed
+    # to the materialize role as LAKERUNNER_METRIC_PARTITIONS and a pod whose
+    # value disagrees with the layout refuses to start. It also bounds the
+    # materialize role, which owns at most one partition per replica: an
+    # inherited maxReplicas above this is clamped to it, and
+    # roles.materialize.autoscaling.maxReplicas set above it fails the render.
     partitions: 16
     image:
       repository: public.ecr.aws/cardinalhq.io/lakerunner # ecr-public default; ghcr.io/cardinalhq/lakerunner is a supported alternate

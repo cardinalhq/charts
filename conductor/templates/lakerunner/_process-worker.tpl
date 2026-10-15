@@ -112,6 +112,11 @@ Usage: {{ include "lakerunner.processWorker" (dict "root" . "signal" "logs" "rol
 {{- $agentSessions := dict -}}
 {{- if and (eq $signal "logs") $v.agentSessions -}}{{- $agentSessions = $v.agentSessions -}}{{- end -}}
 {{- $rulesCM := and $agentSessions.enabled $agentSessions.rulesConfigMap $agentSessions.rulesConfigMap.enabled -}}
+{{- $partitions := 0 -}}
+{{- if and (eq $signal "metrics") (eq $role "materialize") -}}
+  {{- $sig := include "lakerunner.processSignalValues" (list $root $signal) | fromYaml -}}
+  {{- $partitions = $sig.partitions | default 0 | int -}}
+{{- end -}}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -170,6 +175,12 @@ spec:
             value: {{ $name }}
           - name: LAKERUNNER_PROCESS_ROLE
             value: {{ $role | quote }}
+          {{- if gt $partitions 0 }}
+          # The partition count the materialize HPA is clamped to; the binary
+          # refuses to start when it disagrees with the active layout.
+          - name: LAKERUNNER_METRIC_PARTITIONS
+            value: {{ $partitions | quote }}
+          {{- end }}
           {{- include "lakerunner.scratchEnv" $root | nindent 10 }}
           {{- if $agentSessions.enabled }}
           # Enable the in-process agent-sessions sub-processor (taps
