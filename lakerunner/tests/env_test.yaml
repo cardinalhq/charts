@@ -415,3 +415,39 @@ tests:
           content:
             name: CONFIGDB_HOST
             value: "pgbouncer-config.default.svc.cluster.local"
+
+  - it: hands the partition count to the metrics materialize role only
+    templates:
+      - process-metrics-deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: LAKERUNNER_METRIC_PARTITIONS
+            value: "16"
+        documentIndex: 1
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: LAKERUNNER_METRIC_PARTITIONS
+            value: "16"
+        documentIndex: 0
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: LAKERUNNER_METRIC_PARTITIONS
+            value: "16"
+        documentIndex: 2
+
+  - it: hands a changed partition count to the materialize role
+    set:
+      process.metrics.partitions: 32
+    templates:
+      - process-metrics-deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: LAKERUNNER_METRIC_PARTITIONS
+            value: "32"
+        documentIndex: 1

@@ -1,5 +1,13 @@
 # Changelog
 
+## 4.1.1
+
+* **CHANGED**: `process.metrics.partitions` is now handed to the metrics
+  materialize role as `LAKERUNNER_METRIC_PARTITIONS`. lakerunner v1.96.0 and
+  later checks it against the active partition layout at startup and refuses
+  to run on a mismatch (lakerunner #1974); older images ignore it. The value
+  must equal the layout's partition count (16 as seeded).
+
 ## 4.1.0
 
 * **CHANGED**: the worker Deployments, HPAs, and containers drop the `process-`
