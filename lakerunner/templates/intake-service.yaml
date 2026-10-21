@@ -1,0 +1,33 @@
+{{- if .Values.intake.enabled -}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "lakerunner.fullname" . }}-intake
+  labels:
+    {{- include "lakerunner.labels" . | nindent 4 }}
+    app.kubernetes.io/component: intake
+  {{- if .Values.intake.service.annotations }}
+  annotations:
+    {{- toYaml .Values.intake.service.annotations | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ .Values.intake.service.type }}
+  {{- if and (eq .Values.intake.service.type "LoadBalancer") .Values.intake.service.loadBalancerIP }}
+  loadBalancerIP: {{ .Values.intake.service.loadBalancerIP }}
+  {{- end }}
+  {{- if and (eq .Values.intake.service.type "LoadBalancer") .Values.intake.service.loadBalancerSourceRanges }}
+  loadBalancerSourceRanges:
+    {{- toYaml .Values.intake.service.loadBalancerSourceRanges | nindent 4 }}
+  {{- end }}
+  ports:
+    - port: {{ .Values.intake.service.port }}
+      targetPort: http
+      protocol: TCP
+      name: http
+      {{- if and (eq .Values.intake.service.type "NodePort") .Values.intake.service.nodePort }}
+      nodePort: {{ .Values.intake.service.nodePort }}
+      {{- end }}
+  selector:
+    {{- include "lakerunner.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: intake
+{{- end }}

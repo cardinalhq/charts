@@ -771,6 +771,46 @@ pubsub:
     affinity: {}
     env: []
 
+# HTTP intake (`lakerunner intake serve`, lakerunner v1.98.0+): receives
+# telemetry pushed by external senders — today Amazon Data Firehose HTTP
+# endpoint delivery of CloudWatch Metric Streams JSON — authenticates each
+# request with an organization API key, and writes the payload unchanged to
+# otel-raw/<org>/<collectorName>/ in the org's default bucket, where the
+# pubsub receiver picks it up. The chart creates only the Service; expose it
+# with your own Ingress/IngressRoute and TLS (Firehose requires HTTPS).
+intake:
+  enabled: false
+  replicas: 2
+  # The <collector> path segment the intake writes under. Server-side only:
+  # senders can never choose it.
+  collectorName: "intake"
+  firehose:
+    # Format assumed when a Firehose stream does not declare one in its
+    # cardinalhq.format common attribute. Empty = the binary's default
+    # (cwmetrics).
+    defaultFormat: ""
+  service:
+    type: ClusterIP
+    port: 8080
+    annotations: {}
+    nodePort: null
+    loadBalancerIP: ""
+    loadBalancerSourceRanges: []
+  image:
+    repository: ghcr.io/cardinalhq/lakerunner
+    tag: ""
+    pullPolicy: ""
+  resources:
+    requests:
+      cpu: 100m
+      memory: 512Mi
+    limits:
+      memory: 512Mi
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  env: []
+
 # Query API configuration
 queryApi:
   enabled: true

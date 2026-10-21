@@ -1,0 +1,77 @@
+suite: intake
+templates:
+  - intake-deployment.yaml
+  - intake-service.yaml
+tests:
+  - it: renders nothing by default
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: runs intake serve with the configured collector name
+    set:
+      intake.enabled: true
+      intake.collectorName: firehose
+    template: intake-deployment.yaml
+    asserts:
+      - isKind:
+          of: Deployment
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-lakerunner-intake
+      - equal:
+          path: spec.template.spec.containers[0].args
+          value: ["intake", "serve"]
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: LAKERUNNER_INTAKE_COLLECTOR_NAME
+            value: firehose
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: LAKERUNNER_INTAKE_LISTEN_ADDR
+            value: ":8080"
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: LAKERUNNER_INTAKE_FIREHOSE_DEFAULT_FORMAT
+          any: true
+
+  - it: sets the Firehose default format only when given
+    set:
+      intake.enabled: true
+      intake.firehose.defaultFormat: cwmetrics
+    template: intake-deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: LAKERUNNER_INTAKE_FIREHOSE_DEFAULT_FORMAT
+            value: cwmetrics
+
+  - it: refuses an empty collector name
+    set:
+      intake.enabled: true
+      intake.collectorName: ""
+    template: intake-deployment.yaml
+    asserts:
+      - failedTemplate:
+          errorMessage: intake.collectorName is required when intake.enabled is true
+
+  - it: exposes port 8080 to the intake pods
+    set:
+      intake.enabled: true
+    template: intake-service.yaml
+    asserts:
+      - isKind:
+          of: Service
+      - equal:
+          path: spec.ports[0].port
+          value: 8080
+      - equal:
+          path: spec.ports[0].targetPort
+          value: http
+      - equal:
+          path: spec.selector["app.kubernetes.io/component"]
+          value: intake
