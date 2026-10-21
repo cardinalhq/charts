@@ -1,5 +1,15 @@
 # Changelog
 
+## 4.2.0
+
+* **NEW**: `intake` — the HTTP intake (`lakerunner intake serve`), off by
+  default. It receives Amazon Data Firehose HTTP endpoint deliveries of
+  CloudWatch Metric Streams JSON, authenticates each request with an
+  organization API key, and writes the payload unchanged under
+  `otel-raw/<org>/<intake.collectorName>/` for the pubsub receiver to ingest.
+  Requires lakerunner v1.98.0 or later. The chart renders a Deployment and a
+  ClusterIP Service on port 8080; ingress and TLS are left to the installer.
+
 ## 4.1.1
 
 * **CHANGED**: `process.metrics.partitions` is now handed to the metrics

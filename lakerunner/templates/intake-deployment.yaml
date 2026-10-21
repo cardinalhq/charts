@@ -1,0 +1,89 @@
+{{- if .Values.intake.enabled -}}
+{{- if not .Values.intake.collectorName -}}
+{{- fail "intake.collectorName is required when intake.enabled is true" -}}
+{{- end -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "lakerunner.fullname" . }}-intake
+  labels:
+    {{- include "lakerunner.labels" . | nindent 4 }}
+    app.kubernetes.io/component: intake
+  {{ include "lakerunner.annotations" . | nindent 2 }}
+spec:
+  replicas: {{ .Values.intake.replicas }}
+  selector:
+    matchLabels:
+      {{- include "lakerunner.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: intake
+  template:
+    metadata:
+      labels:
+        {{- include "lakerunner.labels" . | nindent 8 }}
+        app.kubernetes.io/component: intake
+      {{- include "lakerunner.annotations" . | nindent 6 }}
+    spec:
+      serviceAccountName: {{ include "lakerunner.serviceAccountName" . }}
+      {{- include "lakerunner.podSecurityContext" (dict "root" . "override" .Values.intake.podSecurityContext) | nindent 6 }}
+      {{- include "lakerunner.imagePullSecrets" . | nindent 6 }}
+      containers:
+      - name: intake
+        {{- include "lakerunner.containerSecurityContext" (dict "root" . "override" .Values.intake.containerSecurityContext) | nindent 8 }}
+        image: {{ include "lakerunner.image" (list .Values.intake.image .) }}
+        imagePullPolicy: {{ .Values.intake.image.pullPolicy | default .Values.global.image.pullPolicy }}
+        command: ["/app/bin/lakerunner"]
+        args: ["intake", "serve"]
+        ports:
+        - containerPort: 8080
+          name: http
+        - name: healthcheck
+          containerPort: {{ .Values.global.healthProbes.healthcheckPort }}
+          protocol: TCP
+        env:
+          - name: POD_NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          - name: POD_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name
+          - name: POD_IP
+            valueFrom:
+              fieldRef:
+                fieldPath: status.podIP
+          - name: OTEL_SERVICE_NAME
+            value: {{ include "lakerunner.fullname" . }}-intake
+          - name: TMPDIR
+            value: /scratch
+          - name: LAKERUNNER_INTAKE_LISTEN_ADDR
+            value: ":8080"
+          - name: LAKERUNNER_INTAKE_COLLECTOR_NAME
+            value: {{ .Values.intake.collectorName | quote }}
+          {{- with .Values.intake.firehose.defaultFormat }}
+          - name: LAKERUNNER_INTAKE_FIREHOSE_DEFAULT_FORMAT
+            value: {{ . | quote }}
+          {{- end }}
+          {{- include "lakerunner.injectEnv" (list . .Values.intake) | nindent 8 }}
+          {{- include "lakerunner.cardinalTelemetryEnv" . | nindent 10 }}
+        {{- if eq (include "lakerunner.injectCloudProviderCredentials" .) "true" }}
+        envFrom:
+          - secretRef:
+              name: {{ include "lakerunner.cloudProviderSecretName" . }}
+        {{- end }}
+        {{- include "lakerunner.healthProbes" (list . .Values.intake) | nindent 8 }}
+        {{- if .Values.global.resources.enabled }}
+        resources:
+          {{- toYaml .Values.intake.resources | nindent 10 }}
+        {{- end }}
+        volumeMounts:
+        - name: scratch
+          mountPath: /scratch
+        {{- include "lakerunner.licenseVolumeMount" . | nindent 8 }}
+      {{- include "lakerunner.sched.nodeSelector" (list .Values.global.nodeSelector .Values.intake.nodeSelector) | nindent 6 }}
+      {{- include "lakerunner.sched.tolerations"  (list .Values.global.tolerations  .Values.intake.tolerations)  | nindent 6 }}
+      {{- include "lakerunner.sched.affinity"     (list .Values.global.affinity     .Values.intake.affinity)     | nindent 6 }}
+      volumes:
+      {{- include "lakerunner.ephemeralVolumeBasic" (list "scratch" .) | nindent 6 }}
+      {{- include "lakerunner.licenseVolume" . | nindent 6 }}
+{{- end }}
