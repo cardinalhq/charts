@@ -95,6 +95,9 @@ maestro:
   #     value: uid                          # changing on a live install is a migration event
   #   - name: OIDC_TRUST_UNVERIFIED_EMAILS  # default: false — pair carefully with a
   #     value: "true"                       # remapped OIDC_EMAIL_CLAIM (see docs)
+  #   - name: OIDC_BEARER_TOKEN             # default: access — `id` makes the SPA send
+  #     value: id                           # the ID token; needed for Amazon Cognito,
+  #                                         # whose access tokens have no aud/email
   #
   #   # Agent Outcomes session summarizer (all optional; sensible defaults).
   #   # Writes a short LLM-authored title per agent session and flags cost
