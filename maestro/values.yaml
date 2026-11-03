@@ -79,6 +79,17 @@ maestro:
   #     value: maestro-ui                      # requests; for Okta custom auth servers this
   #                                            # differs from OIDC_AUDIENCE. Defaults to
   #                                            # OIDC_AUDIENCE when unset.
+  #   - name: OIDC_EXPECTED_ISSUER            # `iss` tokens must carry; default OIDC_ISSUER_URL.
+  #     value: https://cognito-idp.us-east-2.amazonaws.com/us-east-2_AbC123
+  #                                            # Set when the discovery document at
+  #                                            # OIDC_ISSUER_URL names another issuer.
+  #   - name: OIDC_JWKS_URL                    # default: the discovery document's jwks_uri
+  #   - name: OIDC_BEARER_TOKEN                # access (default) | id — id for Amazon Cognito
+  #   - name: OIDC_DEBUG                       # "true" logs a summary of each sign-in token
+  #                                            # (no email/name values). Startup always logs
+  #                                            # OIDC compatibility checks; run
+  #                                            # `/app/entrypoint.sh oidc-doctor` in the
+  #                                            # maestro container for a full report.
   #   - name: OIDC_SUPERADMIN_EMAILS
   #     value: admin@example.com
   #   # Claim mapping (override only when your IdP's token shape differs from
@@ -360,7 +371,7 @@ mcpOAuth:
   # Authorization server advertised to MCP clients (MCP_OAUTH_ISSUER). Empty
   # uses OIDC_ISSUER_URL. This only changes what discovery advertises; it
   # does not add a second token verifier, so it must issue tokens whose
-  # `iss` is OIDC_ISSUER_URL or every /mcp call 401s. Leave it empty unless
+  # `iss` is OIDC_EXPECTED_ISSUER (else OIDC_ISSUER_URL) or every /mcp call 401s. Leave it empty unless
   # your IdP's authorization server URL differs from its issuer.
   issuer: ""
   # Token `aud` accepted on /mcp only (MCP_OAUTH_AUDIENCE); every other route
