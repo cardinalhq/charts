@@ -59,6 +59,17 @@ data:
           {{- range $extraRedirects }}
           - {{ . | quote }}
           {{- end }}
+    {{- /* A user with hashSecretRef gets Dex's native hashFromEnv instead of
+        an inline hash: dex-deployment.yaml sets the env var from the Secret,
+        so the bcrypt hash never appears in values or in this ConfigMap.
+        Users without hashSecretRef render exactly as given. */}}
+    {{- $rendered := list }}
+    {{- range $i, $u := $users }}
+    {{- if hasKey $u "hashSecretRef" }}
+    {{- $u = omit $u "hashSecretRef" | merge (dict "hashFromEnv" (include "maestro.dexHashEnvName" $i)) }}
+    {{- end }}
+    {{- $rendered = append $rendered $u }}
+    {{- end }}
     staticPasswords:
-      {{- toYaml $users | nindent 6 }}
+      {{- toYaml $rendered | nindent 6 }}
 {{- end }}

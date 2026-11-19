@@ -715,6 +715,8 @@ image:
 Validate that dex.enabled=true is paired with the inputs Dex actually
 needs to be useful. Today:
   - non-empty staticUsers (otherwise Dex starts with no login options)
+  - each staticUsers[].hashSecretRef names both a Secret and a key, and
+    is not combined with an inline hash
   - replicas <= 1 (storage.type=memory is per-pod; multiple replicas
     diverge on signing keys and session state, so login flows break
     on any pod that didn't issue the session cookie)
@@ -728,10 +730,29 @@ emitting any dex-dependent output.
 {{- if not $users -}}
 {{- fail "dex.enabled=true requires dex.staticUsers to be a non-empty list (otherwise the bundled Dex starts with no login options)" -}}
 {{- end -}}
+{{- range $users -}}
+{{- with .hashSecretRef -}}
+{{- if not (and .name .key) -}}
+{{- fail "dex.staticUsers[].hashSecretRef requires both name and key (the existing Secret and the key holding that user's bcrypt hash)" -}}
+{{- end -}}
+{{- end -}}
+{{- if and .hashSecretRef .hash -}}
+{{- fail "dex.staticUsers[] entries set either hash or hashSecretRef, not both" -}}
+{{- end -}}
+{{- end -}}
 {{- $replicas := dig "replicas" 1 $d -}}
 {{- if gt (int $replicas) 1 -}}
 {{- fail "dex.replicas > 1 is incompatible with the bundled Dex's in-memory storage; sessions and signing keys diverge across pods. Use a single replica or replace the bundled Dex with an external OIDC provider for HA." -}}
 {{- end -}}
+{{- end -}}
+
+{{/*
+Env var that carries the bcrypt hash of dex.staticUsers[<index>] when that
+user sets hashSecretRef. Shared by dex-configmap.yaml (hashFromEnv) and
+dex-deployment.yaml (secretKeyRef) so the two always agree.
+*/}}
+{{- define "maestro.dexHashEnvName" -}}
+{{- printf "DEX_STATIC_USER_%d_HASH" . -}}
 {{- end -}}
 
 {{/*

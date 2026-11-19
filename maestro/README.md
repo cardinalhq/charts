@@ -89,7 +89,21 @@ dex:
         - maestro-superadmin
 ```
 
-Install will fail loudly if you set `dex.enabled: true` without a usable base URL, without any static users, or with `dex.replicas > 1`.
+To keep the bcrypt hash out of values and Git, give a user `hashSecretRef` instead of `hash`. The Secret is not created by the chart; create it in the release namespace (Terraform, External Secrets, `kubectl create secret generic maestro-dex-static-users --from-file=admin=./admin.hash`, ...). Its key holds the bare bcrypt hash. The chart passes it to the Dex container as an env var that Dex reads through its native `hashFromEnv`, so neither the Dex ConfigMap nor the maestro pod sees it. Dex reads the hash at startup: restart the Dex Deployment after rotating the Secret.
+
+```yaml
+dex:
+  enabled: true
+  staticUsers:
+    - email: admin@example.com
+      username: admin
+      userID: "08a8684b-db88-4b73-90a9-3cd1661f5466"
+      hashSecretRef:
+        name: maestro-dex-static-users
+        key: admin
+```
+
+Install will fail loudly if you set `dex.enabled: true` without a usable base URL, without any static users, with `dex.replicas > 1`, or with a static user that sets both `hash` and `hashSecretRef` (or a `hashSecretRef` without `name` and `key`).
 
 Note: `dex.superadminGroup` only takes effect once the SPA requests the OIDC `groups` scope (tracked in [conductor#370](https://github.com/cardinalhq/conductor/issues/370)). Until that ships in a Maestro release, grant superadmin via `OIDC_SUPERADMIN_EMAILS` in `maestro.env` instead.
 

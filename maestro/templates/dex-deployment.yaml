@@ -43,6 +43,18 @@ spec:
         - containerPort: {{ $cfg.port }}
           name: http
         env:
+          {{- /* Bcrypt hashes for dex.staticUsers[].hashSecretRef, read by
+              Dex through hashFromEnv (see dex-configmap.yaml). Dex reads
+              them at startup: restart Dex after rotating the Secret. */}}
+          {{- range $i, $u := (dig "staticUsers" list $d) }}
+          {{- with $u.hashSecretRef }}
+          - name: {{ include "maestro.dexHashEnvName" $i }}
+            valueFrom:
+              secretKeyRef:
+                name: {{ .name | quote }}
+                key: {{ .key | quote }}
+          {{- end }}
+          {{- end }}
           {{- with .Values.global.env }}
           {{- toYaml . | nindent 10 }}
           {{- end }}
