@@ -1,6 +1,7 @@
 {{- /*
 config.toml for the gateway. Credentials are deliberately absent: the AWS SDK
-default chain resolves them (EKS Pod Identity, IRSA, or AWS_* env), so this
+default chain (EKS Pod Identity, IRSA, or AWS_* env) or, for gcs, Google
+Application Default Credentials (GKE Workload Identity) resolves them, so this
 file never holds a secret and can live in a ConfigMap.
 
 The checksum annotation on the Deployment keys on this content, so a config
@@ -20,9 +21,18 @@ data:
     [storage]
     provider = {{ .Values.config.storage.provider | quote }}
     bucket = {{ required "config.storage.bucket is required" .Values.config.storage.bucket | quote }}
+    {{- /* gcs (Workload Identity / ADC) rejects the S3-only region and
+        endpoint keys, so they are left out rather than rendered with the
+        S3 default region. */}}
+    {{- if eq .Values.config.storage.provider "gcs" }}
+    {{- if .Values.config.storage.endpoint }}
+    {{- fail "config.storage.endpoint is S3-only; unset it for config.storage.provider=gcs" }}
+    {{- end }}
+    {{- else }}
     region = {{ .Values.config.storage.region | quote }}
     {{- with .Values.config.storage.endpoint }}
     endpoint = {{ . | quote }}
+    {{- end }}
     {{- end }}
     prefix = {{ required "config.storage.prefix is required (otel-raw/<org-uuid>/<collector>/)" .Values.config.storage.prefix | quote }}
 
