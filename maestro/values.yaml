@@ -456,7 +456,8 @@ dex:
   # allowedOrigins:
   #   - http://localhost:5173
   #
-  # Static users (required when dex.enabled). Each user gives an inline
+  # Static users (required when dex.enabled unless dex.connectors is set;
+  # must be empty when enablePasswordDB is false). Each user gives an inline
   # bcrypt `hash`, or `hashSecretRef` to read the hash from an existing
   # Secret that you create outside the chart (e.g. Terraform or External
   # Secrets), so no hash lives in values, Git or the Dex ConfigMap. The
@@ -469,6 +470,31 @@ dex:
   #     hashSecretRef:
   #       name: maestro-dex-static-users   # existing Secret, same namespace
   #       key: admin                       # value: the bcrypt hash
+  #
+  # Upstream identity providers, in Dex's connector syntax
+  # (https://dexidp.io/docs/connectors/). Dex expands $VARS in connector
+  # config, so pass secrets through dex.env (secretKeyRef) instead of
+  # values. A connector without config.redirectURI gets
+  # "<baseUrl><pathPrefix>/callback" (the URL to register with the IdP).
+  # connectors:
+  #   - type: google
+  #     id: google
+  #     name: Google
+  #     config:
+  #       clientID: $GOOGLE_CLIENT_ID
+  #       clientSecret: $GOOGLE_CLIENT_SECRET
+  #       hostedDomains: [example.com]   # only this Workspace domain may sign in
+  #
+  # Dex's password database (static users, /dex/auth/local). Set false with
+  # connectors to make SSO the only login; staticUsers must then be empty.
+  # enablePasswordDB: true
+  #
+  # Extra env for the Dex container only (not the maestro pod), e.g. the
+  # connector secrets above.
+  # env:
+  #   - name: GOOGLE_CLIENT_SECRET
+  #     valueFrom:
+  #       secretKeyRef: { name: maestro-dex-google, key: client-secret }
 
 # Global settings
 global:

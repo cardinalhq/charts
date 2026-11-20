@@ -5,6 +5,8 @@
 {{- $users := dig "staticUsers" list $d -}}
 {{- $extraRedirects := dig "extraRedirectURIs" list $d -}}
 {{- $allowedOrigins := dig "allowedOrigins" list $d -}}
+{{- $connectors := dig "connectors" list $d -}}
+{{- $passwordDB := include "maestro.boolOrFail" (dict "value" (dig "enablePasswordDB" true $d) "path" "dex.enablePasswordDB") -}}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -41,7 +43,24 @@ data:
       {{- end }}
     oauth2:
       skipApprovalScreen: true
-    enablePasswordDB: true
+    enablePasswordDB: {{ ternary "true" "false" (eq $passwordDB "true") }}
+    {{- /* Upstream identity providers (Google, GitHub, OIDC, ...), rendered
+        in Dex's own connector syntax. Dex expands $VARS in connector
+        config, so secrets come from dex.env (secretKeyRef) rather than
+        values. A connector without config.redirectURI gets
+        "<issuer>/callback", which is what Dex serves. */}}
+    {{- with $connectors }}
+    connectors:
+      {{- range . }}
+      {{- $c := deepCopy . }}
+      {{- $conf := dig "config" dict $c }}
+      {{- if not (hasKey $conf "redirectURI") }}
+      {{- $_ := set $conf "redirectURI" (include "maestro.dexCallbackUrl" $) }}
+      {{- end }}
+      {{- $_ := set $c "config" $conf }}
+      - {{ toYaml $c | nindent 8 | trim }}
+      {{- end }}
+    {{- end }}
     staticClients:
       # public:true means PKCE-only (no client secret); matches what
       # the SPA uses via react-oidc-context. Do NOT switch to a
@@ -63,6 +82,7 @@ data:
         an inline hash: dex-deployment.yaml sets the env var from the Secret,
         so the bcrypt hash never appears in values or in this ConfigMap.
         Users without hashSecretRef render exactly as given. */}}
+    {{- if $users }}
     {{- $rendered := list }}
     {{- range $i, $u := $users }}
     {{- if hasKey $u "hashSecretRef" }}
@@ -72,4 +92,5 @@ data:
     {{- end }}
     staticPasswords:
       {{- toYaml $rendered | nindent 6 }}
+    {{- end }}
 {{- end }}

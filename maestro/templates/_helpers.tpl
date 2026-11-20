@@ -727,8 +727,32 @@ emitting any dex-dependent output.
 {{- define "maestro.dexValidate" -}}
 {{- $d := .Values.dex | default dict -}}
 {{- $users := dig "staticUsers" list $d -}}
-{{- if not $users -}}
-{{- fail "dex.enabled=true requires dex.staticUsers to be a non-empty list (otherwise the bundled Dex starts with no login options)" -}}
+{{- $connectors := dig "connectors" list $d -}}
+{{- $passwordDB := include "maestro.boolOrFail" (dict "value" (dig "enablePasswordDB" true $d) "path" "dex.enablePasswordDB") -}}
+{{- if $passwordDB -}}
+{{- if and (not $users) (not $connectors) -}}
+{{- fail "dex.enabled=true requires dex.staticUsers or dex.connectors to be non-empty (otherwise the bundled Dex starts with no login options)" -}}
+{{- end -}}
+{{- else -}}
+{{- if $users -}}
+{{- fail "dex.enablePasswordDB=false disables Dex's password login, so dex.staticUsers must be empty" -}}
+{{- end -}}
+{{- if not $connectors -}}
+{{- fail "dex.enablePasswordDB=false requires at least one entry in dex.connectors (otherwise the bundled Dex starts with no login options)" -}}
+{{- end -}}
+{{- end -}}
+{{- $ids := list -}}
+{{- range $connectors -}}
+{{- if not (and (kindIs "map" .) .type .id) -}}
+{{- fail "dex.connectors[] entries need type and id (Dex connector syntax)" -}}
+{{- end -}}
+{{- if has .id $ids -}}
+{{- fail (printf "dex.connectors[] ids must be unique (duplicate %q)" .id) -}}
+{{- end -}}
+{{- if eq .id "local" -}}
+{{- fail "dex.connectors[] id \"local\" is reserved for Dex's password database" -}}
+{{- end -}}
+{{- $ids = append $ids .id -}}
 {{- end -}}
 {{- range $users -}}
 {{- with .hashSecretRef -}}
@@ -753,6 +777,15 @@ dex-deployment.yaml (secretKeyRef) so the two always agree.
 */}}
 {{- define "maestro.dexHashEnvName" -}}
 {{- printf "DEX_STATIC_USER_%d_HASH" . -}}
+{{- end -}}
+
+{{/*
+Callback URL Dex registers for its upstream connectors: the browser-visible
+issuer plus /callback. Connectors that omit config.redirectURI get this
+value, so it always matches the issuer the SPA uses.
+*/}}
+{{- define "maestro.dexCallbackUrl" -}}
+{{- printf "%s/callback" (include "maestro.dexIssuerUrl" .) -}}
 {{- end -}}
 
 {{/*
