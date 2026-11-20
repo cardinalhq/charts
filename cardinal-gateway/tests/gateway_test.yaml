@@ -17,10 +17,40 @@ tests:
       - matchRegex:
           path: data["config.toml"]
           pattern: 'prefix = "otel-raw/156e24fd-5d6b-4253-ba0c-400aef43c03a/gw/"'
+      - matchRegex:
+          path: data["config.toml"]
+          pattern: 'region = "us-east-2"'
       # No credentials are ever rendered; the AWS SDK chain supplies them.
       - notMatchRegex:
           path: data["config.toml"]
           pattern: '(?i)(access_key|secret)'
+
+  # The gateway rejects a non-empty region or endpoint for gcs, so the S3
+  # default region must not leak into a gcs config.
+  - it: omits the S3-only region and endpoint for gcs
+    template: templates/configmap.yaml
+    set:
+      config.storage.provider: gcs
+      config.storage.bucket: test-bucket
+      config.storage.prefix: otel-raw/156e24fd-5d6b-4253-ba0c-400aef43c03a/gw/
+    asserts:
+      - matchRegex:
+          path: data["config.toml"]
+          pattern: 'provider = "gcs"\n\s*bucket = "test-bucket"\n\s*prefix = '
+      - notMatchRegex:
+          path: data["config.toml"]
+          pattern: '(region|endpoint) ='
+
+  - it: fails when an endpoint is set for gcs
+    template: templates/deployment.yaml
+    set:
+      config.storage.provider: gcs
+      config.storage.bucket: test-bucket
+      config.storage.prefix: otel-raw/gw/
+      config.storage.endpoint: http://minio:9000
+    asserts:
+      - failedTemplate:
+          errorMessage: config.storage.endpoint is S3-only; unset it for config.storage.provider=gcs
 
   # A gateway with no bucket would accept writes and silently drop them, so
   # both storage settings must fail the render rather than default.

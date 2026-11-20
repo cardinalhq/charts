@@ -25,9 +25,18 @@ fullnameOverride: ""
 serviceAccount:
   create: true
   # Leave empty to use the generated name. Credentials come from the
-  # environment or instance role (EKS Pod Identity / IRSA), so whatever
-  # binds S3 write access must reference THIS service account name.
+  # environment or instance role (EKS Pod Identity / IRSA, or GKE Workload
+  # Identity for gcs), so whatever binds bucket write access must reference
+  # THIS service account name.
   name: ""
+  # On GKE with config.storage.provider=gcs, either annotate the KSA with the
+  # Google service account it impersonates:
+  #   iam.gke.io/gcp-service-account: gateway@<project>.iam.gserviceaccount.com
+  # (that GSA also needs roles/iam.workloadIdentityUser for
+  # serviceAccount:<project>.svc.id.goog[<namespace>/<ksa-name>]), or grant
+  # the KSA's Workload Identity principal on the bucket directly and leave
+  # this empty. Either way the identity needs roles/storage.objectCreator on
+  # the bucket.
   annotations: {}
 
 service:
@@ -36,16 +45,21 @@ service:
   annotations: {}
 
 # Rendered into config.toml. Storage credentials are NOT set here: the AWS SDK
-# default chain picks them up (Pod Identity, IRSA, or AWS_* env vars).
+# default chain picks them up (Pod Identity, IRSA, or AWS_* env vars), or for
+# gcs, Application Default Credentials (GKE Workload Identity).
 config:
   listen: "0.0.0.0:4318"
   maxBodyBytes: "64MiB"
   storage:
+    # "s3" or "gcs". gcs needs a gateway image that includes
+    # cardinalhq/cardinal-gateway#5; region and endpoint are S3-only and are
+    # not rendered for gcs (a non-empty endpoint fails the render).
     provider: "s3"
     bucket: ""
+    # S3 only.
     region: "us-east-2"
-    # Set for MinIO or other S3-compatible endpoints; enables plain http
-    # automatically in the gateway.
+    # S3 only. Set for MinIO or other S3-compatible endpoints; enables plain
+    # http automatically in the gateway.
     endpoint: ""
     # Objects land here. LakeRunner resolves the organization from the org id
     # in this prefix, so it must match the storage profile registered for the
