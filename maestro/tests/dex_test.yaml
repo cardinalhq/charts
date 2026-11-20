@@ -254,6 +254,92 @@ tests:
       - matchRegex:
           path: data["config.yaml"]
           pattern: "- maestro-superadmin"
+      - matchRegex:
+          path: data["config.yaml"]
+          pattern: "hash: \\$2a\\$10\\$abc"
+      - notMatchRegex:
+          path: data["config.yaml"]
+          pattern: "hashFromEnv"
+
+  - it: reads a hashSecretRef user's hash from the named Secret, never from the configmap
+    set:
+      dex.enabled: true
+      ingress.enabled: true
+      ingress.host: m.example.com
+      dex.staticUsers:
+        - email: inline@example.com
+          username: inline
+          userID: u0
+          hash: "$2a$10$abc"
+        - email: admin@example.com
+          username: admin
+          userID: u1
+          hashSecretRef:
+            name: maestro-dex-static-users
+            key: admin
+    asserts:
+      # user[1] (not the first secret-backed user) maps to the _1_ env var
+      - template: dex-configmap.yaml
+        matchRegex:
+          path: data["config.yaml"]
+          pattern: "email: admin@example.com\\s*\\n\\s*hashFromEnv: DEX_STATIC_USER_1_HASH"
+      - template: dex-configmap.yaml
+        notMatchRegex:
+          path: data["config.yaml"]
+          pattern: "hashSecretRef|maestro-dex-static-users"
+      - template: dex-deployment.yaml
+        contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: DEX_STATIC_USER_1_HASH
+            valueFrom:
+              secretKeyRef:
+                name: maestro-dex-static-users
+                key: admin
+      - template: dex-deployment.yaml
+        notContains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: DEX_STATIC_USER_0_HASH
+          any: true
+      # the hash stays in the Dex pod; maestro never receives it
+      - template: maestro-deployment.yaml
+        notContains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: DEX_STATIC_USER_1_HASH
+          any: true
+
+  - it: fails when a static user sets both hash and hashSecretRef
+    set:
+      dex.enabled: true
+      ingress.enabled: true
+      ingress.host: m.example.com
+      dex.staticUsers:
+        - email: a@example.com
+          username: a
+          userID: u1
+          hash: "$2a$10$abc"
+          hashSecretRef: { name: s, key: k }
+    template: maestro-deployment.yaml
+    asserts:
+      - failedTemplate:
+          errorMessage: "dex.staticUsers[] entries set either hash or hashSecretRef, not both"
+
+  - it: fails when hashSecretRef omits the key
+    set:
+      dex.enabled: true
+      ingress.enabled: true
+      ingress.host: m.example.com
+      dex.staticUsers:
+        - email: a@example.com
+          username: a
+          userID: u1
+          hashSecretRef: { name: s }
+    template: maestro-deployment.yaml
+    asserts:
+      - failedTemplate:
+          errorMessage: "dex.staticUsers[].hashSecretRef requires both name and key (the existing Secret and the key holding that user's bcrypt hash)"
 
   - it: appends extraRedirectURIs after the canonical base-url redirect
     set:
