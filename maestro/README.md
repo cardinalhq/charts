@@ -65,7 +65,7 @@ The chart uses a standard `networking.k8s.io/v1` `Ingress` resource with a confi
 
 For demos and proof-of-concept installs, the chart can spin up a [Dex](https://dexidp.io) OIDC provider alongside Maestro. **This is not for production** — Dex is configured with in-memory storage, so signing keys rotate and all sessions drop on every Dex pod restart, and only a single replica is supported. Use a real IdP (Keycloak, Okta, Auth0, etc.) for anything beyond a POC.
 
-When enabled, the chart renders a Dex `Deployment` + `Service` + `ConfigMap`, routes the path under `dex.pathPrefix` (default `/dex`) on the maestro `Ingress` to Dex, and auto-injects the OIDC env vars on the maestro container so OIDC works end-to-end without a separate IdP. Static users live in `dex.staticUsers` with bcrypt-hashed passwords; users in the group named by `dex.superadminGroup` (default `maestro-superadmin`) become Maestro superadmins.
+When enabled, the chart renders a Dex `Deployment` + `Service` + `ConfigMap`, routes the path under `dex.pathPrefix` (default `/dex`) on the maestro `Ingress` to Dex, and auto-injects the OIDC env vars on the maestro container so OIDC works end-to-end without a separate IdP. Static users live in `dex.staticUsers` with bcrypt-hashed passwords (or use SSO connectors, below); users in the group named by `dex.superadminGroup` (default `maestro-superadmin`) become Maestro superadmins.
 
 Minimal overlay:
 
@@ -103,7 +103,39 @@ dex:
         key: admin
 ```
 
-Install will fail loudly if you set `dex.enabled: true` without a usable base URL, without any static users, with `dex.replicas > 1`, or with a static user that sets both `hash` and `hashSecretRef` (or a `hashSecretRef` without `name` and `key`).
+### SSO through Dex connectors (chart 0.10.44+)
+
+`dex.connectors` adds upstream identity providers in Dex's own [connector syntax](https://dexidp.io/docs/connectors/). Dex expands `$VARS` in connector config, so keep client secrets in a Secret and pass them with `dex.env` (env for the Dex container only). A connector that omits `config.redirectURI` gets `<baseUrl><pathPrefix>/callback`, which is the redirect URI to register with the IdP.
+
+Set `dex.enablePasswordDB: false` to make SSO the only login: Dex then has no password database and no `/dex/auth/local` form, and `dex.staticUsers` must be empty. With a single connector and no password database, Dex sends users straight to the IdP. For example, Google Workspace restricted to one domain:
+
+```yaml
+maestro:
+  baseUrl: https://maestro.example.com
+  env:
+    - name: OIDC_SUPERADMIN_EMAILS
+      value: admin@example.com
+dex:
+  enabled: true
+  enablePasswordDB: false
+  env:
+    - name: GOOGLE_CLIENT_ID
+      valueFrom: { secretKeyRef: { name: maestro-dex-google, key: client-id } }
+    - name: GOOGLE_CLIENT_SECRET
+      valueFrom: { secretKeyRef: { name: maestro-dex-google, key: client-secret } }
+  connectors:
+    - type: google
+      id: google
+      name: Google
+      config:
+        clientID: $GOOGLE_CLIENT_ID
+        clientSecret: $GOOGLE_CLIENT_SECRET
+        hostedDomains: [example.com]
+```
+
+Create a Google OAuth client of type "Web application" with authorized redirect URI `https://maestro.example.com/dex/callback`. Connectors usually send no `groups` claim, so grant superadmin with `OIDC_SUPERADMIN_EMAILS`. Dex reads env at startup: restart the Dex Deployment after rotating the Secret.
+
+Install will fail loudly if you set `dex.enabled: true` without a usable base URL, without any static users or connectors, with `dex.replicas > 1`, with a static user that sets both `hash` and `hashSecretRef` (or a `hashSecretRef` without `name` and `key`), with `enablePasswordDB: false` and static users or no connectors, or with connectors missing `type`/`id`, reusing an `id`, or using the reserved `local` id.
 
 Note: `dex.superadminGroup` only takes effect once the SPA requests the OIDC `groups` scope (tracked in [conductor#370](https://github.com/cardinalhq/conductor/issues/370)). Until that ships in a Maestro release, grant superadmin via `OIDC_SUPERADMIN_EMAILS` in `maestro.env` instead.
 

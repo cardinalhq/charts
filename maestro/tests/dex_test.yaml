@@ -135,7 +135,7 @@ tests:
     template: maestro-deployment.yaml
     asserts:
       - failedTemplate:
-          errorMessage: "dex.enabled=true requires dex.staticUsers to be a non-empty list (otherwise the bundled Dex starts with no login options)"
+          errorMessage: "dex.enabled=true requires dex.staticUsers or dex.connectors to be non-empty (otherwise the bundled Dex starts with no login options)"
 
   - it: fails when dex.replicas > 1
     set:
@@ -514,3 +514,209 @@ tests:
           path: spec.template.spec.containers[0].env
           content:
             name: DEX_PROXY_TARGET
+
+  - it: keeps the password DB on by default with static users only
+    set:
+      dex.enabled: true
+      maestro.baseUrl: https://m.example.com
+      dex.staticUsers:
+        - email: a@example.com
+          username: a
+          userID: u1
+          hash: "$2a$10$abc"
+    template: dex-configmap.yaml
+    asserts:
+      - matchRegex:
+          path: data["config.yaml"]
+          pattern: "enablePasswordDB: true"
+      - matchRegex:
+          path: data["config.yaml"]
+          pattern: "staticPasswords:"
+      - notMatchRegex:
+          path: data["config.yaml"]
+          pattern: "connectors:"
+
+  - it: renders a Google connector, defaults its redirectURI and disables the password DB
+    set:
+      dex.enabled: true
+      dex.enablePasswordDB: false
+      maestro.baseUrl: https://m.example.com
+      dex.connectors:
+        - type: google
+          id: google
+          name: Google
+          config:
+            clientID: $GOOGLE_CLIENT_ID
+            clientSecret: $GOOGLE_CLIENT_SECRET
+            hostedDomains: [example.com]
+    template: dex-configmap.yaml
+    asserts:
+      - matchRegex:
+          path: data["config.yaml"]
+          pattern: "enablePasswordDB: false"
+      - matchRegex:
+          path: data["config.yaml"]
+          pattern: "(?m)^connectors:$"
+      - matchRegex:
+          path: data["config.yaml"]
+          pattern: "(?m)^  - config:$"
+      - matchRegex:
+          path: data["config.yaml"]
+          pattern: "clientSecret: \\$GOOGLE_CLIENT_SECRET"
+      - matchRegex:
+          path: data["config.yaml"]
+          pattern: "hostedDomains:\\s+- example.com"
+      - matchRegex:
+          path: data["config.yaml"]
+          pattern: "redirectURI: https://m.example.com/dex/callback"
+      - matchRegex:
+          path: data["config.yaml"]
+          pattern: "(?m)^    type: google$"
+      - notMatchRegex:
+          path: data["config.yaml"]
+          pattern: "staticPasswords"
+
+  - it: keeps an explicit connector redirectURI
+    set:
+      dex.enabled: true
+      dex.enablePasswordDB: false
+      maestro.baseUrl: https://m.example.com
+      dex.connectors:
+        - type: google
+          id: google
+          name: Google
+          config:
+            redirectURI: https://elsewhere.example.com/dex/callback
+    template: dex-configmap.yaml
+    asserts:
+      - matchRegex:
+          path: data["config.yaml"]
+          pattern: "redirectURI: https://elsewhere.example.com/dex/callback"
+      - notMatchRegex:
+          path: data["config.yaml"]
+          pattern: "redirectURI: https://m.example.com/dex/callback"
+
+  - it: allows connectors next to static users with the password DB on
+    set:
+      dex.enabled: true
+      maestro.baseUrl: https://m.example.com
+      dex.staticUsers:
+        - email: a@example.com
+          username: a
+          userID: u1
+          hash: "$2a$10$abc"
+      dex.connectors:
+        - { type: google, id: google, name: Google, config: {} }
+    template: dex-configmap.yaml
+    asserts:
+      - matchRegex:
+          path: data["config.yaml"]
+          pattern: "enablePasswordDB: true"
+      - matchRegex:
+          path: data["config.yaml"]
+          pattern: "staticPasswords:"
+      - matchRegex:
+          path: data["config.yaml"]
+          pattern: "id: google"
+
+  - it: adds dex.env to the Dex container only
+    set:
+      dex.enabled: true
+      dex.enablePasswordDB: false
+      maestro.baseUrl: https://m.example.com
+      dex.env:
+        - name: GOOGLE_CLIENT_SECRET
+          valueFrom:
+            secretKeyRef: { name: maestro-dex-google, key: client-secret }
+      dex.connectors:
+        - { type: google, id: google, name: Google, config: {} }
+    asserts:
+      - template: dex-deployment.yaml
+        contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GOOGLE_CLIENT_SECRET
+            valueFrom:
+              secretKeyRef: { name: maestro-dex-google, key: client-secret }
+      - template: maestro-deployment.yaml
+        notContains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GOOGLE_CLIENT_SECRET
+            valueFrom:
+              secretKeyRef: { name: maestro-dex-google, key: client-secret }
+
+  - it: fails when the password DB is off but static users remain
+    set:
+      dex.enabled: true
+      dex.enablePasswordDB: false
+      maestro.baseUrl: https://m.example.com
+      dex.staticUsers:
+        - email: a@example.com
+          username: a
+          userID: u1
+          hash: "$2a$10$abc"
+      dex.connectors:
+        - { type: google, id: google, name: Google, config: {} }
+    template: maestro-deployment.yaml
+    asserts:
+      - failedTemplate:
+          errorMessage: "dex.enablePasswordDB=false disables Dex's password login, so dex.staticUsers must be empty"
+
+  - it: fails when the password DB is off and there are no connectors
+    set:
+      dex.enabled: true
+      dex.enablePasswordDB: false
+      maestro.baseUrl: https://m.example.com
+    template: maestro-deployment.yaml
+    asserts:
+      - failedTemplate:
+          errorMessage: "dex.enablePasswordDB=false requires at least one entry in dex.connectors (otherwise the bundled Dex starts with no login options)"
+
+  - it: fails on a connector without an id
+    set:
+      dex.enabled: true
+      dex.enablePasswordDB: false
+      maestro.baseUrl: https://m.example.com
+      dex.connectors:
+        - { type: google, name: Google }
+    template: maestro-deployment.yaml
+    asserts:
+      - failedTemplate:
+          errorMessage: "dex.connectors[] entries need type and id (Dex connector syntax)"
+
+  - it: fails on duplicate connector ids
+    set:
+      dex.enabled: true
+      dex.enablePasswordDB: false
+      maestro.baseUrl: https://m.example.com
+      dex.connectors:
+        - { type: google, id: google }
+        - { type: oidc, id: google }
+    template: maestro-deployment.yaml
+    asserts:
+      - failedTemplate:
+          errorMessage: "dex.connectors[] ids must be unique (duplicate \"google\")"
+
+  - it: fails on the reserved local connector id
+    set:
+      dex.enabled: true
+      maestro.baseUrl: https://m.example.com
+      dex.connectors:
+        - { type: oidc, id: local }
+    template: maestro-deployment.yaml
+    asserts:
+      - failedTemplate:
+          errorMessage: "dex.connectors[] id \"local\" is reserved for Dex's password database"
+
+  - it: rejects a non-boolean enablePasswordDB
+    set:
+      dex.enabled: true
+      dex.enablePasswordDB: "false"
+      maestro.baseUrl: https://m.example.com
+      dex.connectors:
+        - { type: google, id: google }
+    template: maestro-deployment.yaml
+    asserts:
+      - failedTemplate:
+          errorMessage: "dex.enablePasswordDB must be a YAML boolean (true or false), got false of type string. Use `--set dex.enablePasswordDB=true` / `=false`, not `--set-string`."

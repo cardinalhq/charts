@@ -55,6 +55,11 @@ spec:
                 key: {{ .key | quote }}
           {{- end }}
           {{- end }}
+          {{- /* Dex-only env, e.g. connector secrets referenced as $VARS in
+              dex.connectors[].config. Not added to the maestro pod. */}}
+          {{- with (dig "env" list $d) }}
+          {{- toYaml . | nindent 10 }}
+          {{- end }}
           {{- with .Values.global.env }}
           {{- toYaml . | nindent 10 }}
           {{- end }}
